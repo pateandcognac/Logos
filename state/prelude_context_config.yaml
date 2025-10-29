@@ -1,0 +1,7 @@
+- name: welcome_message
+  description: A simple welcome message.
+  ttl: -99  # Run once and cache
+  code: |-
+    print("If I see this then prelude context config is working!")
+    print("Here's a pic of me to test image inlining:")
+    print('<file path="Logos.jpg"></file>')
