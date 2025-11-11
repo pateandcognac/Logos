@@ -1,6 +1,26 @@
 - name: current_time
   description: Gets the current time.
-  ttl: 64 # Run every loop
+  ttl: 99
   code: |-
     import datetime
     print(f"Current time: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
+- name: current_state
+  description: Shows the current values in my logos.state object.
+  ttl: 99
+  code: print(logos.state)
+
+- name: manage_memory
+  description: Automatically summarizes my io_buffer based on my state policy.
+  ttl: 99
+  code: |-
+    # This routine's logic is complex, so it's defined in a separate file
+    # for clarity and maintainability.
+    try:
+        from routines import memory_manager
+        memory_manager.run_policy_check()
+    except ImportError as e:
+        # This might happen on the very first run if paths are still setting up
+        print(f"Warning: Could not import memory_manager routine: {e}")
+    except Exception as e:
+        print(f"Error during memory management: {e}")

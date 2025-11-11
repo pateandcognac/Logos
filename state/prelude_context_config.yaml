@@ -1,7 +1,50 @@
-- name: welcome_message
-  description: A simple welcome message.
-  ttl: -99  # Run once and cache
+- name: routine_status
+  description: "A live view of my configured routines."
+  ttl: 99 # Run every loop and stay pinned
   code: |-
-    print("If I see this then prelude context config is working!")
-    print("Here's a pic of me to test image inlining:")
-    print('<file path="Logos.jpg"></file>')
+    print("# Prelude Routines")
+    print(logos.config.list_routines('prelude'))
+    print("\n# Live Routines")
+    print(logos.config.list_routines('live'))
+
+- name: api_summary
+  description: A high-level overview of my available API modules.
+  ttl: -99
+  code: |-
+    import logos
+    print(logos.help())
+
+- name: persist_state
+  description: Automatically saves the logos.state object to my_config.yaml each loop.
+  ttl: 99
+  code: |-
+    if logos.state.system.save_state_on_loop:
+        from ruamel.yaml import YAML
+        yaml = YAML()
+        yaml.indent(mapping=2, sequence=4, offset=2)
+        config_path = "state/my_config.yaml"
+        state_dict = logos.state.to_dict()
+        with open(config_path, 'w') as f:
+            yaml.dump(state_dict, f)
+
+- name: file_tree
+  description: Shows the layout of my workspace, configured by logos.state.
+  ttl: -99
+  code: |-
+    # Read configuration from the state object
+    max_depth = logos.state.files.max_depth
+    show_ext = logos.state.files.show_extensions
+    inline_masks = logos.state.files.inline_meta_masks
+
+    print(logos.files.tree(
+        max_depth=max_depth,
+        show_extensions=show_ext,
+        inline_meta_masks=inline_masks
+    ))
+
+- name: Logos_photo
+  description: A photograph of myself
+  ttl: -99
+  code: |-
+    print("Shared by Mark from his phone")
+    print('<file path="images/Logos_384x512.jpg"></file>')

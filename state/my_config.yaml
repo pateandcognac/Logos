@@ -1,5 +1,30 @@
-# This is my personal configuration file. I can edit this to change my behavior.
-io_buffer:
-  max_io_buffer_media: 5
-  token_limit: 16384
+files:
+  show_extensions:
+    - .py
+    - .yaml
+    - .md
+    - .txt
+    - .json
+    - .png
+    - .jpg
+  max_depth: 5
+  inline_meta_masks:
+    - '*.meta'
+    - README.md
+system:
+  save_state_on_loop: true
+memory_policy:
+  enabled: true
   max_cells: 50
+  max_tokens: 16384
+  untouchable_tail: 8
+  min_cells_to_summarize: 5
+  summarizable_types:
+    - me
+    - py_result
+    - py_async
+    - human
+    - human_stt
+  age_weight: 0.6
+  size_weight: 0.4
+  max_contiguous_summaries: 4

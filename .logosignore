@@ -1,0 +1,6 @@
+# This file works like a .gitignore, specifying patterns to hide from logos.files.tree()
+# It helps keep my perception of the workspace clean and focused.
+
+__pycache__/
+*.pyc
+.DS_Store
