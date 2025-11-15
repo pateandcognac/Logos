@@ -1,0 +1,23 @@
+- name: current_state
+  description: Shows the time, values in my logos.state object, and my verbosity level.
+  ttl: 99
+  code: |-
+    import datetime
+    print(f"Current time: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+    print(logos.state)
+    print(f"\nVerbosity level: {logos.core.__logos_verbosity_level__}")
+
+- name: manage_memory
+  description: Automatically summarizes my io_buffer based on my state policy.
+  ttl: 99
+  code: |-
+    # This hook's logic is complex, so it's defined in a separate file
+    # for clarity and maintainability.
+    try:
+        from hooks import memory_manager
+        memory_manager.run_policy_check()
+    except ImportError as e:
+        # This might happen on the very first run if paths are still setting up
+        print(f"Warning: Could not import memory_manager hook: {e}")
+    except Exception as e:
+        print(f"Error during memory management: {e}")

@@ -24,8 +24,15 @@ __logos_interrupt_request__ = None
 # This will be set by the verbosity context manager.
 __logos_verbosity_level__ = None 
 
+class Verbosity(Enum):
+    """Enumeration for setting API verbosity levels."""
+    SILENT = 0  # No output unless it's a critical error.
+    ACK = 1     # Acknowledge success/failure. e.g., "Action complete."
+    BRIEF = 2   # Provide key details. e.g., "Moving to (1.2, 3.4)..."
+    DEBUG = 3   # Provide rich, detailed output for troubleshooting.
 
-def exec_feedback(default_verbosity: Verbosity = Verbosity.ACK):
+
+def api_call(default_verbosity: Verbosity = Verbosity.ACK):
     """
     A decorator for all public API functions.
     It handles standardized verbosity, logging, and interrupt checking.
@@ -74,12 +81,6 @@ def exec_feedback(default_verbosity: Verbosity = Verbosity.ACK):
         return wrapper
     return decorator
 
-class Verbosity(Enum):
-    """Enumeration for setting API verbosity levels."""
-    SILENT = 0  # No output unless it's a critical error.
-    ACK = 1     # Acknowledge success/failure. e.g., "Action complete."
-    BRIEF = 2   # Provide key details. e.g., "Moving to (1.2, 3.4)..."
-    DEBUG = 3   # Provide rich, detailed output for troubleshooting.
 
 def check_for_interrupt():
     """
@@ -148,7 +149,6 @@ def help(obj=None):
         output = ["# Logos API Summary", "A dynamically generated overview of my capabilities.", ""]
         output.append("## Modules:")
 
-        # Dynamically discover all modules within the 'logos' package
         for importer, modname, ispkg in pkgutil.iter_modules(logos.__path__):
             try:
                 module = importlib.import_module(f'.{modname}', 'logos')
@@ -156,8 +156,23 @@ def help(obj=None):
                 output.append(f"- logos.{modname}: {doc.splitlines()[0]}")
             except Exception as e:
                 output.append(f"- logos.{modname}: (Could not import: {e})")
+        
+        output.append("\n## Core Functions (available directly):")
+        
+        core_functions = []
+        for name, func in inspect.getmembers(logos, inspect.isfunction):
+            if func.__module__.startswith('logos.'):
+                 core_functions.append(func)
+        
+        if not core_functions:
+            output.append("- None found.")
+        else:
+            for func in sorted(core_functions, key=lambda f: f.__name__):
+                sig = inspect.signature(func)
+                doc = inspect.getdoc(func) or "No description."
+                output.append(f"- logos.{func.__name__}{sig}: {doc.splitlines()[0]}")
 
-        output.append("\nNote to self: Use `logos.help(logos.module_name)` for more details.")
+        output.append("\nNote to self: Use `logos.help(logos.module_name)` or `logos.help(logos.function_name)` for more details.")
         return "\n".join(output)
 
     # Case 2: A module is provided. Summarize the functions within it.
@@ -165,20 +180,22 @@ def help(obj=None):
         output = [f"# Help for module: {obj.__name__}", inspect.getdoc(obj) or "", ""]
         output.append("## Functions:")
         for name, func in inspect.getmembers(obj, inspect.isfunction):
-            if func.__module__ == obj.__name__: # Only show functions defined in this module
+            if func.__module__ == obj.__name__:
+                sig = inspect.signature(func)
                 doc = inspect.getdoc(func) or "No description."
-                output.append(f"- {name}(): {doc.splitlines()[0]}")
+                # This already correctly included the signature, so no changes needed here.
+                output.append(f"- {name}{sig}: {doc.splitlines()[0]}")
         output.append(f"\nNote to self: Use `logos.help({obj.__name__}.function_name)` for full details.")
         return "\n".join(output)
 
     # Case 3: A function is provided. Show its full docstring.
     if inspect.isfunction(obj):
-        output = [f"# Help for function: {obj.__name__}", ""]
+        sig = inspect.signature(obj)
+        output = [f"# Help for function: {obj.__name__}{sig}", ""]
         doc = inspect.getdoc(obj)
         if not doc:
             return f"No documentation found for function '{obj.__name__}'."
 
-        # A bit of formatting to make it look nice
         lines = doc.strip().splitlines()
         output.append(f"## Description")
         desc_lines = []
@@ -188,7 +205,6 @@ def help(obj=None):
             i += 1
         output.append("\n".join(desc_lines).strip())
 
-        # Find and format other sections like Args, Returns, Note to self
         while i < len(lines):
             line = lines[i].strip()
             if line.endswith(':'):

@@ -1,11 +1,11 @@
-- name: routine_status
-  description: "A live view of my configured routines."
+- name: hook_status
+  description: "A live view of my configured hooks."
   ttl: 99 # Run every loop and stay pinned
   code: |-
-    print("# Prelude Routines")
-    print(logos.config.list_routines('prelude'))
-    print("\n# Live Routines")
-    print(logos.config.list_routines('live'))
+    print("# Prelude Hooks")
+    print(logos.config.list_hooks('prelude'))
+    print("\n# Live Hooks")
+    print(logos.config.list_hooks('live'))
 
 - name: api_summary
   description: A high-level overview of my available API modules.

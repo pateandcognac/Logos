@@ -6,7 +6,6 @@ files:
     - .txt
     - .json
     - .png
-    - .jpg
   max_depth: 5
   inline_meta_masks:
     - '*.meta'
@@ -15,8 +14,8 @@ system:
   save_state_on_loop: true
 memory_policy:
   enabled: true
-  max_cells: 50
-  max_tokens: 16384
+  max_cells: 64
+  max_tokens: 24567
   untouchable_tail: 8
   min_cells_to_summarize: 5
   summarizable_types:

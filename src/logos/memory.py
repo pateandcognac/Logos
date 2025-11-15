@@ -149,11 +149,11 @@ def summarize_io_buffer(cells: list[int], guidance: str = None):
         })
     example_output_json = json.dumps({"summaries": example_output_tasks}, indent=2)
 
-    full_prompt = f"{system_prompt}\n\nHere are the tasks and the message context:\n```json\n{prompt_tasks_json}\n```\n\nYour output will be a single JSON object constructed exactly like this example:\n```json\n{example_output_json}\n```\n\n---\nPlease begin your response now."
+    full_prompt = f"{system_prompt}\nHere are the tasks and the io_buffer content:\n```json\n{prompt_tasks_json}\n```\n\nYour output will be a single JSON object constructed exactly like this example:\n```json\n{example_output_json}\n```\n\nPlease begin your response now. Thank you!"
 
     # 4. Call the LLM and parse the response
     from .models import llm # Local import to avoid circular dependency issues at startup
-    response_str = llm(full_prompt, model_alias='fast', temperature=0.6)
+    response_str = llm(full_prompt, model_alias='fast', temperature=0.7)
 
     if not response_str:
         print("summarize_io_buffer: Received no response from LLM.")

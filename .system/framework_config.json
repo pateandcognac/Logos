@@ -1,12 +1,12 @@
 {
 	"context": {
-		"header_name": "prelude_context",
-		"footer_name": "live_context",
+		"header_name": "prelude_hooks",
+		"footer_name": "live_hooks",
 		"show_header_stats": false,
 		"show_footer_stats": false,
 		"show_io_buffer_stats": true,
 		"show_io_cell_stats": false,
-		"show_routine_ttl": true,
+		"show_hook_ttl": true,
 		"token_estimation_divisor": 5,
 		"remove_header_at_eol": false,
 		"remove_footer_at_eol": false
@@ -42,7 +42,6 @@
 		}
 	},
 	"python": {
-		"preload_api_files": [],
 		"default_timeout": 3600
 	},
 	"agent_settings": {

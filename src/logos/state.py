@@ -3,7 +3,7 @@
 """
 Defines the structure for my persistent, global state object, `logos.state`.
 This object acts as a centralized "control panel" that I can modify to
-change the default behavior of my API functions and context routines.
+change the default behavior of my API functions and context hooks.
 """
 
 
@@ -27,7 +27,7 @@ class FileState:
 
 
 class MemoryPolicy:
-    """Defines the rules for the automated io_buffer management routine."""
+    """Defines the rules for the automated io_buffer management hook."""
     def __init__(self):
         # --- Triggers: When should the manager run? ---
         self.enabled: bool = True
@@ -53,7 +53,7 @@ class MemoryPolicy:
 class LogosState:
     """
     My central, persistent state object. I can modify its attributes to
-    control the default behavior of my API functions and routines.
+    control the default behavior of my API functions and hooks.
     """
     def __init__(self):
         self.files = FileState()

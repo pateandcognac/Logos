@@ -12,7 +12,7 @@ state = LogosState()
 # Import core functions to the top-level for convenience.
 from .core import Verbosity, verbosity, check_for_interrupt, help
 from .files import tree, read, write, append
-from .config import list_routines, modify_routine, remove_routine
+from .config import list_hooks, modify_hook, remove_hook
 
 # Import modules to be accessed via logos.module_name.function_name
 from . import memory
