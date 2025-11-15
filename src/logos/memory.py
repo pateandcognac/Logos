@@ -11,6 +11,10 @@ import json
 import string
 import time
 from pathlib import Path
+from .core import api_call, Verbosity
+
+__all__ = ["summarize_io_buffer", "recall", "replace_cell_content"]
+
 
 # This assumes the python_worker_node's CWD is the workspace root.
 WORKSPACE_PATH = Path.cwd()
@@ -74,7 +78,7 @@ def _group_contiguous_indices(indices: list[int]) -> list[list[int]]:
     groups.append(current_group)
     return groups
 
-
+@api_call(default_verbosity=Verbosity.BRIEF)
 def summarize_io_buffer(cells: list[int], guidance: str = None):
     """
     Summarizes specific cells in the io_buffer using a specialized agent.
@@ -261,7 +265,7 @@ def recall(msg_id: str) -> str | None:
     print(f"recall: Message with id '{msg_id}' not found in history.")
     return None
 
-
+@api_call(default_verbosity=Verbosity.ACK)
 def replace_cell_content(cell_index: int, new_content: str):
     """
     Directly replaces the content of a single cell in the io_buffer.

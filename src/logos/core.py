@@ -34,51 +34,54 @@ class Verbosity(Enum):
 
 def api_call(default_verbosity: Verbosity = Verbosity.ACK):
     """
-    A decorator for all public API functions.
-    It handles standardized verbosity, logging, and interrupt checking.
+    Decorator for public API functions that have side effects or are
+    “actions” from Logos’ POV (movement, IO, memory changes, etc.).
     """
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            # 1. Always check for interrupts before doing anything.
+            # 0. Cooperative interrupt check
             check_for_interrupt()
 
-            # 2. Determine the effective verbosity level.
-            effective_verbosity = __logos_verbosity_level__
-            if effective_verbosity is None:
-                effective_verbosity = default_verbosity
+            # 1. Optional per-call override: func(..., verbosity=Verbosity.SILENT)
+            level_override = kwargs.pop("verbosity", None)
 
-            if effective_verbosity.value >= Verbosity.SILENT.value:
-                func_name = func.__name__
-                
-                # 3. Print pre-execution message based on verbosity.
-                if effective_verbosity.value == Verbosity.ACK.value:
-                    print(f"Executing: {func_name}")
-                elif effective_verbosity.value == Verbosity.BRIEF.value:
-                    # Create a summary of args
-                    arg_summary = [str(a) for a in args]
-                    kwarg_summary = [f"{k}={v}" for k, v in kwargs.items()]
-                    print(f"Executing: {func_name}({', '.join(arg_summary + kwarg_summary)})")
-                elif effective_verbosity.value >= Verbosity.DEBUG.value:
-                    print(f"DEBUG: Calling {func_name} with args={args}, kwargs={kwargs}")
+            # 2. Determine effective verbosity
+            effective_verbosity = (
+                level_override
+                or __logos_verbosity_level__
+                or default_verbosity
+            )
 
-            # 4. Execute the actual function.
+            func_name = func.__name__
+
+            # 3. Pre-execution logging
+            if effective_verbosity is Verbosity.ACK:
+                print(f"Executing: {func_name}")
+            elif effective_verbosity is Verbosity.BRIEF:
+                arg_summary = [repr(a) for a in args]
+                kwarg_summary = [f"{k}={v!r}" for k, v in kwargs.items()]
+                print(f"Executing: {func_name}({', '.join(arg_summary + kwarg_summary)})")
+            elif effective_verbosity is Verbosity.DEBUG:
+                print(f"DEBUG: Calling {func_name} with args={args!r}, kwargs={kwargs!r}")
+
+            # 4. Execute
             try:
                 result = func(*args, **kwargs)
-                
-                # 5. Print post-execution message.
-                if effective_verbosity.value >= Verbosity.ACK.value:
+
+                # 5. Post-execution logging
+                if effective_verbosity in (Verbosity.ACK, Verbosity.BRIEF, Verbosity.DEBUG):
                     print(f"Success: {func_name}")
-                if effective_verbosity.value >= Verbosity.DEBUG.value and result is not None:
-                    print(f"DEBUG: {func_name} returned: {result}")
-                    
+                if effective_verbosity is Verbosity.DEBUG and result is not None:
+                    print(f"DEBUG: {func_name} returned: {result!r}")
+
                 return result
-            except Exception as e:
-                # 6. Log exceptions and re-raise them.
-                print(f"ERROR in {func_name}: {type(e).__name__} - {e}")
-                raise # Re-raise the exception so it's not swallowed
+            except Exception as exc:
+                print(f"ERROR in {func_name}: {type(exc).__name__} - {exc}")
+                raise
 
         return wrapper
+
     return decorator
 
 
@@ -179,39 +182,65 @@ def help(obj=None):
     if inspect.ismodule(obj):
         output = [f"# Help for module: {obj.__name__}", inspect.getdoc(obj) or "", ""]
         output.append("## Functions:")
+
+        # If the module defines __all__, respect it as the public surface.
+        public_names = getattr(obj, "__all__", None)
+
         for name, func in inspect.getmembers(obj, inspect.isfunction):
-            if func.__module__ == obj.__name__:
-                sig = inspect.signature(func)
-                doc = inspect.getdoc(func) or "No description."
-                # This already correctly included the signature, so no changes needed here.
-                output.append(f"- {name}{sig}: {doc.splitlines()[0]}")
+            # Skip functions not defined in this module
+            if func.__module__ != obj.__name__:
+                continue
+            # Skip private helpers
+            if name.startswith("_"):
+                continue
+            # If __all__ is defined, skip anything not in it
+            if public_names is not None and name not in public_names:
+                continue
+
+            sig = inspect.signature(func)
+            doc = inspect.getdoc(func) or "No description."
+            output.append(f"- {name}{sig}: {doc.splitlines()[0]}")
+
         output.append(f"\nNote to self: Use `logos.help({obj.__name__}.function_name)` for full details.")
         return "\n".join(output)
+
 
     # Case 3: A function is provided. Show its full docstring.
     if inspect.isfunction(obj):
         sig = inspect.signature(obj)
-        output = [f"# Help for function: {obj.__name__}{sig}", ""]
+        header = f"# Help for function: {obj.__name__}{sig}"
         doc = inspect.getdoc(obj)
         if not doc:
-            return f"No documentation found for function '{obj.__name__}'."
+            return f"{header}\n\nNo documentation found."
 
-        lines = doc.strip().splitlines()
-        output.append(f"## Description")
+        lines = [line.rstrip() for line in doc.strip().splitlines()]
+        output = [header, ""]
+
+        # Description: everything up to the first section header.
+        section_headers = ("Args:", "Arguments:", "Parameters:", "Returns:", "Note to self:", "Raises:")
         desc_lines = []
         i = 0
-        while i < len(lines) and lines[i].strip() != "Args:":
-            desc_lines.append(lines[i].strip())
+        while i < len(lines) and not any(lines[i].strip().startswith(h) for h in section_headers):
+            desc_lines.append(lines[i])
             i += 1
-        output.append("\n".join(desc_lines).strip())
 
+        if desc_lines:
+            output.append("## Description")
+            output.append("\n".join(desc_lines).strip())
+            output.append("")
+
+        # Now render sections
+        current_section = None
         while i < len(lines):
             line = lines[i].strip()
-            if line.endswith(':'):
-                output.append(f"\n## {line.replace(':', '')}")
+            if any(line.startswith(h) for h in section_headers):
+                current_section = line.rstrip(":")
+                output.append(f"## {current_section}")
             else:
                 output.append(f"  {line}")
             i += 1
+
         return "\n".join(output)
+
 
     return f"Cannot provide help for object of type '{type(obj).__name__}'. Please provide a module or function."

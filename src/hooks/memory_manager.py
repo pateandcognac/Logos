@@ -39,6 +39,10 @@ def run_policy_check():
             if msg.get('type') in policy.summarizable_types:
                 candidates.append({'cell_index': i, 'msg': msg, 'paired': False})
 
+        if not candidates:
+            print("Memory Manager: No eligible cells to summarize.")
+            return
+
         for cand in candidates:
             if cand['msg'].get('type') == 'py_result' and cand['msg'].get('filename') in py_map:
                 me_index = py_map[cand['msg']['filename']]

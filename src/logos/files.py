@@ -9,6 +9,11 @@ and write new code or data to disk.
 import os
 from pathlib import Path
 import fnmatch
+from .core import Verbosity, api_call   
+import re
+from .core import check_for_interrupt
+
+__all__ = ["tree", "read", "write", "append", "show"]
 
 WORKSPACE_PATH = Path.cwd()
 
@@ -23,8 +28,6 @@ def _load_ignore_patterns():
                 if line and not line.startswith('#'):
                     patterns.append(line)
     return patterns
-
-# In preload_api/logos/files.py
 
 def _tree_recursive(
     dir_path: Path,
@@ -201,3 +204,47 @@ def append(path: str, content: str):
     """
     with open(path, 'a') as f:
         f.write(content)
+
+def show(
+    path: str,
+    max_chars: int = 2000,
+    pattern: str | None = None
+) -> str:
+    """
+    Prints (and returns) a possibly filtered, truncated view of a file.
+
+    Args:
+        path:
+            Path to the file.
+        max_chars:
+            Maximum number of characters to print into my io_buffer.
+        pattern:
+            Optional regular expression. If provided, only lines matching
+            this pattern are included before truncation.
+
+    Returns:
+        The string that was printed (after filtering and truncation).
+
+    Note to self:
+        Use this when I want to review a file's contents directly in my
+        context. For more complex processing, use logos.files.read() and
+        handle filtering in Python.
+    """
+    check_for_interrupt()
+
+    content = read(path)
+
+    if pattern is not None:
+        regex = re.compile(pattern)
+        lines = content.splitlines()
+        filtered_lines = [line for line in lines if regex.search(line)]
+        content = "\n".join(filtered_lines)
+
+    snippet = content[:max_chars]
+    print(snippet)
+
+    if len(content) > max_chars:
+        truncated = len(content) - max_chars
+        print(f"\n[... truncated {truncated} characters ...]")
+
+    return snippet

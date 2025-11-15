@@ -14,19 +14,6 @@
     import logos
     print(logos.help())
 
-- name: persist_state
-  description: Automatically saves the logos.state object to my_config.yaml each loop.
-  ttl: 99
-  code: |-
-    if logos.state.system.save_state_on_loop:
-        from ruamel.yaml import YAML
-        yaml = YAML()
-        yaml.indent(mapping=2, sequence=4, offset=2)
-        config_path = "state/my_config.yaml"
-        state_dict = logos.state.to_dict()
-        with open(config_path, 'w') as f:
-            yaml.dump(state_dict, f)
-
 - name: file_tree
   description: Shows the layout of my workspace, configured by logos.state.
   ttl: -99

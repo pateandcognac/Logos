@@ -53,7 +53,8 @@ class MemoryPolicy:
 class LogosState:
     """
     My central, persistent state object. I can modify its attributes to
-    control the default behavior of my API functions and hooks.
+    control the default behavior of my API functions and hooks. When printed,
+    logos.state is rendered as YAML.
     """
     def __init__(self):
         self.files = FileState()
@@ -71,10 +72,18 @@ class LogosState:
                 output[key] = value
         return output
 
-    def __repr__(self):
-        """Provides a clean, readable representation of my current state."""
+    def to_yaml(self) -> str:
+        """Returns the current state as a YAML string."""
         state_dict = self.to_dict()
         string_stream = io.StringIO()
         yaml.dump(state_dict, string_stream)
-        return f"# logos.state\n{string_stream.getvalue()}"
-    
+        return string_stream.getvalue()
+
+
+    def __str__(self) -> str:
+        """Human/LLM-friendly string form."""
+        return f"# logos.state\n{self.to_yaml()}"
+
+    def __repr__(self) -> str:
+        """Developer/debug-friendly representation."""
+        return f"LogosState({self.to_dict()})"

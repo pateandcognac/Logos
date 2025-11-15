@@ -1,14 +1,23 @@
-- name: current_state
-  description: Shows the time, values in my logos.state object, and my verbosity level.
+- name: show_state
+  description: Shows the time and values in my logos.state object. Saves state to my_config.yaml if `save_state_on_loop` is enabled.
   ttl: 99
   code: |-
     import datetime
     print(f"Current time: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
     print(logos.state)
     print(f"\nVerbosity level: {logos.core.__logos_verbosity_level__}")
+    if logos.state.system.save_state_on_loop:
+        from ruamel.yaml import YAML
+        yaml = YAML()
+        yaml.indent(mapping=2, sequence=4, offset=2)
+        config_path = "state/my_config.yaml"
+        state_dict = logos.state.to_dict()
+        with open(config_path, 'w') as f:
+            yaml.dump(state_dict, f)
+        print(f"\nlogos.state saved to {config_path}")  
 
 - name: manage_memory
-  description: Automatically summarizes my io_buffer based on my state policy.
+  description: Automatically summarizes my io_buffer based on my memory_policy.
   ttl: 99
   code: |-
     # This hook's logic is complex, so it's defined in a separate file

@@ -18,5 +18,7 @@ from .config import list_hooks, modify_hook, remove_hook
 from . import memory
 from . import models
 from . import exceptions
+from . import shell
+
 
 # We will add more here as we build out the API
