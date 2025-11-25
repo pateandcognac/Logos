@@ -1,4 +1,4 @@
-# src/logos/shell.py
+# Logos/src/logos/shell.py
 
 """
 Helpers for running non-interactive shell commands.
@@ -10,6 +10,7 @@ checking system info, or invoking existing command-line tools.
 import subprocess
 from pathlib import Path
 from .core import api_call, Verbosity, check_for_interrupt
+from typing import Optional 
 
 __all__ = ["run"]
 
@@ -18,7 +19,7 @@ __all__ = ["run"]
 def run(
     command: str,
     timeout: int = 30,
-    cwd: str | None = None
+    cwd: Optional[str] = None,
 ) -> str:
     """
     Runs a shell command and returns its combined stdout/stderr.

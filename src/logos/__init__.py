@@ -6,19 +6,21 @@ under the `logos` namespace.
 """
 
 # Import the state class and create a single, persistent instance for me to use.
-from .state import LogosState
+from .state import LogosState, load_state_from_yaml
 state = LogosState()
+load_state_from_yaml(state)
 
-# Import core functions to the top-level for convenience.
+# Core convenience imports
 from .core import Verbosity, verbosity, check_for_interrupt, help
-from .files import tree, read, write, append
-from .config import list_hooks, modify_hook, remove_hook
 
-# Import modules to be accessed via logos.module_name.function_name
+# Submodules (for logos.files.*, etc.)
+from . import core     
+from . import files    
+from . import hooks    
 from . import memory
 from . import models
 from . import exceptions
 from . import shell
-
+from . import utils
 
 # We will add more here as we build out the API

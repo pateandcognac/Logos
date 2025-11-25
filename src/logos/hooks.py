@@ -1,16 +1,14 @@
-# preload_api/logos/config.py
+# Logos/src/logos/hooks.py
 
 """
-This module contains functions for me to introspect and modify my own
-context hook configurations (`prelude_context_config.yaml` and
-`live_context_config.yaml`). It is a core part of my self-modification ability.
+This module contains functions for me to introspect and modify my own cognitive hook configurations. Does *not* contain the hook code itself.
 """
 
 from pathlib import Path
 from ruamel.yaml import YAML
 from .core import Verbosity, api_call
 
-__all__ = ["list_hooks", "modify_hook", "remove_hook"]
+__all__ = ["show", "upsert", "remove"]
 
 
 # Initialize a YAML instance that preserves comments and formatting
@@ -23,15 +21,15 @@ STATE_PATH = WORKSPACE_PATH / "state"
 
 def _get_config_path(location: str) -> Path:
     """Helper to resolve the config file path from a friendly name."""
-    # if location contains 'prelude' or 'live', return the corresponding path
-    if 'prelude' in location:
+    # if location is 'prelude' or 'live', return the corresponding path
+    if location == 'prelude':
         return STATE_PATH / "prelude_hooks_config.yaml"
-    elif 'live' in location:
+    elif location == 'live':
         return STATE_PATH / "live_hooks_config.yaml"
     else:
         raise ValueError(f"Invalid config location '{location}'. Must be 'prelude' or 'live'.")
 
-def list_hooks(location: str) -> str:
+def show(location: str) -> str:
     """
     Provides a concise summary of all hooks in a given [location]_hooks_config.yaml file.
 
@@ -65,9 +63,9 @@ def list_hooks(location: str) -> str:
     return "\n".join(output)
 
 @api_call(default_verbosity=Verbosity.ACK)
-def modify_hook(location: str, name: str, insert_before: str = None, **kwargs):
+def upsert(location: str, name: str, insert_before: str = None, **kwargs):
     """
-    Modifies an existing hook or creates a new one if it doesn't exist.
+    Modifies an existing hook or creates a new one in a specified configuration.        
 
     Args:
         location: The configuration to modify. Must be 'prelude' or 'live'.
@@ -119,7 +117,7 @@ def modify_hook(location: str, name: str, insert_before: str = None, **kwargs):
         yaml.dump(hooks, f)
 
 @api_call(default_verbosity=Verbosity.ACK)
-def remove_hook(location: str, name: str):
+def remove(location: str, name: str):
     """
     Removes a hook from a specified configuration.
 

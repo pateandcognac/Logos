@@ -1,4 +1,4 @@
-# src/logos/memory.py
+# Logos/src/logos/memory.py
 
 """
 This module contains my tools for managing my own working memory (the io_buffer).
@@ -12,6 +12,7 @@ import string
 import time
 from pathlib import Path
 from .core import api_call, Verbosity
+from typing import List, Optional, Dict, Any
 
 __all__ = ["summarize_io_buffer", "recall", "replace_cell_content"]
 
@@ -62,7 +63,7 @@ def _get_next_id(file_path: Path, prefix: str) -> str:
         return f"{prefix}{_base36_encode(0)}"
 
 
-def _group_contiguous_indices(indices: list[int]) -> list[list[int]]:
+def _group_contiguous_indices(indices: List[int]) -> List[List[int]]:
     """Takes a list of numbers and groups them into sublists of contiguous numbers."""
     if not indices:
         return []
@@ -79,13 +80,13 @@ def _group_contiguous_indices(indices: list[int]) -> list[list[int]]:
     return groups
 
 @api_call(default_verbosity=Verbosity.BRIEF)
-def summarize_io_buffer(cells: list[int], guidance: str = None):
+def summarize_io_buffer(cell_indices: List[int], guidance: str = None):
     """
     Summarizes specific cells in the io_buffer using a specialized agent.
     The specified cells are replaced with new <summary> messages.
 
     Args:
-        cells: A list of 0-indexed cell numbers (line numbers) to summarize.
+        cell_indices: A list of 0-indexed cell numbers (line numbers) to summarize.
                The list does not need to be contiguous.
         guidance: Optional, additional guidance for the summarization agent
                   on what to focus on or how to frame the summary.
@@ -93,7 +94,7 @@ def summarize_io_buffer(cells: list[int], guidance: str = None):
     Note to self:
         This is my primary tool for managing my working memory.
     """
-    if not cells:
+    if not cell_indices:
         print("summarize_io_buffer: No cells provided to summarize.")
         return
 
@@ -106,7 +107,7 @@ def summarize_io_buffer(cells: list[int], guidance: str = None):
         return
 
     # 2. Prepare the data for the summarization prompt
-    grouped_cell_indices = _group_contiguous_indices(cells)
+    grouped_cell_indices = _group_contiguous_indices(cell_indices)
     summarization_tasks = []
     all_msg_ids_in_tasks = set()
     max_cell_index = 0
@@ -235,7 +236,7 @@ def summarize_io_buffer(cells: list[int], guidance: str = None):
     
 
 
-def recall(msg_id: str) -> str | None:
+def recall(msg_id: str) -> Optional[str]:
     """
     Retrieves the full, original content of a message from the history log.
 

@@ -3,20 +3,20 @@
   ttl: 99 # Run every loop and stay pinned
   code: |-
     print("# Prelude Hooks")
-    print(logos.config.list_hooks('prelude'))
+    print(logos.hooks.show('prelude'))
     print("\n# Live Hooks")
-    print(logos.config.list_hooks('live'))
+    print(logos.hooks.show('live'))
 
 - name: api_summary
   description: A high-level overview of my available API modules.
   ttl: -99
   code: |-
     import logos
-    print(logos.help())
+    logos.help()
 
 - name: file_tree
-  description: Shows the layout of my workspace, configured by logos.state.
-  ttl: -99
+  description: Shows the layout of my workspace, as configured by logos.state.files
+  ttl: 99
   code: |-
     # Read configuration from the state object
     max_depth = logos.state.files.max_depth

@@ -1,3 +1,5 @@
+# Logos/src/hooks/memory_manager.py
+
 import logos
 import json
 
@@ -28,7 +30,9 @@ def run_policy_check():
     cells_to_summarize = set()
     
     # 2a. Identify and Score Candidates (Oldest/Largest)
-    summarizable_part = messages[:-policy.untouchable_tail]
+    tail = max(policy.untouchable_tail, 0)
+    summarizable_part = messages[:-tail] if tail > 0 else messages
+
     if len(summarizable_part) > 0:
         candidates = []
         py_map = {} # { msg_id: cell_index }
@@ -96,6 +100,6 @@ def run_policy_check():
     if cells_to_summarize:
         final_cell_list = sorted(list(cells_to_summarize))
         print(f"Memory Manager: Submitting {len(final_cell_list)} cells for summarization.")
-        logos.memory.summarize_io_buffer(cells=final_cell_list)
+        logos.memory.summarize_io_buffer(cell_indices=final_cell_list)
     else:
         print("Memory Manager: Analysis complete, no action needed.")
