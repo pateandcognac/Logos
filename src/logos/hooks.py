@@ -7,6 +7,8 @@ This module contains functions for me to introspect and modify my own cognitive 
 from pathlib import Path
 from ruamel.yaml import YAML
 from .core import Verbosity, api_call
+from typing import Union
+
 
 __all__ = ["show", "upsert", "remove"]
 
@@ -63,22 +65,17 @@ def show(location: str) -> str:
     return "\n".join(output)
 
 @api_call(default_verbosity=Verbosity.ACK)
-def upsert(location: str, name: str, insert_before: str = None, **kwargs):
+def upsert(location: str, name: str, *, description: Union[str, None] = None, ttl: Union[int, None] = None, code: Union[str, None] = None, insert_before: Union[str, None] = None,) -> None:
     """
-    Modifies an existing hook or creates a new one in a specified configuration.        
+    Update an existing hook or create a new one in the requested configuration.
 
     Args:
-        location: The configuration to modify. Must be 'prelude' or 'live'.
-        name: The unique name of the hook to modify or create.
-        insert_before: If creating a new hook, the name of an existing hook
-                       to insert before. If None, appends to the end.
-        **kwargs: Keyword arguments corresponding to the hook's fields to
-                  update (e.g., ttl=99, description="New desc.", code="print('hi')").
-
-    Note to self:
-        This is my primary tool for my "hook" configuration. If I provide a `name`
-        that doesn't exist, a new hook is created. I must provide at least
-        the `code` kwarg when creating a new hook.
+        location: Which config file to edit ('prelude' or 'live').
+        name: Unique hook name to update or create.
+        description: Human-friendly summary to store with the hook.
+        ttl: Number of cycles the hook should persist (e.g., 99 to pin, -99 to run once).
+        code: Python source for the hook. Required when creating a new hook.
+        insert_before: Optional hook name to insert before when creating.
     """
     config_path = _get_config_path(location)
     hooks = []
@@ -86,26 +83,32 @@ def upsert(location: str, name: str, insert_before: str = None, **kwargs):
         with open(config_path, 'r') as f:
             hooks = yaml.load(f) or []
 
+    updates = {
+        "description": description,
+        "ttl": ttl,
+        "code": code,
+    }
+    provided_updates = {k: v for k, v in updates.items() if v is not None}
+
     target_hook = next((r for r in hooks if r.get('name') == name), None)
 
     if target_hook:
-        # Update existing hook
-        target_hook.update(kwargs)
+        if not provided_updates:
+            print(f"No updates supplied for hook '{name}' in '{location}'.")
+            return
+        target_hook.update(provided_updates)
         print(f"Hook '{name}' in '{location}' updated.")
     else:
-        # Create new hook
-        if 'code' not in kwargs:
-            raise ValueError("The 'code' keyword argument is required to create a new hook.")
-        new_hook = {'name': name}
-        new_hook.update(kwargs)
+        if code is None:
+            raise ValueError("The 'code' argument is required to create a new hook.")
+
+        new_hook = {"name": name, **provided_updates}
 
         if insert_before:
             try:
-                # Find index of the hook to insert before
                 target_index = next(i for i, r in enumerate(hooks) if r.get('name') == insert_before)
                 hooks.insert(target_index, new_hook)
             except StopIteration:
-                # If not found, just append
                 hooks.append(new_hook)
                 print(f"Warning: Hook '{insert_before}' not found. Appending '{name}' to the end.")
         else:

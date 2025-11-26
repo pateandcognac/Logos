@@ -10,9 +10,11 @@ import json
 import subprocess
 from pathlib import Path
 from typing import Any, Dict
+import os
 
-# Path to the Python 3.11 environment you mentioned
-PY311 = "/home/robot/robot_ws/.venv/bin/python3"
+# Get Path to Python 3.11 interpreter (with Gemini SDK installed) from env var VENV_PY311
+PY311 = os.getenv("LOGOS_VENV_PY311", "/home/robot/robot_ws/.venv/bin/python3")
+
 
 # The helper script will live next to this file as _llm_helper.py
 WORKER_PATH = Path(__file__).with_name("_llm_helper.py")
