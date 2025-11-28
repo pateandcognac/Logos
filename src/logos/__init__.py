@@ -15,6 +15,7 @@ from .core import Verbosity, verbosity, check_for_interrupt, help
 
 # Submodules
 from . import core     
+from . import ros
 from . import files    
 from . import hooks    
 from . import memory
@@ -22,11 +23,9 @@ from . import models
 from . import exceptions
 from . import shell
 from . import utils
-
-# Hardware Integration
-from . import ros
+from . import vision
 from . import voice
 
 # We will add more here as we build out the API
 
-voice.speak("Logos initialized and ready to assist! 😊", wait=False)
+voice.speak("Logos API is online! 👋", wait=False)

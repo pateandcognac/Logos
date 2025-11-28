@@ -1,7 +1,7 @@
 # Logos/src/logos/utils.py
 
 """
-Helper functions.
+Internal (hidden) and other Helper functions.
 """
 
 

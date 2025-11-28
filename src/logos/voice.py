@@ -19,7 +19,7 @@ DEFAULT_ENGINE = "kokoro"
 # A nice blend of voices: Nicola (Expressive), Onyx (Deep/Clear), Emma (British/Formal)
 DEFAULT_KOKORO_PARAMS = {
     "voice": "0.40*im_nicola + 0.40*am_onyx + 0.20*bf_emma", 
-    "speed": 0.9, 
+    "speed": 1.2, 
     "volume": 1.0
 }
 
