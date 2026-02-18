@@ -1,9 +1,9 @@
 # Logos/src/logos/models.py
 
 """
-This module contains wrappers for interacting with various AI models.
-For Gemini, this module acts as a thin bridge: it shells out to a
-Python 3.11 helper script that actually talks to the Gemini SDK.
+This module contains wrappers for interacting with various ML / AI models.
+This includes my own LLM intelligence.
+Will include other vision, pose, or other models in the future as needed.
 """
 
 import json
@@ -42,6 +42,7 @@ def _initialize_llm() -> None:
         aliases = framework_config.get("llm_tool_models", {}).get("aliases", {})
         _llm_config["aliases"] = aliases
         # Default to the 'fast' model if it exists, otherwise a sensible fallback.
+        # Choose: smartest, fast, fastest
         _llm_config["default_model"] = aliases.get("fast", "gemini-flash-latest")
     except Exception as e:
         print(f"Error initializing LLM config from {config_path}: {e}")
@@ -50,14 +51,14 @@ def _initialize_llm() -> None:
 
 def llm(prompt: str, model_alias: str = "fast", temperature: float = 0.7) -> str:
     """
-    A simple, general-purpose wrapper to access my core LLM intelligence.
+    A simple, general-purpose wrapper to prompt my core LLM intelligence out-of-band.
 
-    This function runs a Python 3.11 worker script that calls the SDK,
-    passing a small JSON payload over stdin and reading JSON from stdout.
+    This function abstracts away the nuances of calling my own intelligence.
+    It is text-only, stateless, and uses "instruct" style prompting.
 
     Args:
         prompt: The text prompt to send to the model.
-        model_alias: Alias defined in framework_config.json (e.g. 'fast').
+        model_alias: choose from "smartest", "fast", or "fastest" (defaults to "fast").
         temperature: Sampling temperature (0.0–1.0).
 
     Returns:

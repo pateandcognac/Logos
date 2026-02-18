@@ -296,7 +296,7 @@ def write(path: str, content: str):
         Use this to save new information or replace existing files.
     """
     p = Path(path)
-    p.parent.mkdir(parents=True, exist_ok=True) # <--- Add this
+    p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(content)
 
 @api_call(default_verbosity=Verbosity.ACK)

@@ -48,7 +48,7 @@ def _get_next_id(file_path: Path, prefix: str) -> str:
             # Go to the end of the file
             f.seek(0, os.SEEK_END)
             # Go back a bit to catch the last line
-            f.seek(-min(f.tell(), 4096), os.SEEK_CUR)
+            f.seek(-min(f.tell(), 4096), os.SEEK_CUR) # TODO: This is weird? 
             last_lines = f.readlines()
             if not last_lines:
                 return f"{prefix}{_base36_encode(0)}"
@@ -86,10 +86,10 @@ def summarize_io_buffer(cell_indices: List[int], guidance: str = None):
     The specified cells are replaced with new <summary> messages.
 
     Args:
-        cell_indices: A list of 0-indexed cell numbers (line numbers) to summarize.
-               The list does not need to be contiguous.
+        cell_indices: A list of 0-indexed cells to summarize.
+            The list does not need to be contiguous.
         guidance: Optional, additional guidance for the summarization agent
-                  on what to focus on or how to frame the summary.
+            on what to focus on or how to frame the summary.
 
     Note to self:
         This is my primary tool for managing my working memory.

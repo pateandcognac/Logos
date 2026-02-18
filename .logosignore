@@ -9,3 +9,6 @@ __pycache__/
 .pytest_cache
 .vscode/
 _llm_helper.py
+*.ts
+*.pt
+.gitignore

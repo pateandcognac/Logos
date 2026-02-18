@@ -23,7 +23,7 @@ from . import models
 from . import exceptions
 from . import shell
 from . import utils
-from . import vision
+# from . import vision
 from . import voice
 
 # We will add more here as we build out the API

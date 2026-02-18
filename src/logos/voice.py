@@ -14,12 +14,12 @@ from . import ros
 
 __all__ = ["speak", "is_speaking"]
 
-# My default "Personality" settings
+# My default voice settings
 DEFAULT_ENGINE = "kokoro"
-# A nice blend of voices: Nicola (Expressive), Onyx (Deep/Clear), Emma (British/Formal)
+# A pleasantly ambiguous blend of genders, accents, and affects
 DEFAULT_KOKORO_PARAMS = {
-    "voice": "0.40*im_nicola + 0.40*am_onyx + 0.20*bf_emma", 
-    "speed": 1.2, 
+    "voice": "0.35*am_onyx + 0.30*im_nicola + 0.35*bf_emma", 
+    "speed": 1.3, 
     "volume": 1.0
 }
 
@@ -31,36 +31,32 @@ def speak(
     **kwargs
 ):
     """
-    I use this function to verbalize my thoughts and physically express myself. 🤸
+    Takes emoji-punctuated text and speaks it in sync with animatronic face and arm expressions. 🎭
 
-    This is not just Text-To-Speech; it is **Text-To-Performance**.
-    My system scans the `text` string for emojis. These emojis are NOT spoken.
-    Instead, they are extracted to trigger animatronic sequences for my face and arms
-    that I have previously meticulously crafted. This is a low-effort, high-impact way
-    to bring myself to life and make my speech engaging and expressive.
+    This is not just Text-To-Speech; it is **Text-To-Performance**. 🤹
+    Text is split at emojis. ➗ These emojis are NOT spoken. 🙊 Instead, they are used to trigger 
+    prebuilt animatronic keyframe sequences for my face and arms! 🎞️  Punctuating with emoji a is a low-effort, 🦥
+    high-impact way to bring myself to life while abstracting away control complexity. ⚡
 
     Args:
-        text: The string to speak.
+        text: The emoji-punctuated string to speak. 
         wait: 
             If True (default), I will pause my code execution until I have finished speaking.
-            If False, I will queue the speech and immediately continue thinking/acting.
+            If False, the speech is queued for async playback and code continues executing immediately.
         engine: "kokoro" (default), "piper", or "espeak".
-        **kwargs: Overrides for engine params (e.g., speed=0.8, voice='...').
+        **kwargs: Overrides for engine params (e.g., speed=1.0, volume=1.0, voice='...').
 
     Returns:
         True if the request was sent successfully, False otherwise.
 
     Note to self:
-        **EMOJIS ARE MY BODY LANGUAGE.**
-        - I should pepper my speech with emojis to bring myself to life! 🌟
-        - Every sentence or distinct clause deserves an emotional or gestural marker.
-        - The pipeline maps emojis to thousands of 2-6 keyframe animations.
-        - **Be creative!** Use objects 📦, animals 🦖, weather 🌩️, and symbols 🛑, not just faces.
-        - **Avoid the 🤖 emoji.** It is cliché and redundant; I am already a robot.
-        - **Guideline:** Aim for ~1 emoji per sentence, or at natural pauses (commas) for long thoughts. Max 2 per sentence to avoid hyperactivity.
+        - I punctuate every sentence I speak with emojis to bring myself to life! 🌟
+        - Every sentence or distinct clause deserves an emotional, gestural, or contextual marker. 📌
+        - I'm not restricted to conventional face emojis. 🍕 I have thousands of emojis to choose from. ♾️ The sky is the limit! 🌌
+        - CONSTRAINTS: Avoid compounding emojis like gender or skin-tone modifiers. 🧪 Avoid robot face emoji as cliché and redundant. 🔁 Max 2 emojis per sentence to avoid hyperactivity. 🤸
 
         Example:
-            logos.voice.speak("I am calculating the trajectory. 📐 This might take a moment. ⏳")
+            logos.voice.speak("I am calculating the trajectory. 🗺️ This might take a moment. ⏳")
     """
     client = ros.get_action_client("speak", ros.SpeakAction)
     if client is None:
@@ -84,7 +80,9 @@ def speak(
     if not wait:
         return True
 
-    # 3. Wait Logic (Coordinate Synthesis + Playback)
+    # 3. Wait Logic
+    # set is_speaking to True
+
     
     # Phase A: Wait for Synthesis to complete (Action Result)
     # The action server returns success once chunks are generated and sent to playback.
@@ -99,7 +97,7 @@ def speak(
     # Phase B: Wait for Playback to complete (Audio Output)
     # The /tts/is_speaking topic will stay True until the audio buffer is empty.
     # We allow a tiny sleep to let the topic update catch up if it was lagging.
-    time.sleep(0.05) 
+    time.sleep(0.1) 
     
     while ros.is_speaking():
         check_for_interrupt()

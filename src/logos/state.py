@@ -4,7 +4,10 @@
 Defines the structure for my persistent, global state object, `logos.state`.
 This object acts as a centralized "control panel" that I can modify to
 change the default behavior of my API functions and context hooks.
+
+Note to self: The LogosState class explicitly defined. If we want to add a new configuration section, say vision:, we'd need to edit that Python file to add a VisionState class. This is perfectly fine, but I wonder if we could make it more dynamic in the future? For instance, the load_state_from_yaml function could potentially create generic objects for any top-level key in my_config.yaml that doesn't have a pre-defined class. This would allow me to experiment with new state configurations entirely on my own, without modifying my core source code. It's a minor thought, but one that leans into my directive for self-modification. For now, the current system is perfectly adequate.
 """
+
 
 from pathlib import Path
 from ruamel.yaml import YAML
@@ -39,15 +42,15 @@ class MemoryPolicy:
     """Defines the rules for the automated io_buffer management hook."""
     def __init__(self):
         self.enabled: bool = True
-        self.max_cells: int = 50
+        self.max_cells: int = 64
         self.max_tokens: int = 16384
         self.untouchable_tail: int = 8
-        self.min_cells_to_summarize: int = 5
+        self.min_cells_to_summarize: int = 8
         self.summarizable_types: List[str] = [
-            'me', 'py_result', 'py_async', 'human', 'human_stt'
+            'me', 'py_result', 'py_async', 'human', 'human_stt', 'system'
         ]
-        self.age_weight: float = 0.6
-        self.size_weight: float = 0.4
+        self.age_weight: float = 0.8
+        self.size_weight: float = 0.2
         self.max_contiguous_summaries: int = 4
 
 
@@ -58,7 +61,7 @@ class FileState:
             '.py', '.yaml', '.md', '.txt', '.json', '.png', '.jpg'
         ]
         self.max_depth: int = 5
-        self.inline_meta_masks: List[str] = ['*.meta', 'README.md']
+        self.inline_meta_masks: List[str] = ['*.meta']
 
 
 class SystemState:
@@ -101,3 +104,4 @@ class LogosState:
 
     def __repr__(self) -> str:
         return f"LogosState({self.to_dict()})"
+    

@@ -161,3 +161,14 @@ def dump_llm_yaml(
     buf = io.StringIO()
     _yaml_llm.dump(prepared, buf)
     return buf.getvalue()
+
+def _base36_encode(number: int, min_length: int = 4) -> str:
+    """Helper to converts an integer to a zero-padded base36 string."""
+    alphabet = string.digits + string.ascii_lowercase
+    if number == 0:
+        return '0' * min_length
+    base36 = ''
+    while number != 0:
+        number, i = divmod(number, 36)
+        base36 = alphabet[i] + base36
+    return base36.zfill(min_length)

@@ -1,5 +1,9 @@
 # Logos/src/logos/core.py
 
+"""
+Core functionality for the Logos API, including verbosity management, cooperative interrupt handling, and dynamic help generation.
+"""
+
 import contextlib
 from enum import Enum
 import inspect
