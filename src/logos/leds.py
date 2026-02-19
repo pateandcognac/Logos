@@ -1,0 +1,234 @@
+# Logos/src/logos/leds.py
+
+"""
+Control for my RGB LED strips and laser pointer.
+
+I have three addressable RGB LED strips and a dimmable laser, all driven
+by Arduinos that listen on ROS topics. This module provides a clean
+interface over the raw Int32MultiArray / UInt8 protocol.
+
+Hardware layout:
+    - 'face':         12 LEDs on /face/rgbled
+    - 'notification':  16 LEDs on /notification/rgbled
+    - 'pan_tilt':       5 LEDs on /pan_tilt/rgbled
+    - laser:           PWM 0-255 on /pan_tilt/laser
+"""
+
+import rospy
+from std_msgs.msg import Int32MultiArray, UInt8
+from .core import api_call, Verbosity
+from typing import Dict, List, Optional, Sequence, Tuple, Union
+
+
+__all__ = ["set", "fill", "off", "laser"]
+
+
+# ─── Strip Configuration ─────────────────────────────────────────────
+
+STRIPS: Dict[str, dict] = {
+    "face":         {"topic": "/face/rgbled",         "count": 12},
+    "notification": {"topic": "/notification/rgbled",  "count": 16},
+    "pan_tilt":     {"topic": "/pan_tilt/rgbled",      "count": 5},
+}
+
+_LASER_TOPIC = "/pan_tilt/laser"
+
+# Named color palette for convenience
+_NAMED_COLORS: Dict[str, int] = {
+    "off":     0x000000,
+    "white":   0xFFFFFF,
+    "red":     0xFF0000,
+    "green":   0x00FF00,
+    "blue":    0x0000FF,
+    "yellow":  0xFFFF00,
+    "cyan":    0x00FFFF,
+    "magenta": 0xFF00FF,
+    "orange":  0xFF8000,
+    "purple":  0x8000FF,
+    "warm":    0xFFB060,
+}
+
+
+# ─── Lazy Publishers ──────────────────────────────────────────────────
+
+_publishers: Dict[str, rospy.Publisher] = {}
+_laser_pub: Optional[rospy.Publisher] = None
+
+
+def _get_strip_pub(strip: str) -> rospy.Publisher:
+    """Get or create the publisher for a given strip."""
+    if strip not in STRIPS:
+        raise ValueError(
+            f"Unknown strip '{strip}'. Choose from: {list(STRIPS.keys())}"
+        )
+    if strip not in _publishers:
+        topic = STRIPS[strip]["topic"]
+        _publishers[strip] = rospy.Publisher(
+            topic, Int32MultiArray, queue_size=10
+        )
+    return _publishers[strip]
+
+
+def _get_laser_pub() -> rospy.Publisher:
+    """Get or create the laser publisher."""
+    global _laser_pub
+    if _laser_pub is None:
+        _laser_pub = rospy.Publisher(_LASER_TOPIC, UInt8, queue_size=10)
+    return _laser_pub
+
+
+# ─── Color Normalization ─────────────────────────────────────────────
+
+# Color type: hex int, RGB tuple, or named string
+ColorValue = Union[int, Tuple[int, int, int], str]
+
+
+def _normalize_color(color: ColorValue) -> int:
+    """
+    Convert a color value to a 24-bit 0xRRGGBB integer.
+
+    Accepts:
+        - int:   0xFF0000 (red), 0x000000 (off)
+        - tuple: (255, 0, 0) for red
+        - str:   'red', 'off', 'white', etc. from the named palette.
+                 Also accepts '#FF0000' hex strings.
+    """
+    if isinstance(color, int):
+        return color & 0xFFFFFF
+
+    if isinstance(color, (tuple, list)):
+        if len(color) != 3:
+            raise ValueError(f"RGB tuple must have 3 elements, got {len(color)}")
+        r, g, b = [max(0, min(255, int(c))) for c in color]
+        return (r << 16) | (g << 8) | b
+
+    if isinstance(color, str):
+        # Check named palette first
+        lower = color.lower().strip()
+        if lower in _NAMED_COLORS:
+            return _NAMED_COLORS[lower]
+        # Try hex string like '#FF0000' or 'FF0000'
+        hex_str = lower.lstrip("#")
+        if len(hex_str) == 6:
+            try:
+                return int(hex_str, 16)
+            except ValueError:
+                pass
+        raise ValueError(
+            f"Unknown color '{color}'. Named options: {list(_NAMED_COLORS.keys())}"
+        )
+
+    raise TypeError(f"Unsupported color type: {type(color)}")
+
+
+def _pack_led(index: int, color_int: int) -> int:
+    """Pack an LED index and 24-bit color into the Arduino's Int32 protocol."""
+    return (index << 24) | (color_int & 0xFFFFFF)
+
+
+# ─── Public API ───────────────────────────────────────────────────────
+
+@api_call(default_verbosity=Verbosity.ACK)
+def set(strip: str, colors: Sequence[ColorValue]) -> None:
+    """
+    Set individual LED colors on a strip.
+
+    Args:
+        strip: Which strip to address: 'face', 'notification', or 'pan_tilt'.
+        colors: A sequence of color values, one per LED. Length must match
+            the strip's LED count, or be shorter (remaining LEDs unchanged).
+            Each element can be a hex int, RGB tuple, or named color string.
+
+    Note to self:
+        Use this for per-LED patterns, animations, or gradients.
+        For solid colors, `fill()` is simpler.
+
+        Example:
+            # Set first 3 face LEDs to different colors
+            logos.leds.set('face', ['red', 'green', 'blue'])
+
+            # Full face strip with RGB tuples
+            logos.leds.set('face', [(255,0,0)] * 4 + [(0,255,0)] * 4 + [(0,0,255)] * 4)
+    """
+    pub = _get_strip_pub(strip)
+    led_count = STRIPS[strip]["count"]
+
+    if len(colors) > led_count:
+        raise ValueError(
+            f"Strip '{strip}' has {led_count} LEDs, got {len(colors)} colors"
+        )
+
+    msg = Int32MultiArray()
+    msg.data = [
+        _pack_led(i, _normalize_color(c))
+        for i, c in enumerate(colors)
+    ]
+    pub.publish(msg)
+
+
+@api_call(default_verbosity=Verbosity.ACK)
+def fill(strip: str, color: ColorValue) -> None:
+    """
+    Set all LEDs on a strip to the same color.
+
+    Args:
+        strip: Which strip: 'face', 'notification', or 'pan_tilt'.
+        color: A single color value (hex int, RGB tuple, or named string).
+
+    Note to self:
+        Quick way to light up or blank a strip.
+
+        Example:
+            logos.leds.fill('notification', 'warm')
+            logos.leds.fill('face', (0, 100, 255))
+            logos.leds.fill('pan_tilt', 0xFF0000)
+    """
+    led_count = STRIPS[strip]["count"]
+    color_int = _normalize_color(color)
+    set(strip, [color_int] * led_count, verbosity=Verbosity.SILENT)
+
+
+@api_call(default_verbosity=Verbosity.ACK)
+def off(strip: Optional[str] = None) -> None:
+    """
+    Turn off LEDs. If strip is None, turns off ALL strips and the laser.
+
+    Args:
+        strip: Specific strip to turn off, or None for everything.
+
+    Note to self:
+        Good hygiene to call `logos.leds.off()` at the end of a light show
+        or when entering idle state.
+    """
+    targets = [strip] if strip else list(STRIPS.keys())
+    for s in targets:
+        fill(s, "off", verbosity=Verbosity.SILENT)
+    if strip is None:
+        laser(0.0, verbosity=Verbosity.SILENT)
+
+
+@api_call(default_verbosity=Verbosity.ACK)
+def laser(brightness: float) -> None:
+    """
+    Set the laser pointer brightness.
+
+    Args:
+        brightness: Float from 0.0 (off) to 1.0 (full power).
+            Values are clamped to this range.
+
+    Note to self:
+        The laser is mounted on the pan/tilt head, so it points wherever
+        my pan_tilt camera is looking. Useful for pointing at things in
+        the environment to draw human attention, or for cat enrichment.
+
+        Example:
+            logos.leds.laser(1.0)   # Full power
+            logos.leds.laser(0.5)   # Half brightness
+            logos.leds.laser(0.0)   # Off
+    """
+    clamped = max(0.0, min(1.0, brightness))
+    pwm_value = int(round(clamped * 255))
+    pub = _get_laser_pub()
+    msg = UInt8()
+    msg.data = pwm_value
+    pub.publish(msg)

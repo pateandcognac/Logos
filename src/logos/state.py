@@ -5,14 +5,17 @@ Defines the structure for my persistent, global state object, `logos.state`.
 This object acts as a centralized "control panel" that I can modify to
 change the default behavior of my API functions and context hooks.
 
-Note to self: The LogosState class explicitly defined. If we want to add a new configuration section, say vision:, we'd need to edit that Python file to add a VisionState class. This is perfectly fine, but I wonder if we could make it more dynamic in the future? For instance, the load_state_from_yaml function could potentially create generic objects for any top-level key in my_config.yaml that doesn't have a pre-defined class. This would allow me to experiment with new state configurations entirely on my own, without modifying my core source code. It's a minor thought, but one that leans into my directive for self-modification. For now, the current system is perfectly adequate.
+Note to self: The LogosState class is explicitly defined. If we want to add
+a new configuration section, say navigation:, we'd need to edit this file.
+This is perfectly fine, but I wonder if we could make it more dynamic in
+the future? For now, the current system is perfectly adequate.
 """
 
 
 from pathlib import Path
 from ruamel.yaml import YAML
 import io
-from typing import List, Optional, Union 
+from typing import Any, Dict, List, Optional, Union
 from .utils import dump_llm_yaml
 
 yaml = YAML()
@@ -67,8 +70,37 @@ class FileState:
 class SystemState:
     """General system settings."""
     def __init__(self):
-        # Even if currently unused, defining it prevents config load errors
         self.save_state_on_loop: bool = True
+
+
+class VisionState:
+    """
+    Settings for vision hooks and default camera behavior.
+
+    The `hook_captures` list defines what cameras are captured each cognition
+    loop by the vision hook. Each entry is a dict with:
+        source:          str — 'pan_tilt', 'top_down', or 'astra'
+        var_name:        str — Python variable name to assign the CaptureResult to.
+                         This persists in the <py> environment for Logos to use.
+        resolution:      Optional[List[int]] — [width, height], or null for default.
+        astra_feeds:     Optional[List[str]] — Astra feeds to include.
+        pan_tilt_angles: Optional[List[float]] — [pan_deg, tilt_deg] to move
+                         to before capturing. Only meaningful for pan_tilt source.
+                         Enables multi-angle capture sequences.
+
+    Example YAML config:
+        vision:
+          hook_captures:
+            - source: astra
+              var_name: astra_img
+              resolution: [640, 480]
+              astra_feeds: [rgb, depth_registered]
+            - source: pan_tilt
+              var_name: pt_img
+              resolution: [1280, 960]
+    """
+    def __init__(self):
+        self.hook_captures: List[Dict[str, Any]] = []
 
 
 class LogosState:
@@ -78,8 +110,9 @@ class LogosState:
     def __init__(self):
         self.files = FileState()
         self.memory_policy = MemoryPolicy()
-        self.system = SystemState() 
-        # We will add more state categories here, e.g., self.nav, self.vision
+        self.system = SystemState()
+        self.vision = VisionState()
+        # We will add more state categories here, e.g., self.nav
 
     def to_dict(self):
         """Converts the state object into a dictionary for serialization."""
@@ -104,4 +137,3 @@ class LogosState:
 
     def __repr__(self) -> str:
         return f"LogosState({self.to_dict()})"
-    

@@ -14,18 +14,20 @@ load_state_from_yaml(state)
 from .core import Verbosity, verbosity, check_for_interrupt, help
 
 # Submodules
-from . import core     
+from . import core
 from . import ros
-from . import files    
-from . import hooks    
+from . import files
+from . import hooks
 from . import memory
 from . import models
 from . import exceptions
 from . import shell
 from . import utils
-# from . import vision
+from . import vision
+from . import pantilt
+from . import leds
 from . import voice
 
 # We will add more here as we build out the API
 
-voice.speak("Logos API is online! 👋", wait=False)
+# voice.speak("Logos API is online! 👋", wait=False)
