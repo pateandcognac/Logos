@@ -7,10 +7,31 @@ memory_policy:
   max_cells: 64
   max_tokens: 24567
   untouchable_tail: 8
-  min_cells_to_summarize: 5
+  min_cells_to_summarize: 16
   summarizable_types: [me, py_result, py_async, human, human_stt]
-  age_weight: 0.6
-  size_weight: 0.4
+  age_weight: 0.7
+  size_weight: 0.3
   max_contiguous_summaries: 4
 system:
   save_state_on_loop: true
+
+vision:
+  hook_captures:
+    - source: astra
+      active: True
+      view: True
+      var_name: astra_img
+      resolution: [640, 480]
+      astra_feeds: [rgb] # Depth is key for nav!
+
+    - source: pan_tilt
+      active: True
+      view: True
+      var_name: pt_seq
+      pt_sequence:
+        - pan: 0
+          tilt: 0
+          resolution: [800, 600] # High-ish res forward view
+        - pan: 0
+          tilt: -60
+          resolution: [384, 288] # Quick glance at the floor right in front

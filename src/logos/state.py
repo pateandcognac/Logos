@@ -17,6 +17,7 @@ from ruamel.yaml import YAML
 import io
 from typing import Any, Dict, List, Optional, Union
 from .utils import dump_llm_yaml
+import time 
 
 yaml = YAML()
 
@@ -102,6 +103,24 @@ class VisionState:
     def __init__(self):
         self.hook_captures: List[Dict[str, Any]] = []
 
+class ChoraState:
+    def __init__(self):
+        self.rgb_image_topic: str = "/camera/rgb/image_raw"
+        self.rgb_info_topic: str = "/camera/rgb/camera_info"
+        self.points_topic: str = "/camera/depth_registered/points"
+        self.map_topic: str = "/map"
+        self.base_frame: str = "base_footprint"
+        self.map_frame: str = "map"
+
+        # Rendering defaults
+        self.default_resolution: List[int] = [384, 384]  # [width, height]
+        self.max_cloud_height_m: float = 2.0
+        self.include_robot: bool = True
+
+        # Ray defaults
+        self.point_hit_radius: float = 0.05
+        self.ray_infinity_distance_m: float = 50.0
+
 
 class LogosState:
     """
@@ -112,6 +131,8 @@ class LogosState:
         self.memory_policy = MemoryPolicy()
         self.system = SystemState()
         self.vision = VisionState()
+        self.chora = ChoraState()
+
         # We will add more state categories here, e.g., self.nav
 
     def to_dict(self):

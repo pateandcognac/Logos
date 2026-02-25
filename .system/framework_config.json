@@ -12,7 +12,8 @@
 		"remove_footer_at_eol": false
 	},
 	"main_model": {
-		"model": "gemini-flash-latest",
+		"_model": "gemini-3-flash-preview",
+		"model": "gemini-2.5-flash",
 		"temperature": 0.7,
 		"thinking_config": {
 			"include_thoughts": true,
@@ -37,7 +38,7 @@
 	"llm_tool_models": {
 		"aliases": {
 			"smartest": "gemini-2.5-pro",
-			"fast": "gemini-flash-latest",
+			"fast": "gemini-3-flash-latest",
 			"fastest": "gemini-flash-lite-latest"
 		}
 	},

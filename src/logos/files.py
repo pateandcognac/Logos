@@ -312,6 +312,7 @@ def append(path: str, content: str):
         Useful for logging or adding to existing notes without reading the
         whole file first.
     """
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
     with open(path, 'a') as f:
         f.write(content)
 

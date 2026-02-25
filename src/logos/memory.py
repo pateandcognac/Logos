@@ -12,6 +12,7 @@ import string
 import time
 from pathlib import Path
 from .core import api_call, Verbosity
+from .utils import make_time_id
 from typing import List, Optional, Dict, Any
 
 __all__ = ["summarize_io_buffer", "recall", "replace_cell_content"]
@@ -34,33 +35,6 @@ def _base36_encode(number: int, min_length: int = 4) -> str:
         number, i = divmod(number, 36)
         base36 = alphabet[i] + base36
     return base36.zfill(min_length)
-
-def _get_next_id(file_path: Path, prefix: str) -> str:
-    """
-    Calculates the next sequential ID for a given jsonl file (e.g., sum-0001).
-    Reads the last line of the file to find the last ID.
-    """
-    if not file_path.exists() or os.path.getsize(file_path) == 0:
-        return f"{prefix}{_base36_encode(0)}"
-
-    try:
-        with open(file_path, 'rb') as f:
-            # Go to the end of the file
-            f.seek(0, os.SEEK_END)
-            # Go back a bit to catch the last line
-            f.seek(-min(f.tell(), 4096), os.SEEK_CUR) # TODO: This is weird? 
-            last_lines = f.readlines()
-            if not last_lines:
-                return f"{prefix}{_base36_encode(0)}"
-
-            last_line = last_lines[-1].decode('utf-8')
-            last_entry = json.loads(last_line)
-            last_id_str = last_entry.get('id', f'{prefix}0').split('-')[-1]
-            next_id_int = int(last_id_str, 36) + 1
-            return f"{prefix}{_base36_encode(next_id_int)}"
-    except (IOError, json.JSONDecodeError, IndexError) as e:
-        print(f"Warning: Could not determine next ID from {file_path}. Defaulting to 0. Error: {e}")
-        return f"{prefix}{_base36_encode(0)}"
 
 
 def _group_contiguous_indices(indices: List[int]) -> List[List[int]]:
@@ -166,8 +140,9 @@ def summarize_io_buffer(cell_indices: List[int], guidance: str = None):
 
     try:
         # Clean up potential markdown fences
-        if response_str.strip().startswith("```json"):
-            response_str = response_str.strip()[7:-3].strip()
+        match = re.search(r'```(?:json)?\s*(.*?)\s*```', response_str, re.DOTALL)
+        if match:
+            response_str = match.group(1)
         
         response_data = json.loads(response_str)
         if 'summaries' not in response_data or not isinstance(response_data['summaries'], list):
@@ -189,7 +164,7 @@ def summarize_io_buffer(cell_indices: List[int], guidance: str = None):
         source_ids = original_task['msg_ids']
         start_cell_index = grouped_cell_indices[task_id][0]
         
-        new_id = _get_next_id(SUMMARIES_FILE, "sum-")
+        new_id = make_time_id(prefix="sum-")
         token_count = len(content) // 5 # Simple estimation
 
         summary_for_log = {

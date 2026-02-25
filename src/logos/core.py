@@ -11,7 +11,8 @@ import pkgutil
 import importlib
 import functools
 from .exceptions import Interrupt
-from typing import List, Optional, Callable, Any
+from typing import List, Optional, Callable, Any, Union
+import time
 
 # This is a global defined by the python_worker_node before my code runs.
 # It will contain the interrupt payload (dict) or be None.
@@ -128,199 +129,180 @@ def verbosity(level: Verbosity):
 
 
 
-def help(obj: Optional[object] = None, print_output: bool = True) -> str:
+def help(
+    obj: Optional[object] = None, 
+    search: Optional[str] = None, 
+    print_output: bool = True
+) -> str:
     """
-    Provides a dynamic, auto-generated help summary for my API.
+    Provides a dynamic, auto-generated help dashboard for my API.
 
     Args:
-        obj:
-            The API object to get help for. Can be a module or a function.
-            If None, provides a summary of the entire `logos` API.
-        print_output:
-            If True (default), prints the help text to stdout as a side effect.
-            If False, only returns the help text as a string.
+        obj: The API object to get help for (module, class, or function).
+             If None, provides a comprehensive dashboard of the entire API.
+        search: A string to search for across function/class names and docstrings.
+        print_output: If True, prints to stdout. If False, just returns the string.
 
     Returns:
         A formatted string containing the help information.
 
     Note to self:
-        This is my primary tool for understanding my own capabilities.
-
-        Examples:
-            logos.help()
-                # Prints a high-level overview of the Logos API.
-
-            logos.help(logos.files)
-                # Prints all file-related commands.
-
-            logos.help(logos.files.tree)
-                # Prints full details for the tree() command.
-
-            # If I want to capture the help text without printing:
-            text = logos.help(logos.files, print_output=False)
+        - `logos.help()` gives me the full dashboard (Signatures + 1-liners).
+        - `logos.help(logos.vision.capture)` gives me the deep-dive docstring.
+        - `logos.help(search="crop")` helps me find tools when I forget where they live.
     """
-    # Case 1: No argument provided. Summarize the entire logos package.
-    if obj is None:
-        import logos
+    import inspect
+    import pkgutil
+    import importlib
+    import logos
 
-        output: List[str] = [
-            "# Logos API Summary",
-            "A dynamically generated overview of my capabilities.",
-            "",
-            "## Core concepts:",
-            "- logos.state: Persistent configuration/state (printed as YAML).",
-            "- logos.Verbosity: Verbosity levels for side-effecting calls.",
-            "- logos.verbosity(...): Context manager to set verbosity.",
-            "",
-            "## Modules:",
-        ]
+    output: List[str] = []
 
+    # --- HELPER FUNCTIONS FOR FORMATTING ---
+    def _get_sig(f: object) -> str:
+        """Safely extract and format the signature of a callable."""
+        try:
+            return str(inspect.signature(f))
+        except (ValueError, TypeError):
+            return "(...)"
 
+    def _get_doc_summary(o: object) -> str:
+        """Extract the first line of a docstring."""
+        doc = inspect.getdoc(o)
+        return doc.strip().splitlines()[0] if doc else "No description."
+
+    def _render_function(name: str, func: object, prefix: str = "") -> str:
+        """Format a function as a Python stub with an inline comment."""
+        sig = _get_sig(func)
+        summary = _get_doc_summary(func)
+        return f"{prefix}def {name}{sig}: # {summary}"
+
+    def _render_class(name: str, cls: object, prefix: str = "") -> List[str]:
+        """Format a class and its public methods."""
+        lines = [f"{prefix}class {name}: # {_get_doc_summary(cls)}"]
+        for m_name, m_func in inspect.getmembers(cls, inspect.isroutine):
+            if not m_name.startswith("_"):
+                lines.append(_render_function(m_name, m_func, prefix + "    "))
+        if len(lines) == 1:
+            lines.append(f"{prefix}    pass")
+        return lines
+
+    def _render_module(mod_name: str, mod: object) -> List[str]:
+        """Render a full module's constants, classes, and functions."""
+        lines = [f"### Module: logos.{mod_name}", f"# {_get_doc_summary(mod)}"]
+        
+        public_names = getattr(mod, "__all__", None)
+        members = inspect.getmembers(mod)
+
+        constants = []
+        classes = []
+        functions = []
+
+        for name, val in members:
+            # Filter by __all__ if defined, otherwise skip private/imported
+            if public_names is not None:
+                if name not in public_names:
+                    continue
+            else:
+                if name.startswith("_"):
+                    continue
+                # Skip things imported from other modules unless they are core to this one
+                if inspect.getmodule(val) is not None and inspect.getmodule(val).__name__ != mod.__name__:
+                    continue
+
+            if inspect.isclass(val):
+                classes.append((name, val))
+            elif inspect.isroutine(val):
+                functions.append((name, val))
+            elif name.isupper(): # Convention for constants
+                constants.append((name, val))
+
+        if constants:
+            lines.append("Constants:")
+            for n, v in constants:
+                lines.append(f"    {n} = {v!r}")
+        
+        if classes:
+            lines.append("Classes:")
+            for n, c in classes:
+                lines.extend(_render_class(n, c, "    "))
+                
+        if functions:
+            lines.append("Functions:")
+            for n, f in functions:
+                lines.append(_render_function(n, f, "    "))
+                
+        lines.append("") # Spacer
+        return lines
+
+    # --- EXECUTION MODES ---
+
+    # MODE 1: Search Query
+    if search:
+        search_lower = search.lower()
+        output.append(f"# Search Results for: '{search}'\n")
+        found_something = False
+        
         for _importer, modname, _ispkg in pkgutil.iter_modules(logos.__path__):
-            # Skip "private" or explicitly hidden modules
             if modname.startswith("_") or modname in _HIDDEN_MODULES:
                 continue
-
             try:
-                module = importlib.import_module(f".{modname}", "logos")
-                doc = inspect.getdoc(module) or "No description."
-                first_line = doc.splitlines()[0]
-                output.append(f"- logos.{modname}: {first_line}")
-            except Exception as exc:
-                output.append(f"- logos.{modname}: (Could not import: {exc})")
+                mod = importlib.import_module(f".{modname}", "logos")
+                for name, val in inspect.getmembers(mod):
+                    if name.startswith("_"): continue
+                    
+                    doc = inspect.getdoc(val) or ""
+                    if search_lower in name.lower() or search_lower in doc.lower():
+                        found_something = True
+                        if inspect.isroutine(val):
+                            output.append(f"logos.{modname}.{_render_function(name, val).strip()}")
+                        elif inspect.isclass(val):
+                            output.append(f"logos.{modname}.class {name}: # {_get_doc_summary(val)}")
+            except Exception:
+                pass
+                
+        if not found_something:
+            output.append("No matches found.")
 
-
-        output.append("\n## Core Functions (available directly as logos.foo):")
-
-        core_functions: List[object] = []
-        for name, func in inspect.getmembers(logos, inspect.isfunction):
-            if getattr(func, "__module__", "").startswith("logos."):
-                core_functions.append(func)
-
-        if not core_functions:
-            output.append("- None found.")
-        else:
-            for func in sorted(core_functions, key=lambda f: f.__name__):
-                sig = inspect.signature(func)
-                doc = inspect.getdoc(func) or "No description."
-                first_line = doc.splitlines()[0]
-                output.append(f"- logos.{func.__name__}{sig}: {first_line}")
-
-        output.append(
-            "\nNote to self: Use `logos.help(logos.module_name)` or "
-            "`logos.help(logos.function_name)` for more details."
-        )
-
-        text = "\n".join(output)
-
-        if print_output:
-            print(text)
-
-        return text
-
-    # Case 2: A module is provided. Summarize the functions within it.
-    if inspect.ismodule(obj):
-        output: List[str] = [
-            f"# Help for module: {obj.__name__}",
-            inspect.getdoc(obj) or "",
-            "",
-            "## Functions:",
-        ]
-
-        # If the module defines __all__, respect it as the public surface.
-        public_names = getattr(obj, "__all__", None)
-
-        for name, func in inspect.getmembers(obj, inspect.isfunction):
-            # Skip functions not defined in this module
-            if getattr(func, "__module__", "") != obj.__name__:
-                continue
-            # Skip private helpers
-            if name.startswith("_"):
-                continue
-            # If __all__ is defined, skip anything not in it
-            if public_names is not None and name not in public_names:
-                continue
-
-            sig = inspect.signature(func)
-            doc = inspect.getdoc(func) or "No description."
-            first_line = doc.splitlines()[0]
-            output.append(f"- {name}{sig}: {first_line}")
-
-        output.append(
-            f"\nNote to self: Use `logos.help({obj.__name__}.function_name)` "
-            f"for full details."
-        )
-
-        text = "\n".join(output)
-
-        if print_output:
-            print(text)
-
-        return text
-
-    # Case 3: A function is provided. Show its full docstring.
-    if inspect.isfunction(obj):
-        sig = inspect.signature(obj)
-        header = f"# Help for function: {obj.__name__}{sig}"
-        doc = inspect.getdoc(obj)
-
-        if not doc:
-            text = f"{header}\n\nNo documentation found."
-            if print_output:
-                print(text)
-            return text
-
-        lines = [line.rstrip() for line in doc.strip().splitlines()]
-        output: List[str] = [header, ""]
-
-        # Description: everything up to the first section header.
-        section_headers = (
-            "Args:",
-            "Arguments:",
-            "Parameters:",
-            "Returns:",
-            "Note to self:",
-            "Raises:",
-        )
-        desc_lines: List[str] = []
-        i = 0
-        while i < len(lines) and not any(
-            lines[i].strip().startswith(h) for h in section_headers
-        ):
-            desc_lines.append(lines[i])
-            i += 1
-
-        if desc_lines:
-            output.append("## Description")
-            output.append("\n".join(desc_lines).strip())
-            output.append("")
-
-        # Now render sections
-        current_section: Optional[str] = None
-        while i < len(lines):
-            line = lines[i].strip()
-            if any(line.startswith(h) for h in section_headers):
-                current_section = line.rstrip(":")
-                output.append(f"## {current_section}")
+    # MODE 2: Detailed help for a specific function/class
+    elif obj is not None:
+        if inspect.ismodule(obj):
+            output.extend(_render_module(obj.__name__.split('.')[-1], obj))
+        elif inspect.isclass(obj):
+            output.extend(_render_class(obj.__name__, obj))
+        elif inspect.isfunction(obj) or inspect.ismethod(obj):
+            sig = _get_sig(obj)
+            output.append(f"# Help for: {obj.__name__}{sig}")
+            output.append("-" * 40)
+            doc = inspect.getdoc(obj)
+            if doc:
+                output.append(doc)
             else:
-                # Indent to keep section content visually grouped
-                output.append(f"  {line}")
-            i += 1
+                output.append("No detailed documentation available.")
+        else:
+            output.append(f"Cannot provide detailed help for type '{type(obj).__name__}'.")
 
-        text = "\n".join(output)
+    # MODE 3: Full API Dashboard (The default)
+    else:
+        output.append("# Logos API Dashboard")
+        output.append("A programmatic overview of my capabilities. Use `logos.help(obj)` for deep-dives.\n")
 
-        if print_output:
-            print(text)
+        # Global State
+        output.append("### Global State")
+        output.append("    logos.state: Persistent configuration (print it to view as YAML)")
+        output.append("    logos.verbosity(level): Context manager to mute/debug output")
+        output.append("")
 
-        return text
+        for _importer, modname, _ispkg in pkgutil.iter_modules(logos.__path__):
+            if modname.startswith("_") or modname in _HIDDEN_MODULES:
+                continue
+            try:
+                mod = importlib.import_module(f".{modname}", "logos")
+                output.extend(_render_module(modname, mod))
+            except Exception as exc:
+                output.append(f"### Module: logos.{modname} (Failed to load: {exc})\n")
 
-    # Fallback for unsupported object types
-    text = (
-        f"Cannot provide help for object of type '{type(obj).__name__}'. "
-        "Please provide a module or function."
-    )
-
+    text = "\n".join(output)
     if print_output:
         print(text)
-
     return text

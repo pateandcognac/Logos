@@ -10,18 +10,19 @@ system used by the vision module for artifact filenames.
 from datetime import datetime, timezone
 from typing import Any, Optional
 import io
+import re
 
 from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
-from ruamel.yaml.scalarstring import LiteralScalarString, SingleQuotedScalarString
+from ruamel.yaml.scalarstring import LiteralScalarString, SingleQuotedScalarString, PlainScalarString
 
 
 # ─── Base36 / Photo ID ───────────────────────────────────────────────
 
-ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyz"
+_ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyz"
 
-# Epoch for photo IDs: 2025-01-01 UTC
-PHOTO_ID_EPOCH = datetime(2025, 1, 1, tzinfo=timezone.utc)
+# Epoch for photo IDs: Feb 8, 1977
+_ID_EPOCH = datetime(1977, 2, 8, tzinfo=timezone.utc)
 
 # Module-level state for per-second sequencing
 _last_second: Optional[int] = None
@@ -48,15 +49,15 @@ def base36_encode(number: int, min_length: int = 4) -> str:
 
     chars = []
     while number:
-        chars.append(ALPHABET[number % 36])
+        chars.append(_ALPHABET[number % 36])
         number //= 36
     result = "".join(reversed(chars))
     return result.rjust(min_length, "0")
 
 
-def make_photo_id(now: Optional[datetime] = None) -> str:
+def make_time_id(prefix: str = "", now: Optional[datetime] = None) -> str:
     """
-    Generate a concise, chronologically-sortable 7-character photo ID.
+    Generate a time-based, 7-character, base36 ID with optional prefix, e.g. "sum-", "msg-"
 
     Format: 6 chars of seconds-since-epoch (base36) + 1 char burst sequence.
     Lexicographic sort == chronological sort, including bursts within the
@@ -78,7 +79,7 @@ def make_photo_id(now: Optional[datetime] = None) -> str:
     if now is None:
         now = datetime.now(timezone.utc)
 
-    delta = now - PHOTO_ID_EPOCH
+    delta = now - _ID_EPOCH
     second = int(delta.total_seconds())
 
     # Update per-second sequence counter
@@ -86,24 +87,24 @@ def make_photo_id(now: Optional[datetime] = None) -> str:
         _last_second = second
         _seq_in_second = 0
     else:
-        _seq_in_second = (_seq_in_second + 1) % len(ALPHABET)
+        _seq_in_second = (_seq_in_second + 1) % len(_ALPHABET)
 
     ts_part = base36_encode(second, min_length=6)
-    seq_part = ALPHABET[_seq_in_second]
+    seq_part = _ALPHABET[_seq_in_second]
 
-    return ts_part + seq_part
+    return f"{prefix}{ts_part}{seq_part}"
 
 
 # ─── LLM-Friendly YAML Formatting ────────────────────────────────────
 
 # Tunables for "LLM-friendly" YAML formatting
 _MAX_FLOW_LINE = 240      # max length for a single-line flow sequence
-_BLOCK_SCALAR_MIN = 240   # min length before a scalar becomes a | block
+_BLOCK_SCALAR_MIN = 80    # Lowered: LLMs prefer | blocks for readability over long single lines
 
 _yaml_llm = YAML()
-# Let us control wrapping; don't let the dumper wrap aggressively on its own.
+_yaml_llm.default_flow_style = None 
 _yaml_llm.width = 4096
-_yaml_llm.indent(mapping=2, sequence=2, offset=2)
+_yaml_llm.indent(mapping=2, sequence=4, offset=2)
 
 
 _RESERVED_WORDS = {
@@ -112,30 +113,37 @@ _RESERVED_WORDS = {
     "y", "n", "~",
 }
 
+# Regex to detect strings that YAML would misinterpret as numbers
+_RE_NUMBER = re.compile(
+    r'^[+-]?(\.?[0-9]+|[0-9]+\.?[0-9]*)([eE][+-]?[0-9]+)?$'
+)
 
 def _needs_quotes(value: str) -> bool:
     """
     Decide if a scalar *must* be quoted to be valid / unambiguous YAML.
-
-    We are intentionally lax: if we can get away with no quotes, we do,
-    for token efficiency (e.g., .py, .yaml).
     """
-    if value == "":
+    if not value:
         return True
 
-    # Any whitespace -> quote.
-    if any(ch.isspace() for ch in value):
-        return True
-
-    # Leading characters that tend to confuse YAML parsers.
-    if value[0] in "#&*?,[]{}|>!%@`":
-        return True
-
-    # Colon in plain scalars is asking for pain.
-    if ":" in value:
-        return True
-
+    # 1. Reserved words/symbols
     if value.lower() in _RESERVED_WORDS:
+        return True
+
+    # 2. Starts with special characters that trigger YAML parsing
+    if value[0] in "@`!|>&*%,#[]{}?-" or value[0] in "'\"":
+        return True
+    
+    # 3. Contains characters that break plain scalars
+    # We allow internal spaces! Just not colons followed by space or newlines
+    if ": " in value or " #" in value:
+        return True
+    
+    # 4. Leading/Trailing whitespace requires quotes to be preserved
+    if value.strip() != value:
+        return True
+
+    # 5. Looks like a number? Quote it to keep it a string.
+    if _RE_NUMBER.match(value):
         return True
 
     return False
@@ -148,13 +156,7 @@ def _prepare_for_llm_yaml(
     block_scalar_min: int,
 ) -> Any:
     """
-    Walk a plain Python structure and wrap it in ruamel's Commented*
-    containers + ScalarString subclasses so the dumper emits:
-
-    - Flow style lists for short / simple sequences without spaces.
-    - Block lists otherwise.
-    - | block scalars for long or multiline strings.
-    - Quotes only when YAML actually needs them.
+    Recursive walker that wraps Python objects in ruamel structures.
     """
     # --- mappings ---------------------------------------------------------
     if isinstance(obj, dict):
@@ -179,19 +181,21 @@ def _prepare_for_llm_yaml(
                 )
             )
 
-        # Heuristic: consider flow style only if all elements are simple scalars
-        # (no newlines). ScalarString subclasses are still `isinstance(str, ...)`.
-        simple_scalars = all(
-            isinstance(x, str) and ("\n" not in x) for x in seq
+        # Heuristic: Flow style if items are scalars, no newlines, and fits width.
+        # We allow spaces in items (e.g. ["file a", "file b"]).
+        is_simple = all(
+            isinstance(x, (str, int, float, bool)) and 
+            not (isinstance(x, str) and "\n" in x)
+            for x in obj
         )
 
-        if simple_scalars:
-            if all(" " not in str(x) for x in seq):
-                inline_repr = "[ " + ", ".join(str(x) for x in seq) + " ]"
-                if len(inline_repr) <= max_flow_line:
-                    seq.fa.set_flow_style()
-                else:
-                    seq.fa.set_block_style()
+        if is_simple:
+            # Estimate flow length: sum of stringified items + ", " overhead + "[]"
+            # Note: This is an estimate; ruamel adds quotes to some items.
+            est_len = sum(len(str(x)) for x in obj) + (2 * len(obj)) + 2
+            
+            if est_len <= max_flow_line:
+                seq.fa.set_flow_style()
             else:
                 seq.fa.set_block_style()
         else:
@@ -203,11 +207,15 @@ def _prepare_for_llm_yaml(
     if isinstance(obj, str):
         if "\n" in obj or len(obj) >= block_scalar_min:
             return LiteralScalarString(obj)
+        
         if _needs_quotes(obj):
             return SingleQuotedScalarString(obj)
-        return obj
+        
+        # Explicitly return a PlainScalarString. 
+        # This tells ruamel: "We checked, this is safe to be bare."
+        return PlainScalarString(obj)
 
-    # Numbers, bools, None, etc. -> let ruamel handle them.
+    # Let ruamel handle int, float, None, etc.
     return obj
 
 
@@ -217,16 +225,6 @@ def dump_llm_yaml(
     max_flow_line: int = _MAX_FLOW_LINE,
     block_scalar_min: int = _BLOCK_SCALAR_MIN,
 ) -> str:
-    """
-    Dump a Python structure to a YAML string optimized for LLM consumption.
-
-    Heuristics:
-      - Flow style lists for compact, whitespace-free items
-        (e.g., [ .py, .yaml, .md ]).
-      - Block lists for anything with spaces.
-      - | block scalars for long/multiline text.
-      - Quotes only when YAML requires them.
-    """
     prepared = _prepare_for_llm_yaml(
         data,
         max_flow_line=max_flow_line,

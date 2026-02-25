@@ -1,7 +1,7 @@
 # Logos/src/logos/pantilt.py
 
 """
-Control for my pan/tilt servo head.
+Control for my pan/tilt servo periscope.
 
 The pan/tilt mechanism is my directed gaze — it carries my high-res webcam,
 illuminator LEDs, and laser pointer. This module translates between intuitive

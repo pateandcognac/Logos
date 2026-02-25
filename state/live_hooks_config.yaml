@@ -20,3 +20,22 @@
         print(f"Warning: Could not import memory_manager hook: {e}")
     except Exception as e:
         print(f"Error during memory management: {e}")
+
+- name: vision_reflex
+  description: "The Retinal Flash. Captures live images based on configuration."
+  ttl: 99
+  code: |
+    # We import and run the routine from the file to keep this YAML clean.
+    # The variables it creates (astra_img, pt_seq) will persist in the global scope!
+    import hook_routines.vision_hook
+    import importlib
+    # importlib.reload(hook_routines.vision_hook) # Force reload to pick up changes!
+    hook_routines.vision_hook.run()
+
+- name: show_state
+  description: "Live view of my battery and status."
+  ttl: 99
+  code: |-
+    import logos
+    batt = logos.base.get_battery()
+    print(f"Battery {batt['percent']}% ({batt['status']})\nCharger: {logos.base.get_charger_state()}")
