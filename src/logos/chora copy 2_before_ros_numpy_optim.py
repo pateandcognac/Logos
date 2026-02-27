@@ -15,14 +15,9 @@ The core workflow is a two-step process:
 
 This allows me to visually plan paths, understand spatial relationships, and
 select navigation goals in a way that transcends my physical sensors.
+
+# VERY, VERY IMPORTANT: This code uses Open3d 0.13
 """
-# VERY Important: this code is specific to **Open3D *0.13.0***
-# Open3D 0.13 / Filament gotchas (read before "refactoring"):
-# - OffscreenRenderer is thread-affine (single OS thread for all renderer ops).
-# - Prefer rendering.Material for OffscreenRenderer; MaterialRecord snippets online
-#   often apply to GUI draw()/O3DVisualizer flows and can crash here.
-# - Transparency: use base_color RGBA + has_alpha=True on defaultUnlit/defaultLit.
-#   Do NOT assume newer "*Transparency" shader strings exist or are compatible in 0.13.
 
 from __future__ import annotations
 
@@ -59,9 +54,6 @@ try:
 except Exception:
     _HAS_O3D = False
 
-# Open3D 0.13 supports both Material and MaterialRecord, but Open3DScene.add_geometry
-# is typed for rendering.Material in 0.13 docs. We keep Material as the primary path
-# because it matches what's running on the robot today.
 try:
     from open3d.visualization.rendering import MaterialRecord  # type: ignore
     _HAS_MAT_RECORD = True
@@ -74,6 +66,9 @@ try:
     _HAS_CV2 = True
 except Exception:
     _HAS_CV2 = False
+
+# FIX 2: Removed top-level `build_logos_mesh()` call that ran at import time.
+# The mesh is lazily built and cached inside _create_robot_mesh().
 
 # ---- Optional Logos imports (kept soft so module can be introspected) ----
 
@@ -96,13 +91,6 @@ try:
     from logos import ros as logos_ros
 except Exception:  # pragma: no cover
     logos_ros = None
-
-try:
-    import ros_numpy
-    _HAS_ROS_NUMPY = True
-except Exception:
-    ros_numpy = None  # type: ignore
-    _HAS_ROS_NUMPY = False
 
 
 # --------------------------- Data Structures ---------------------------
@@ -131,50 +119,6 @@ class SceneObject:
 
 
 @dataclass
-class MapSnapshot:
-    """
-    Minimal map state needed for floor semantics and texture snapshotting.
-
-    We store numpy occupancy and the grid metadata we need to index into it.
-    Keeping this inside the render snapshot makes later raycasts agree with
-    what the robot actually saw when the image was rendered.
-    """
-    stamp_sec: float
-    resolution: float
-    origin_x: float
-    origin_y: float
-    width: int
-    height: int
-    occ: np.ndarray  # (H, W) int16
-    open_max: int = 25
-    occupied_min: int = 75
-    unknown_val: int = -1
-
-
-@dataclass
-class MeshSnapshot:
-    """
-    Mesh data frozen into numpy arrays for stable ray intersections.
-    """
-    vertices: np.ndarray  # (V, 3) float32
-    triangles: np.ndarray  # (T, 3) int32
-
-
-@dataclass
-class ObjectSnapshot:
-    """
-    Frozen raycast target for registered objects.
-
-    For pointclouds: points is (N, 3) float32.
-    For meshes: mesh is MeshSnapshot.
-    """
-    name: str
-    kind: str  # "mesh" or "pointcloud"
-    points: Optional[np.ndarray] = None
-    mesh: Optional[MeshSnapshot] = None
-
-
-@dataclass
 class SceneSnapshot:
     """Self-contained snapshot of what was rendered, sufficient for later raycasts."""
     render_id: str
@@ -187,12 +131,12 @@ class SceneSnapshot:
     ray_infinity_distance_m: float = 50.0
 
     # Ray targets:
-    astra_points_map: Optional[np.ndarray] = None  # (N, 3) float32 in world frame
-    robot_mesh: Optional[MeshSnapshot] = None
-    objects: List[ObjectSnapshot] = field(default_factory=list)
+    astra_points_map: Optional[np.ndarray] = None  # (N, 3) float64 in map frame
+    robot_mesh: Optional[Any] = None  # o3d.geometry.TriangleMesh
+    objects: List[SceneObject] = field(default_factory=list)
 
-    # Map semantics:
-    map_snapshot: Optional[MapSnapshot] = None
+    # Occupancy for floor semantics:
+    occupancy_grid: Optional[OccupancyGrid] = None
 
 
 @dataclass
@@ -209,16 +153,10 @@ class RenderResult:
     path: Optional[str] = None
     pose: Optional[Dict[str, float]] = None
     meta: Optional[Dict[str, Any]] = None
-
     def save(self, view: bool = False, path: Optional[str] = None) -> str:
         if self.path is None:
             import cv2
             import os
-
-            # meta is optional because RenderResult is a general-purpose container.
-            # Making it a dict on-demand avoids surprising AttributeErrors.
-            self.meta = self.meta or {}
-
             self.photo_id = self.meta.get("render_id", uuid.uuid4().hex[:12])
             save_dir = "artifacts/chora"
             os.makedirs(save_dir, exist_ok=True)
@@ -338,22 +276,6 @@ def _norm1000_to_pixel(norm_0_1000: float, size_px: int) -> float:
     return (n / 1000.0) * float(size_px - 1)
 
 
-def _as_4x4(m: Any) -> np.ndarray:
-    """
-    Defensive conversion for camera matrices.
-
-    Open3D 0.13 returns float32[4,4] for get_view_matrix/get_projection_matrix,
-    but this keeps the unprojection path robust if an API ever hands us a flat
-    16-array or a list-like.
-    """
-    a = np.asarray(m, dtype=np.float64)
-    if a.shape == (16,):
-        a = a.reshape((4, 4))
-    if a.shape != (4, 4):
-        raise ValueError(f"Expected 4x4 matrix, got {a.shape}")
-    return a
-
-
 # --------------------------- Core Chora System ---------------------------
 
 class Chora:
@@ -398,18 +320,10 @@ class Chora:
         self._latest_frame_time: float = 0.0
         self._frame_event = threading.Event()
 
-        # Camera subscription lifecycle (on-demand)
-        self._camera_subs_lock = threading.Lock()
-        self._camera_subs_active = False
-        self._pc_sub = None
-        self._rgb_sub = None
-        self._info_sub = None
-        self._sync = None
-
         # Occupancy grid + cached floor mesh
         self._map_lock = threading.Lock()
         self._occupancy_grid: Optional[OccupancyGrid] = None
-        self._occupancy_np: Optional[np.ndarray] = None  # (H, W) int16
+        self._occupancy_np: Optional[np.ndarray] = None  # (H, W) int8/int16
 
         # Floor visual cache (textured plane)
         self._floor_visual_mesh: Optional[o3d.geometry.TriangleMesh] = None
@@ -417,7 +331,7 @@ class Chora:
         self._floor_visual_stamp: Optional[rospy.Time] = None
         self._floor_visual_dims: Optional[Tuple[int, int]] = None  # (w, h)
 
-        # Render snapshot cache — bounded LRU via OrderedDict
+        # FIX 3: Render snapshot cache — bounded LRU via OrderedDict
         self._renders: OrderedDict[str, SceneSnapshot] = OrderedDict()
         self._renders_lock = threading.Lock()
         self._renders_max: int = 10  # keep last N snapshots
@@ -448,30 +362,16 @@ class Chora:
             "cloud_density": 1.0,             # 0.0-1.0, fraction of points to keep
             "cloud_opacity": 1.0,             # 0.0-1.0, vertex color blend toward bg
             "cloud_bg_color": [0.1, 0.1, 0.1],  # scene bg color for opacity blending
-            "cloud_alpha": 1.0,  # 0..1 (1 = opaque) # Real transparency (Filament material alpha)
 
-            # Laser scan visualization
-            #
-            # The depthimage_to_laserscan nodelet effectively samples around the
-            # vertical center row of the depth image. Instead of thinking in
-            # world-space meters, we emulate that by recoloring points whose
-            # projected pixel v lies near the image center. This keeps the mental
-            # model aligned with what /scan really is.
+            # Laser scan line visualization
             "laser_scan_show": False,
-            "laser_scan_center_band_px": 1,       # +/- around center row
-            "laser_scan_color": [1.0, 0.0, 0.0],  # RGB red in [0,1]
+            "laser_scan_height_m": 0.35,      # Z in map frame (Astra on TB2 ~35cm)
+            "laser_scan_thickness_m": 0.03,   # half-band around scan height
+            "laser_scan_color": [1.0, 0.0, 0.0],  # RGB red
         }
 
-        # Open3D 0.13 + Filament has HARD thread affinity:
-        # the OffscreenRenderer/Filament backend must be created + used from
-        # one single OS thread for the lifetime of the renderer.
-        #
-        # If you touch renderer.scene / add_geometry / render_to_image from
-        # multiple threads, you will eventually get native crashes or Filament
-        # "PreconditionPanic" aborts.
-        #
-        # Therefore: ALL rendering work is marshalled onto _render_thread via
-        # _run_on_render_thread().
+        # Dedicated render thread: Open3D 0.13's Filament backend requires
+        # that ALL OffscreenRenderer usage happens on the same OS thread.
         self._render_task_queue: queue.Queue = queue.Queue()
         self._render_thread = threading.Thread(
             target=self._render_worker, daemon=True, name="chora-render"
@@ -481,8 +381,7 @@ class Chora:
         # Renderer cache (keyed by resolution, managed on render thread only)
         self._renderers: Dict[Tuple[int, int], rendering.OffscreenRenderer] = {}
 
-        self._start_map_subscriber()
-        # Camera subscribers are started on-demand inside render()
+        self._start_subscribers()
 
     # ---------------- ROS plumbing ----------------
 
@@ -495,7 +394,7 @@ class Chora:
             self._tf_listener = tf2_ros.TransformListener(self._tf_buffer)
         return self._tf_buffer
 
-    def _start_map_subscriber(self) -> None:
+    def _start_subscribers(self) -> None:
         self._map_sub = rospy.Subscriber(
             self.map_topic,
             OccupancyGrid,
@@ -503,57 +402,22 @@ class Chora:
             queue_size=1,
         )
 
-    def _start_camera_subscribers(self) -> None:
-        """
-        Start the synchronized camera triple subscribers.
+        pc_sub = message_filters.Subscriber(self.points_topic, PointCloud2)
+        rgb_sub = message_filters.Subscriber(self.rgb_image_topic, Image)
+        info_sub = message_filters.Subscriber(self.rgb_info_topic, CameraInfo)
 
-        Subscribing to PointCloud2 is expensive even if callbacks are light,
-        because deserialization happens before the callback.
-        """
-        # Subscribing to PointCloud2 is expensive because ROS deserializes the message
-        # before your callback runs. We only subscribe long enough to grab ONE synced
-        # triple, then immediately unsubscribe to reduce CPU load + latency jitter.
-        # This might lead to occasional timeouts but it is worth it.
-        # TODO: handle timeouts gracefully
-        with self._camera_subs_lock:
-            if self._camera_subs_active:
-                return
+        ts = message_filters.ApproximateTimeSynchronizer(
+            [pc_sub, rgb_sub, info_sub],
+            queue_size=10,
+            slop=0.2,
+        )
+        ts.registerCallback(self._camera_sync_callback)
 
-            # Clear *before* subscribing so the next set() corresponds to new data.
-            self._frame_event.clear()
-
-            self._pc_sub = message_filters.Subscriber(self.points_topic, PointCloud2, queue_size=1)
-            self._rgb_sub = message_filters.Subscriber(self.rgb_image_topic, Image, queue_size=1)
-            self._info_sub = message_filters.Subscriber(self.rgb_info_topic, CameraInfo, queue_size=1)
-
-            self._sync = message_filters.ApproximateTimeSynchronizer(
-                [self._pc_sub, self._rgb_sub, self._info_sub],
-                queue_size=2,  # keep this small; clouds are big
-                slop=0.2,
-            )
-            self._sync.registerCallback(self._camera_sync_callback)
-
-            self._camera_subs_active = True
-
-    def _stop_camera_subscribers(self) -> None:
-        """Stop camera subscribers to eliminate background deserialization load."""
-        with self._camera_subs_lock:
-            if not self._camera_subs_active:
-                return
-
-            # message_filters.Subscriber wraps rospy.Subscriber in .sub
-            for sub in (self._pc_sub, self._rgb_sub, self._info_sub):
-                try:
-                    if sub is not None and hasattr(sub, "sub") and sub.sub is not None:
-                        sub.sub.unregister()
-                except Exception:
-                    pass
-
-            self._pc_sub = None
-            self._rgb_sub = None
-            self._info_sub = None
-            self._sync = None
-            self._camera_subs_active = False
+        # Hold references so GC doesn't kill them
+        self._pc_sub = pc_sub
+        self._rgb_sub = rgb_sub
+        self._info_sub = info_sub
+        self._sync = ts
 
     def _camera_sync_callback(self, pc_msg: PointCloud2, rgb_msg: Image, info_msg: CameraInfo) -> None:
         with self._frame_lock:
@@ -581,7 +445,8 @@ class Chora:
             self._floor_visual_stamp = msg.header.stamp if hasattr(msg, "header") else None
             self._floor_visual_dims = None
 
-    def _wait_for_frame(self, timeout_s: float = 6.0) -> bool:
+    def _wait_for_frame(self, timeout_s: float = 2.0) -> bool:
+        self._frame_event.clear()
         return self._frame_event.wait(timeout=timeout_s)
 
     # ---------------- Scene object management ----------------
@@ -612,40 +477,15 @@ class Chora:
 
     # ---------------- Mesh/PCD preprocessing ----------------
 
-    def _pc2_to_xyz_numpy(self, pc_msg: PointCloud2) -> np.ndarray:
-        """
-        Fast PointCloud2 -> (N, 3) float64 using ros_numpy.
-
-        Returns empty array if no points.
-        """
-        if not _HAS_ROS_NUMPY or ros_numpy is None:
-            # Fallback to the existing slow path (handled by caller)
-            return np.empty((0, 3), dtype=np.float64)
-
-        arr = ros_numpy.point_cloud2.pointcloud2_to_array(pc_msg)
-        if arr.size == 0:
-            return np.empty((0, 3), dtype=np.float64)
-
-        x = np.asarray(arr["x"], dtype=np.float64).reshape(-1)
-        y = np.asarray(arr["y"], dtype=np.float64).reshape(-1)
-        z = np.asarray(arr["z"], dtype=np.float64).reshape(-1)
-
-        xyz = np.column_stack((x, y, z))
-
-        finite = np.isfinite(xyz).all(axis=1)
-        xyz = xyz[finite]
-        if xyz.size == 0:
-            return xyz
-
-        xyz = xyz[xyz[:, 2] > 0.0]
-        return xyz
-
     def _preprocess_point_cloud(
         self,
         pcd: o3d.geometry.PointCloud,
         cloud_density: Optional[float] = None,
         cloud_opacity: Optional[float] = None,
-        rng_seed: Optional[int] = None,
+        laser_scan_show: Optional[bool] = None,
+        laser_scan_height_m: Optional[float] = None,
+        laser_scan_thickness_m: Optional[float] = None,
+        laser_scan_color: Optional[List[float]] = None,
     ) -> o3d.geometry.PointCloud:
         """
         Post-process a map-frame point cloud for rendering.
@@ -653,12 +493,14 @@ class Chora:
         Applies (in order):
           1. Statistical outlier removal (if enabled)
           2. Voxel downsampling (legacy toggle)
-          3. Deterministic density subsampling (stable debug behavior)
-          4. Opacity blending (mix vertex colors toward scene background)
+          3. Random density subsampling
+          4. Laser scan line colorization
+          5. Opacity blending (mix vertex colors toward scene background. MEH) 
         """
         if not pcd.has_points():
             return pcd
 
+        # Resolve params: per-call overrides > self.settings
         density = (
             cloud_density if cloud_density is not None
             else float(self.settings["cloud_density"])
@@ -667,10 +509,27 @@ class Chora:
             cloud_opacity if cloud_opacity is not None
             else float(self.settings["cloud_opacity"])
         )
+        show_scan = (
+            laser_scan_show if laser_scan_show is not None
+            else bool(self.settings["laser_scan_show"])
+        )
+        scan_z = (
+            laser_scan_height_m if laser_scan_height_m is not None
+            else float(self.settings["laser_scan_height_m"])
+        )
+        scan_dz = (
+            laser_scan_thickness_m if laser_scan_thickness_m is not None
+            else float(self.settings["laser_scan_thickness_m"])
+        )
+        scan_rgb = (
+            laser_scan_color if laser_scan_color is not None
+            else list(self.settings["laser_scan_color"])
+        )
 
+        # Work on a copy so caller's original is untouched
         processed = o3d.geometry.PointCloud(pcd)
 
-        # ---- 1. Outlier removal ----
+        # ---- 1. Outlier removal (better stats before subsampling) ----
         if self.settings["stat_outlier_removal"]:
             nn = int(self.settings["sor_neighbors"])
             if len(processed.points) > nn:
@@ -679,56 +538,46 @@ class Chora:
                     std_ratio=float(self.settings["sor_std_ratio"]),
                 )
 
-        # ---- 2. Voxel downsampling ----
+        # ---- 2. Voxel downsampling (legacy toggle) ----
         if self.settings["voxel_downsample"] and processed.has_points():
             processed = processed.voxel_down_sample(self.settings["voxel_size"])
 
-        # ---- 3. Density subsampling ----
-        #
-        # A stable subsample keeps debugging sane. Using a per-frame seed gives
-        # "same input frame => same subset" behavior, while still allowing the
-        # subset to change over time as the scene changes.
+        # ---- 3. Random density subsampling ----
         if 0.0 < density < 1.0 and len(processed.points) > 0:
             n_pts = len(processed.points)
             n_keep = max(1, int(n_pts * density))
-
-            seed = int(rng_seed) if rng_seed is not None else 0
-            rng = np.random.default_rng(seed=seed)
-
-            indices = rng.choice(n_pts, size=n_keep, replace=False)
-            indices.sort()
+            indices = np.random.choice(n_pts, size=n_keep, replace=False)
+            indices.sort()  # preserve spatial coherence for cache friendliness
             processed = processed.select_by_index(indices.tolist())
 
         if not processed.has_points():
             return processed
 
-        # Colors are required for pointcloud rendering paths that blend/annotate.
+        # Ensure colors exist before we modify them
         if not processed.has_colors():
             processed.paint_uniform_color([0.8, 0.2, 0.2])
 
-        # ---- 4. Opacity blending ----
-        # NOTE: "cloud_opacity" here is NOT real alpha transparency.
-        # It's a visual hack: blend per-point RGB toward the background color.
-        # This works everywhere (even legacy visualizers) and avoids transparency
-        # sorting artifacts, but it is not actual blending in the renderer.
-        #
-        # Real transparency (Filament) is handled in _render_scene via
-        # material.base_color alpha + material.has_alpha.
+        colors = np.asarray(processed.colors).copy()  # (N, 3) RGB [0,1]
+
+        # ---- 4. Laser scan line: recolor points near the scan Z plane ----
+        if show_scan:
+            pts_z = np.asarray(processed.points)[:, 2]
+            scan_mask = np.abs(pts_z - scan_z) <= scan_dz
+            if np.any(scan_mask):
+                colors[scan_mask] = scan_rgb
+
+        # ---- 5. Opacity: blend vertex colors toward scene background ----
         if opacity < 1.0:
-            colors = np.asarray(processed.colors).copy()
             bg = np.array(self.settings["cloud_bg_color"], dtype=np.float64)
             colors = colors * opacity + bg * (1.0 - opacity)
-            processed.colors = o3d.utility.Vector3dVector(colors)
 
+        processed.colors = o3d.utility.Vector3dVector(colors)
         return processed
 
-    def _transform_pcd_to_map(
-        self,
-        pcd: o3d.geometry.PointCloud,
-        source_frame: str,
-    ) -> Optional[o3d.geometry.PointCloud]:
+    def _transform_pcd_to_map(self, pcd: o3d.geometry.PointCloud, source_frame: str) -> Optional[o3d.geometry.PointCloud]:
         world_frame = self._get_world_frame()
 
+        # Identity fallback: no transform, return a copy as-is
         if not world_frame:
             return o3d.geometry.PointCloud(pcd)
 
@@ -757,12 +606,14 @@ class Chora:
         cloud_density: Optional[float] = None,
         cloud_opacity: Optional[float] = None,
         laser_scan_show: Optional[bool] = None,
-        laser_scan_center_band_px: Optional[int] = None,
+        laser_scan_height_m: Optional[float] = None,
+        laser_scan_thickness_m: Optional[float] = None,
         laser_scan_color: Optional[List[float]] = None,
     ) -> Optional[o3d.geometry.PointCloud]:
         """
         Build a colored point cloud in map frame from the synchronized camera
-        triple using vectorized numpy operations.
+        triple. Uses vectorized numpy operations instead of per-point Python
+        iteration.
 
         The registered depth topic (/camera/depth_registered/points) provides
         XYZ already aligned with the RGB intrinsics, so we project to pixel
@@ -775,36 +626,26 @@ class Chora:
         fx, fy = float(info_msg.K[0]), float(info_msg.K[4])
         cx, cy = float(info_msg.K[2]), float(info_msg.K[5])
 
-        show_scan = (
-            laser_scan_show if laser_scan_show is not None
-            else bool(self.settings["laser_scan_show"])
-        )
-        scan_band = (
-            laser_scan_center_band_px if laser_scan_center_band_px is not None
-            else int(self.settings["laser_scan_center_band_px"])
-        )
-        scan_rgb = (
-            laser_scan_color if laser_scan_color is not None
-            else list(self.settings["laser_scan_color"])
+        # ---- Extract XYZ from PointCloud2 as a single numpy array ----
+        # pc2.read_points yields tuples; materializing via list() then
+        # converting to array is the fastest path without ros_numpy.
+        xyz_raw = np.array(
+            list(pc2.read_points(pc_msg, field_names=("x", "y", "z"), skip_nans=True)),
+            dtype=np.float64,
         )
 
-        # ---- Extract XYZ from PointCloud2 (fast path: ros_numpy) ----
-        xyz = self._pc2_to_xyz_numpy(pc_msg)
+        if xyz_raw.size == 0:
+            return None
 
-        # Fallback if ros_numpy unavailable or returned nothing
-        if xyz.size == 0:
-            xyz = np.array(
-                list(pc2.read_points(pc_msg, field_names=("x", "y", "z"), skip_nans=True)),
-                dtype=np.float64,
-            )
-            if xyz.size == 0:
-                return None
+        # Handle structured array edge case (some numpy versions)
+        if xyz_raw.ndim == 1 and xyz_raw.dtype.names:
+            xyz = np.column_stack([xyz_raw[f] for f in ("x", "y", "z")])
+        else:
+            xyz = xyz_raw
 
-            if xyz.ndim == 1 and xyz.dtype.names:
-                xyz = np.column_stack([xyz[f] for f in ("x", "y", "z")])
-
-            xyz = xyz[np.isfinite(xyz).all(axis=1)]
-            xyz = xyz[xyz[:, 2] > 0.0]
+        # Filter invalid depth (z <= 0)
+        valid = xyz[:, 2] > 0.0
+        xyz = xyz[valid]
 
         if xyz.shape[0] == 0:
             return None
@@ -816,6 +657,7 @@ class Chora:
         u = (fx * x_cam / z_cam + cx).astype(np.int32)
         v = (fy * y_cam / z_cam + cy).astype(np.int32)
 
+        # Bounds check
         in_bounds = (u >= 0) & (u < w_img) & (v >= 0) & (v < h_img)
         xyz = xyz[in_bounds]
         u = u[in_bounds]
@@ -825,68 +667,54 @@ class Chora:
             return None
 
         # ---- Vectorized color sampling ----
-        bgr = cv_bgr[v, u]                             # (N, 3) uint8
-        rgb = bgr[:, ::-1].astype(np.float64) / 255.0  # RGB float [0,1]
-
-        # ---- Emulate depthimage_to_laserscan sampling band ----
-        #
-        # The classic nodelet generates a scan from around the vertical center
-        # of the depth image. Coloring those same pixels in our point cloud makes
-        # "what /scan is" obvious without any frame math.
-        if show_scan:
-            center_row = h_img // 2
-            lo = max(0, center_row - int(scan_band))
-            hi = min(h_img - 1, center_row + int(scan_band))
-            scan_mask = (v >= lo) & (v <= hi)
-            if np.any(scan_mask):
-                rgb[scan_mask] = np.asarray(scan_rgb, dtype=np.float64)
+        # cv_bgr is (H, W, 3) BGR uint8; Open3D wants RGB float [0,1]
+        bgr = cv_bgr[v, u]                        # (N, 3) uint8
+        rgb = bgr[:, ::-1].astype(np.float64) / 255.0  # BGR -> RGB, normalize
 
         check_for_interrupt()
 
-        # ---- Build Open3D PointCloud (camera frame) ----
+        # ---- Build Open3D PointCloud ----
         pcd = o3d.geometry.PointCloud()
         pcd.points = o3d.utility.Vector3dVector(xyz)
         pcd.colors = o3d.utility.Vector3dVector(rgb)
 
-        # ---- Transform to world frame ----
+        # ---- Transform to map frame ----
         pcd_map = self._transform_pcd_to_map(pcd, pc_msg.header.frame_id)
         if pcd_map is None or not pcd_map.has_points():
             return None
 
-        # ---- Optional ceiling clip in world frame ----
+        # ---- Optional ceiling clip in map frame ----
         if max_cloud_height_m is not None:
             pts = np.asarray(pcd_map.points)
             keep = np.where(pts[:, 2] < float(max_cloud_height_m))[0]
             pcd_map = pcd_map.select_by_index(keep.tolist())
 
-        # ---- Preprocessing: outlier removal, density, opacity ----
-        #
-        # Seed derives from the sensor timestamp, which makes subsampling stable
-        # for a given input frame while still changing over time naturally.
-        try:
-            stamp_nsec = int(pc_msg.header.stamp.to_nsec())
-        except Exception:
-            stamp_nsec = int(time.time() * 1e9)
-        seed = stamp_nsec & 0xFFFFFFFF
-
+        # ---- Preprocessing: outlier removal, density, scan line, opacity ----
         return self._preprocess_point_cloud(
             pcd_map,
             cloud_density=cloud_density,
             cloud_opacity=cloud_opacity,
-            rng_seed=seed,
+            laser_scan_show=laser_scan_show,
+            laser_scan_height_m=laser_scan_height_m,
+            laser_scan_thickness_m=laser_scan_thickness_m,
+            laser_scan_color=laser_scan_color,
         )
 
     # ---------------- Floor mesh + occupancy semantics ----------------
 
-    def _floor_state_at_map_snapshot(self, x: float, y: float, ms: Optional[MapSnapshot]) -> str:
-        if ms is None or ms.occ is None:
+    def _floor_state_at(self, x: float, y: float) -> str:
+        with self._map_lock:
+            grid = self._occupancy_grid
+            occ = self._occupancy_np
+
+        if grid is None or occ is None:
             return "unmapped"
 
-        res = float(ms.resolution)
-        origin_x = float(ms.origin_x)
-        origin_y = float(ms.origin_y)
-        w = int(ms.width)
-        h = int(ms.height)
+        res = float(grid.info.resolution)
+        origin_x = float(grid.info.origin.position.x)
+        origin_y = float(grid.info.origin.position.y)
+        w = int(grid.info.width)
+        h = int(grid.info.height)
 
         j = int((x - origin_x) / res)
         i = int((y - origin_y) / res)
@@ -894,10 +722,10 @@ class Chora:
         if i < 0 or i >= h or j < 0 or j >= w:
             return "unmapped"
 
-        val = int(ms.occ[i, j])
-        if 0 <= val <= int(ms.open_max):
+        val = int(occ[i, j])
+        if 0 <= val <= 25:
             return "map_open"
-        if val >= int(ms.occupied_min):
+        if val >= 75:
             return "map_occupied"
         return "unmapped"
 
@@ -975,28 +803,41 @@ class Chora:
 
     def _make_unlit_texture_material(self, tex_rgb: np.ndarray) -> Any:
         """
-        Open3D 0.13: OffscreenRenderer textures via rendering.Material.albedo_img.
+        Open3D 0.13: OffscreenRenderer textures via MaterialRecord.albedo_img.
         We provide RGBA to avoid edge-case channel handling.
         """
         tex_rgb = np.ascontiguousarray(tex_rgb.astype(np.uint8, copy=False))
+
         h, w = tex_rgb.shape[:2]
         alpha = np.full((h, w, 1), 255, dtype=np.uint8)
         tex_rgba = np.concatenate([tex_rgb, alpha], axis=2)
 
         tex_img = o3d.geometry.Image(tex_rgba)
 
-        mat = rendering.Material()
-        mat.shader = "defaultUnlit"
+        if _HAS_MAT_RECORD and MaterialRecord is not None:
+            mat = MaterialRecord()
+            mat.shader = "defaultUnlit"
 
-        # In 0.13, albedo_img exists on rendering.Material
-        if hasattr(mat, "albedo_img"):
-            mat.albedo_img = tex_img
+            if hasattr(mat, "albedo_img"):
+                mat.albedo_img = tex_img
+            elif hasattr(mat, "base_color_texture"):
+                mat.base_color_texture = tex_img  # type: ignore
 
-        # base_color is the multiplier; keep it white so the texture is literal
-        if hasattr(mat, "base_color"):
-            mat.base_color = [1.0, 1.0, 1.0, 1.0]
+            if hasattr(mat, "base_color"):
+                mat.base_color = [1.0, 1.0, 1.0, 1.0]
 
-        return mat
+            return mat
+
+        try:
+            mat = rendering.Material()
+            mat.shader = "defaultUnlit"
+            if hasattr(mat, "albedo_img"):
+                mat.albedo_img = tex_img
+            if hasattr(mat, "base_color"):
+                mat.base_color = [1.0, 1.0, 1.0, 1.0]
+            return mat
+        except Exception:
+            return None
 
     def _get_floor_visual_cached(self) -> Tuple[o3d.geometry.TriangleMesh, Any]:
         """
@@ -1062,35 +903,6 @@ class Chora:
 
         return mesh, mat
 
-    def _make_map_snapshot(self) -> Optional[MapSnapshot]:
-        """
-        Freeze the current map into a compact, numpy-friendly snapshot.
-
-        This avoids "rendered with one map, raycasted with a newer map" confusion.
-        """
-        with self._map_lock:
-            grid = self._occupancy_grid
-            occ = self._occupancy_np
-
-            if grid is None or occ is None:
-                return None
-
-            try:
-                stamp_sec = float(grid.header.stamp.to_sec())
-            except Exception:
-                stamp_sec = time.time()
-
-            ms = MapSnapshot(
-                stamp_sec=stamp_sec,
-                resolution=float(grid.info.resolution),
-                origin_x=float(grid.info.origin.position.x),
-                origin_y=float(grid.info.origin.position.y),
-                width=int(grid.info.width),
-                height=int(grid.info.height),
-                occ=np.array(occ, dtype=np.int16, copy=True),
-            )
-            return ms
-
     # ---------------- Robot model ----------------
 
     def _get_robot_transform_map(self) -> Optional[np.ndarray]:
@@ -1112,21 +924,17 @@ class Chora:
         except Exception:
             return None
 
-    def _create_robot_mesh_render_only(self) -> Optional[o3d.geometry.TriangleMesh]:
-        """
-        Build a robot mesh for rendering.
-
-        For raycasting, we freeze triangle/vertex arrays into MeshSnapshot to
-        prevent future transforms (or rebuilds) from changing the past.
-        """
+    def _create_robot_mesh(self) -> Optional[o3d.geometry.TriangleMesh]:
         tfm = self._get_robot_transform_map()
         if tfm is None:
             return None
 
-        if not hasattr(self, "_logos_base_mesh") or self._logos_base_mesh is None:
+        # Lazy-build and cache the base mesh
+        if not hasattr(self, '_logos_base_mesh') or self._logos_base_mesh is None:
             from logos.logos_mesh import build_logos_mesh
             self._logos_base_mesh = build_logos_mesh()
 
+        # Deep copy so the transform doesn't accumulate
         robot = o3d.geometry.TriangleMesh(self._logos_base_mesh)
         robot.transform(tfm)
         robot.compute_vertex_normals()
@@ -1258,25 +1066,22 @@ class Chora:
         look_world = cam_world + forward * float(look_distance_m)
         return cam_world, look_world
 
-    # ---------------- Render thread (Filament thread-affinity) --------
+    # ---------------- Render thread (Filament thread-affinity fix) --------
 
     def _render_worker(self) -> None:
         """
         Long-lived worker loop: pulls callables from the task queue, executes
         them on THIS thread (the only thread that ever touches Filament).
-        On idle timeout, drops cached OffscreenRenderers to free resources.
+        On idle timeout, destroys cached OffscreenRenderers to free CPU.
         """
-        # Renderer objects hold GPU/native state. Clearing cached renderers on idle
-        # is a practical leak-prevention trick for long-running robot processes.
-        # (This is not just "Python memory"; Filament/GL resources are involved.)
-        idle_timeout_s = 5.0
+        _IDLE_TIMEOUT_S = 5.0
         while True:
             try:
-                task_fn, response_q = self._render_task_queue.get(timeout=idle_timeout_s)
+                task_fn, response_q = self._render_task_queue.get(
+                    timeout=_IDLE_TIMEOUT_S
+                )
             except queue.Empty:
                 if self._renderers:
-                    # OffscreenRenderer holds native resources; releasing references
-                    # allows Python to drop them and Filament to reclaim memory.
                     self._renderers.clear()
                 continue
 
@@ -1288,9 +1093,6 @@ class Chora:
 
     def _run_on_render_thread(self, fn):
         """Submit a callable to the render thread, block for result."""
-        # WARNING: do not "optimize" this away by calling fn() directly.
-        # Any OffscreenRenderer/scene/material calls outside the render thread
-        # can crash the process (Filament thread affinity).
         response_q: queue.Queue = queue.Queue()
         self._render_task_queue.put((fn, response_q))
         status, value = response_q.get()
@@ -1301,8 +1103,6 @@ class Chora:
     # ---------------- Rendering ----------------
 
     def _get_renderer(self, width: int, height: int) -> rendering.OffscreenRenderer:
-        # Cache by (width, height). Creating OffscreenRenderer repeatedly is expensive
-        # and can churn GPU resources. We only create on the render thread.
         key = (width, height)
         if key in self._renderers:
             return self._renderers[key]
@@ -1316,47 +1116,6 @@ class Chora:
         except Exception:
             pass
 
-    def _freeze_mesh(self, mesh: o3d.geometry.TriangleMesh) -> Optional[MeshSnapshot]:
-        if mesh is None or mesh.is_empty() or not mesh.has_triangles():
-            return None
-        triangles = np.asarray(mesh.triangles)
-        vertices = np.asarray(mesh.vertices)
-        if triangles.size == 0 or vertices.size == 0:
-            return None
-        return MeshSnapshot(
-            vertices=np.array(vertices, dtype=np.float32, copy=True),
-            triangles=np.array(triangles, dtype=np.int32, copy=True),
-        )
-
-    def _freeze_objects(self, objs: List[SceneObject]) -> List[ObjectSnapshot]:
-        frozen: List[ObjectSnapshot] = []
-        for obj in objs:
-            if not obj.raycast_visible:
-                continue
-
-            try:
-                if obj.kind == "pointcloud":
-                    pts = np.asarray(obj.geometry.points)
-                    if pts.size == 0:
-                        continue
-                    frozen.append(ObjectSnapshot(
-                        name=obj.name,
-                        kind="pointcloud",
-                        points=np.array(pts, dtype=np.float32, copy=True),
-                    ))
-                elif obj.kind == "mesh":
-                    ms = self._freeze_mesh(obj.geometry)
-                    if ms is None:
-                        continue
-                    frozen.append(ObjectSnapshot(
-                        name=obj.name,
-                        kind="mesh",
-                        mesh=ms,
-                    ))
-            except Exception:
-                continue
-        return frozen
-
     def _render_scene(
         self,
         live_pcd_map: Optional[o3d.geometry.PointCloud],
@@ -1366,72 +1125,46 @@ class Chora:
         height: int,
         include_robot: bool,
         effective_point_size: float,
-        map_snapshot: Optional[MapSnapshot],
-        cloud_alpha: float = 1.0, 
     ) -> Tuple[np.ndarray, SceneSnapshot]:
         renderer = self._get_renderer(width, height)
         scene = renderer.scene
         self._clear_scene(scene)
 
-        # Materials (Open3D 0.13):
-        # - rendering.Material is the correct type for OffscreenRenderer scene.add_geometry
-        # - MaterialRecord patterns you see online often target the GUI visualizer path,
-        #   not OffscreenRenderer.
+        # Materials
         unlit = rendering.Material()
         unlit.shader = "defaultUnlit"
-        unlit.point_size = float(effective_point_size)
-
-        # REAL transparency in Open3D 0.13: do NOT switch to newer shader strings like
-        # "defaultUnlitTransparency" / "defaultLitTransparency".
-        #
-        # In 0.13 those names can map to a different (or missing) Filament material
-        # package. Open3D then tries to set parameters (e.g. `srgbColor`) that the
-        # underlying material doesn't have, and Filament aborts the entire process
-        # with PreconditionPanic ("uniform named 'srgbColor' not found").
-        #
-        # Correct 0.13 approach: keep shader="defaultUnlit" and enable alpha via:
-        #   - base_color RGBA (alpha in [0..1])
-        #   - has_alpha = True
-        if cloud_alpha < 1.0:
-            unlit.base_color = [1.0, 1.0, 1.0, float(cloud_alpha)]
-            unlit.has_alpha = True
+        unlit.point_size = effective_point_size
 
         lit = rendering.Material()
         lit.shader = "defaultLit"
 
         # Floor (textured occupancy plane)
         floor_mesh, floor_mat = self._get_floor_visual_cached()
-        scene.add_geometry("floor", floor_mesh, floor_mat if floor_mat is not None else lit)
+        if floor_mat is None:
+            scene.add_geometry("floor", floor_mesh, lit)
+        else:
+            scene.add_geometry("floor", floor_mesh, floor_mat)
 
-        # Live Astra cloud:
-        # We render from live Open3D geometry, but store a frozen float32 copy of points
-        # into the snapshot for later raycasts. float32 is plenty for click/raycast
-        # targeting and reduces memory/copy cost.
+        # Live Astra cloud
         astra_points_np = None
         if live_pcd_map is not None and live_pcd_map.has_points():
             scene.add_geometry("astra_cloud", live_pcd_map, unlit)
-
-            # float32 is plenty for click targeting; halves memory and cache pressure.
-            pts = np.asarray(live_pcd_map.points)
-            if pts.size > 0:
-                astra_points_np = np.array(pts, dtype=np.float32, copy=True)
+            astra_points_np = np.asarray(live_pcd_map.points).copy()
 
         # Robot
-        robot_mesh_render = None
-        robot_mesh_frozen = None
+        robot_mesh = None
         if include_robot:
-            robot_mesh_render = self._create_robot_mesh_render_only()
-            if robot_mesh_render is not None and not robot_mesh_render.is_empty():
-                scene.add_geometry("robot", robot_mesh_render, lit)
-                robot_mesh_frozen = self._freeze_mesh(robot_mesh_render)
+            robot_mesh = self._create_robot_mesh()
+            if robot_mesh is not None and not robot_mesh.is_empty():
+                scene.add_geometry("robot", robot_mesh, lit)
 
-        # Registered objects (render from live geometry, raycast from frozen arrays)
-        objs_live: List[SceneObject] = []
+        # Registered objects (phantasmata)
+        objs: List[SceneObject] = []
         with self._objects_lock:
-            for _, obj in self._objects.items():
-                objs_live.append(obj)
+            for name, obj in self._objects.items():
+                objs.append(obj)
 
-        for obj in objs_live:
+        for obj in objs:
             if not obj.render_visible:
                 continue
             mat = rendering.Material()
@@ -1440,8 +1173,6 @@ class Chora:
                 mat.point_size = float(obj.point_size)
             scene.add_geometry(f"obj:{obj.name}", obj.geometry, mat)
 
-        objs_frozen = self._freeze_objects(objs_live)
-
         # Camera
         scene.camera.look_at(look_at_world_pos, camera_world_pos, [0.0, 0.0, 1.0])
         try:
@@ -1449,28 +1180,25 @@ class Chora:
         except Exception:
             pass
         scene.set_background([0.1, 0.1, 0.1, 1.0])
-        # Background alpha stays 1.0. We are not compositing; transparency is only
-        # for geometry blending. Setting bg alpha != 1 tends to produce confusing
-        # results in offscreen captures unless you're explicitly doing RGBA pipelines.
 
-        # Snapshot matrices
-        view = _as_4x4(scene.camera.get_view_matrix())
-        proj = _as_4x4(scene.camera.get_projection_matrix())
+        # Snapshot
+        view = np.array(scene.camera.get_view_matrix(), dtype=np.float64)
+        proj = np.array(scene.camera.get_projection_matrix(), dtype=np.float64)
 
         render_id = uuid.uuid4().hex[:12]
         snapshot = SceneSnapshot(
             render_id=render_id,
             timestamp=time.time(),
             resolution=(height, width),
-            camera_world_pos=np.array(camera_world_pos, dtype=np.float64, copy=True),
-            look_at_world_pos=np.array(look_at_world_pos, dtype=np.float64, copy=True),
+            camera_world_pos=camera_world_pos.copy(),
+            look_at_world_pos=look_at_world_pos.copy(),
             view_matrix=view,
             projection_matrix=proj,
             ray_infinity_distance_m=float(self.settings["ray_infinity_distance_m"]),
             astra_points_map=astra_points_np,
-            robot_mesh=robot_mesh_frozen,
-            objects=objs_frozen,
-            map_snapshot=map_snapshot,
+            robot_mesh=robot_mesh,
+            objects=objs,
+            occupancy_grid=self._occupancy_grid,
         )
 
         # Render to image (Open3D gives RGB; convert to BGR for Logos consistency)
@@ -1497,11 +1225,8 @@ class Chora:
         x_ndc = (2.0 * px) / float(width) - 1.0
         y_ndc = 1.0 - (2.0 * py) / float(height)
 
-        # clip-space point on the near plane
         ray_clip = np.array([x_ndc, y_ndc, -1.0, 1.0], dtype=np.float64)
         ray_eye = inv_proj @ ray_clip
-
-        # w=0 turns it into a direction vector in eye space
         ray_eye = np.array([ray_eye[0], ray_eye[1], -1.0, 0.0], dtype=np.float64)
 
         ray_world_dir = (inv_view @ ray_eye)[:3]
@@ -1511,7 +1236,6 @@ class Chora:
         else:
             ray_world_dir /= n
 
-        # Origin is camera position in world space according to the view matrix.
         ray_origin = (inv_view @ np.array([0.0, 0.0, 0.0, 1.0], dtype=np.float64))[:3]
         return ray_origin, ray_world_dir
 
@@ -1522,12 +1246,10 @@ class Chora:
         points: np.ndarray,
         hit_radius_m: float,
     ) -> Optional[Tuple[float, np.ndarray]]:
-        if points is None or points.size == 0:
+        if points.size == 0:
             return None
 
-        pts = points.astype(np.float64, copy=False)
-
-        vec_op = pts - ray_origin
+        vec_op = points - ray_origin
         t = vec_op @ ray_dir
         in_front = t > 0.0
         if not np.any(in_front):
@@ -1542,21 +1264,19 @@ class Chora:
 
         idxs = np.where(valid)[0]
         best = idxs[np.argmin(t[valid])]
-        return float(t[best]), pts[best].copy()
+        return float(t[best]), points[best].copy()
 
-    def _intersect_ray_with_mesh_arrays_moller_trumbore(
+    def _intersect_ray_with_mesh_moller_trumbore(
         self,
         ray_origin: np.ndarray,
         ray_dir: np.ndarray,
-        mesh: MeshSnapshot,
+        mesh: o3d.geometry.TriangleMesh,
     ) -> Optional[Tuple[float, np.ndarray]]:
-        if mesh is None or mesh.vertices is None or mesh.triangles is None:
-            return None
-        if mesh.vertices.size == 0 or mesh.triangles.size == 0:
+        if mesh is None or mesh.is_empty() or not mesh.has_triangles():
             return None
 
-        triangles = mesh.triangles
-        vertices = mesh.vertices.astype(np.float64, copy=False)
+        triangles = np.asarray(mesh.triangles)
+        vertices = np.asarray(mesh.vertices)
 
         v0 = vertices[triangles[:, 0]]
         v1 = vertices[triangles[:, 1]]
@@ -1570,10 +1290,7 @@ class Chora:
 
         eps = 1e-8
         parallel = np.abs(det) < eps
-
-        # Avoid inf/nan propagation: only invert where it's safe.
-        inv_det = np.zeros_like(det, dtype=np.float64)
-        inv_det[~parallel] = 1.0 / det[~parallel]
+        inv_det = 1.0 / det
 
         tvec = ray_origin - v0
         u = np.sum(tvec * pvec, axis=1) * inv_det
@@ -1589,12 +1306,7 @@ class Chora:
         hit_point = ray_origin + min_t * ray_dir
         return min_t, hit_point
 
-    def _intersect_ray_with_floor(
-        self,
-        ray_origin: np.ndarray,
-        ray_dir: np.ndarray,
-        z_plane: float = 0.0,
-    ) -> Optional[Tuple[float, np.ndarray]]:
+    def _intersect_ray_with_floor(self, ray_origin: np.ndarray, ray_dir: np.ndarray, z_plane: float = 0.0) -> Optional[Tuple[float, np.ndarray]]:
         if abs(ray_dir[2]) < 1e-9:
             return None
         t = (z_plane - ray_origin[2]) / ray_dir[2]
@@ -1618,6 +1330,7 @@ class Chora:
 
         h_img, w_img = image.shape[:2]
 
+        # Group by anchor, sort by priority
         groups: Dict[str, List[HudElement]] = {}
         for el in elements:
             anchor = el.anchor if el.anchor in HUD_ANCHORS else "top_left"
@@ -1768,13 +1481,13 @@ class Chora:
         save_dir: str = "artifacts/chora",
         filename: Optional[str] = "debug.png",
         # Point cloud display — None = use self.settings value
-        cloud_alpha: Optional[float] = None,
         cloud_density: Optional[float] = None,
         cloud_opacity: Optional[float] = None,
         cloud_point_size: Optional[float] = None,
         # Laser scan visualization — None = use self.settings value
         laser_scan_show: Optional[bool] = None,
-        laser_scan_center_band_px: Optional[int] = None,
+        laser_scan_height_m: Optional[float] = None,
+        laser_scan_thickness_m: Optional[float] = None,
         laser_scan_color: Optional[List[float]] = None,
         # HUD options
         hud: Optional[List[HudElement]] = None,
@@ -1784,6 +1497,60 @@ class Chora:
     ) -> RenderResult:
         """
         Renders a view of my 3D 'chora' from my virtual `theoria` camera.
+
+        This function constructs a 3D scene containing the known ROS map as a
+        textured floor, the live point cloud from my Astra camera, and a model
+        of my own body. It then renders a 2D image from a highly-configurable
+        virtual camera. The output is a `RenderResult` object, which contains
+        the BGR image and a rich `.meta` attribute holding the `SceneSnapshot`
+        needed for subsequent `raycast` calls.
+
+        Args:
+            camera_pos_relative: (x, y, z) tuple for the camera's position
+                relative to my `base_footprint` in meters. Defaults to a
+                "shoulder camera" view [0.0, 0.0, 0.7].
+            camera_pos_world: (x, y, z) tuple for the camera's absolute
+                position in the map frame. Overrides `camera_pos_relative`.
+            look_at_relative: (x, y, z) tuple for the point the camera
+                should look at, relative to my `base_footprint`. Defaults
+                to 1 meter in front of me [1.0, 0, 0.0].
+            look_at_world: (x, y, z) tuple for the absolute map coordinate
+                the camera should look at. Overrides all other targeting args.
+            rpy_deg: (roll, pitch, yaw) tuple in degrees to specify camera
+                orientation instead of a look_at point.
+            resolution: (height, width) tuple for the output image.
+            include_robot: If True, includes a 3D model of myself in the scene.
+            cloud_density: 0.0-1.0 fraction of point cloud to render
+                (random subsampling). None uses self.settings["cloud_density"].
+            cloud_opacity: 0.0-1.0 visual opacity of point cloud
+                (vertex color blending toward background). None uses settings.
+            cloud_point_size: Rendered point size in pixels. None uses settings.
+            laser_scan_show: If True, highlights points near the virtual lidar
+                scan plane in red. None uses settings.
+            laser_scan_height_m: Z-height of scan plane in map frame (meters).
+            laser_scan_thickness_m: Half-band thickness around scan plane.
+            laser_scan_color: RGB [0-1] color for scan line points.
+            save: If True, saves the rendered image to disk.
+            hud: An optional list of `HudElement` objects to overlay on the image.
+
+        Returns:
+            A `RenderResult` object shaped like `vision.CaptureResult`.
+            Contains `.image` (BGR numpy array) and `.meta` dict with the
+            `SceneSnapshot` required by `raycast()`.
+
+        Note to self:
+            This is my primary tool for situational awareness and off-line path
+            planning. The most powerful workflow is:
+            1. `render()` a view of a cluttered area.
+            2. Analyze the resulting image.
+            3. Choose a target pixel (y, x) in the image.
+            4. Use `raycast()` on that pixel to get a real-world map coordinate.
+            5. Use `logos.nav.go_to_abs()` with that coordinate.
+
+            The laser scan overlay is incredibly useful for understanding what
+            my /scan topic "sees" vs what my physical camera sees — the red
+            band across the point cloud shows exactly where the virtual lidar
+            plane cuts through the scene.
         """
         check_for_interrupt()
 
@@ -1792,35 +1559,28 @@ class Chora:
         if width <= 0 or height <= 0:
             raise ValueError("resolution must be positive (height, width).")
 
+        # Reset per-render state
         self._clear_render_warnings()
         self._resolve_world_frame()
 
-        # Freeze the map now so render + later raycast agree.
-        map_snapshot = self._make_map_snapshot()
+        # Need a recent synchronized frame
+        ok = self._wait_for_frame(timeout_s=2.0)
+        if not ok:
+            raise RuntimeError("Timed out waiting for synchronized camera frame.")
 
-        self._start_camera_subscribers()
-        try:
-            # Clearing happens inside _start_camera_subscribers() so we don't
-            # accidentally erase a freshly-arrived frame.
-            ok = self._wait_for_frame(timeout_s=10.0)
-            if not ok:
-                raise RuntimeError("Timed out waiting for synchronized camera frame.")
+        with self._frame_lock:
+            pc_msg = self._latest_pc
+            rgb_msg = self._latest_rgb
+            info_msg = self._latest_info
 
-            with self._frame_lock:
-                pc_msg = self._latest_pc
-                rgb_msg = self._latest_rgb
-                info_msg = self._latest_info
-
-            if pc_msg is None or rgb_msg is None or info_msg is None:
-                raise RuntimeError("Camera streams not ready (missing synchronized triple).")
-        finally:
-            self._stop_camera_subscribers()
+        if pc_msg is None or rgb_msg is None or info_msg is None:
+            raise RuntimeError("Camera streams not ready (missing synchronized triple).")
 
         # TF can lag on the very first call — retry with short sleeps.
-        tf_max_retries = 5
-        tf_retry_delay_s = 0.4
+        _TF_MAX_RETRIES = 5
+        _TF_RETRY_DELAY_S = 0.4
         camera_world = look_world = None
-        for attempt in range(tf_max_retries):
+        for attempt in range(_TF_MAX_RETRIES):
             try:
                 camera_world, look_world = self._resolve_camera_and_lookat(
                     camera_pos_relative=camera_pos_relative,
@@ -1836,16 +1596,17 @@ class Chora:
                 )
                 break
             except RuntimeError as e:
-                if "TF failed" in str(e) and attempt < tf_max_retries - 1:
+                if "TF failed" in str(e) and attempt < _TF_MAX_RETRIES - 1:
                     print(
                         f"[chora] TF not ready (attempt {attempt + 1}/"
-                        f"{tf_max_retries}), retrying in "
-                        f"{tf_retry_delay_s}s..."
+                        f"{_TF_MAX_RETRIES}), retrying in "
+                        f"{_TF_RETRY_DELAY_S}s..."
                     )
-                    time.sleep(tf_retry_delay_s)
+                    time.sleep(_TF_RETRY_DELAY_S)
                     continue
                 raise
 
+        # Build point cloud with all display params piped through
         live_pcd_map = self._build_live_colored_pcd_map(
             pc_msg=pc_msg,
             rgb_msg=rgb_msg,
@@ -1854,20 +1615,16 @@ class Chora:
             cloud_density=cloud_density,
             cloud_opacity=cloud_opacity,
             laser_scan_show=laser_scan_show,
-            laser_scan_center_band_px=laser_scan_center_band_px,
+            laser_scan_height_m=laser_scan_height_m,
+            laser_scan_thickness_m=laser_scan_thickness_m,
             laser_scan_color=laser_scan_color,
         )
 
+        # Resolve point size for this render
         effective_point_size = (
             cloud_point_size if cloud_point_size is not None
             else float(self.settings["render_point_size"])
         )
-
-        effective_cloud_alpha = (
-            cloud_alpha if cloud_alpha is not None
-            else float(self.settings["cloud_alpha"])
-        )
-        effective_cloud_alpha = max(0.0, min(1.0, float(effective_cloud_alpha)))
 
         # All Open3D OffscreenRenderer work on the dedicated render thread.
         img_bgr, snapshot = self._run_on_render_thread(
@@ -1879,18 +1636,17 @@ class Chora:
                 height=height,
                 include_robot=include_robot,
                 effective_point_size=effective_point_size,
-                map_snapshot=map_snapshot,
-                cloud_alpha=effective_cloud_alpha,  # NEW
             )
         )
 
+        # FIX 3: Cache snapshot with LRU eviction
         with self._renders_lock:
             self._renders[snapshot.render_id] = snapshot
             self._renders.move_to_end(snapshot.render_id)
             while len(self._renders) > self._renders_max:
                 self._renders.popitem(last=False)
 
-        # HUD overlay (caller thread; no Filament involved)
+        # ---- HUD overlay (runs on caller thread — no Filament involved) ----
         all_hud: List[HudElement] = []
         all_hud.extend(self._build_system_hud(
             snapshot,
@@ -1931,19 +1687,7 @@ class Chora:
         )
 
         if save or view:
-            out_path = None
-            if filename:
-                os.makedirs(save_dir, exist_ok=True)
-                out_path = os.path.join(save_dir, filename)
-            result.save(view=view, path=out_path)
-
-        # Large temporaries (point arrays, renderer images) can benefit from
-        # occasional reclamation in long-running robot processes.
-        try:
-            import gc
-            gc.collect()
-        except Exception:
-            pass
+            result.save(view=view)
 
         return result
 
@@ -1959,6 +1703,20 @@ class Chora:
     ) -> RaycastHit:
         """
         Projects a 2D pixel from a `chora` render back into the 3D world.
+
+        Args:
+            render: The `RenderResult` object from a previous `render()` call,
+                or the string `render_id` from its `.meta` dictionary.
+            yx: A `(y, x)` tuple of the pixel to cast from. Coordinates must
+                be in the standard 0-1000 normalized space.
+            include_floor: If True, the ray can hit the floor plane.
+            include_astra: If True, the ray can hit the live point cloud.
+            include_robot: If True, the ray can hit the robot's 3D model.
+            include_objects: If True, the ray can hit phantasmata objects.
+
+        Returns:
+            A `RaycastHit` object with `.hit`, `.world_point`, `.distance_m`,
+            and `.floor_state` attributes.
         """
         check_for_interrupt()
 
@@ -1996,28 +1754,27 @@ class Chora:
 
         if include_objects and snapshot.objects:
             for obj in snapshot.objects:
-                if obj.kind == "pointcloud" and obj.points is not None:
+                if not obj.raycast_visible:
+                    continue
+                if obj.kind == "pointcloud":
+                    pts = np.asarray(obj.geometry.points)
                     hit = self._intersect_ray_with_pointcloud(
                         ray_origin,
                         ray_dir,
-                        obj.points,
+                        pts,
                         hit_radius_m=float(self.settings["point_hit_radius"]),
                     )
                     if hit is not None:
                         dist, pt = hit
                         hits.append((dist, f"object:{obj.name}", pt, {}))
-                elif obj.kind == "mesh" and obj.mesh is not None:
-                    hit = self._intersect_ray_with_mesh_arrays_moller_trumbore(
-                        ray_origin, ray_dir, obj.mesh
-                    )
+                elif obj.kind == "mesh":
+                    hit = self._intersect_ray_with_mesh_moller_trumbore(ray_origin, ray_dir, obj.geometry)
                     if hit is not None:
                         dist, pt = hit
                         hits.append((dist, f"object:{obj.name}", pt, {}))
 
         if include_robot and snapshot.robot_mesh is not None:
-            hit = self._intersect_ray_with_mesh_arrays_moller_trumbore(
-                ray_origin, ray_dir, snapshot.robot_mesh
-            )
+            hit = self._intersect_ray_with_mesh_moller_trumbore(ray_origin, ray_dir, snapshot.robot_mesh)
             if hit is not None:
                 dist, pt = hit
                 hits.append((dist, "robot", pt, {}))
@@ -2026,9 +1783,7 @@ class Chora:
             hit = self._intersect_ray_with_floor(ray_origin, ray_dir, z_plane=0.0)
             if hit is not None:
                 dist, pt = hit
-                floor_state = self._floor_state_at_map_snapshot(
-                    float(pt[0]), float(pt[1]), snapshot.map_snapshot
-                )
+                floor_state = self._floor_state_at(float(pt[0]), float(pt[1]))
                 hits.append((dist, "floor", pt, {"floor_state": floor_state}))
 
         if hits:
@@ -2046,6 +1801,7 @@ class Chora:
                 },
             )
 
+        # Infinity
         dist = float(snapshot.ray_infinity_distance_m)
         pt = ray_origin + ray_dir * dist
         return RaycastHit(
@@ -2073,6 +1829,8 @@ def get_chora() -> Chora:
             _CHORA_SINGLETON = Chora()
         return _CHORA_SINGLETON
 
+
+# Public convenience functions (so Logos can call logos.chora.render(...) directly)
 
 @api_call(default_verbosity=Verbosity.ACK)
 def render(*args, **kwargs) -> RenderResult:

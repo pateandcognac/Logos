@@ -46,7 +46,7 @@ def build_logos_mesh() -> "o3d.geometry.TriangleMesh":
     - Central column: r=0.035, h~0.48
     - Chest orb: r=0.06 at z=0.35
     - Oval face display: ~0.30w x 0.38h, centered at z=0.78
-    - Corrugated arms with yellow rubber-duck hands
+    - Corrugated arms with cute yellow hands
     - Camera block on top with red LED
     - Mic boom on left side
 

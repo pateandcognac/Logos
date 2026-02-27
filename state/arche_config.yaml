@@ -2,10 +2,10 @@
   description: "A live view of my configured hooks."
   ttl: 99 # Run every loop and stay pinned
   code: |-
-    print("# Prelude Hooks")
-    print(logos.hooks.show('prelude'))
-    print("\n# Live Hooks")
-    print(logos.hooks.show('live'))
+    print("# Arche Hooks")
+    print(logos.hooks.show('arche'))
+    print("\n# Ephemera Hooks")
+    print(logos.hooks.show('ephemera'))
 
 - name: api_summary
   description: A high-level overview of my available API modules.

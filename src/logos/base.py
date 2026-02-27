@@ -69,7 +69,7 @@ def _ensure_ros():
     rospy.Subscriber('/mobile_base/sensors/core', SensorState, _sensor_cb, queue_size=1)
     
     # Publisher for raw logos velocity
-    _cmd_vel_pub = rospy.Publisher('/cmd_vel_mux/input/teleop', Twist, queue_size=5)
+    _cmd_vel_pub = rospy.Publisher('/cmd_vel_mux/input/logos', Twist, queue_size=5)
     # _cmd_vel_pub = rospy.Publisher('/mobile_base/commands/velocity', Twist, queue_size=5)
     
     _ros_initialized = True

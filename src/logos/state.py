@@ -113,7 +113,7 @@ class ChoraState:
         self.map_frame: str = "map"
 
         # Rendering defaults
-        self.default_resolution: List[int] = [384, 384]  # [width, height]
+        self.default_resolution: List[int] = [640, 640]  # [width, height]
         self.max_cloud_height_m: float = 2.0
         self.include_robot: bool = True
 

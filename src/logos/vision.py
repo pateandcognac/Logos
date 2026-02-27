@@ -70,11 +70,11 @@ FOV = {
     "astra_depth": (58.0, 45.0),
 }
 
-# Default capture resolution per source: (width, height)
+# Default capture resolution per source: (height, width)
 DEFAULT_RESOLUTION: Dict[str, Tuple[int, int]] = {
-    "pan_tilt": (1280, 960),
-    "top_down": (640, 480),
-    "astra":    (640, 480),
+    "pan_tilt": (960, 1280),
+    "top_down": (480, 640),
+    "astra":    (480, 640),
 }
 
 # Webcam resolution tiers — capture at these, then resize to target
@@ -206,18 +206,18 @@ class CaptureResult:
     """
 
     def __init__(
-        self,
-        image: np.ndarray,
-        source: str,
-        timestamp: Optional[float] = None,
-        pose: Optional[Dict[str, float]] = None,
-        pan_tilt_degs: Optional[Tuple[float, float]] = None,
-        depth: Optional[np.ndarray] = None,
-        depth_points: Optional[np.ndarray] = None,
-        depth_points_msg: Optional[Any] = None,
-        camera_info: Optional[Any] = None,
-        meta: Optional[Dict[str, Any]] = None,
-    ):
+            self,
+            image: np.ndarray,
+            source: str,
+            timestamp: Optional[float] = None,
+            pose: Optional[Dict[str, float]] = None,
+            pan_tilt_degs: Optional[Tuple[float, float]] = None,
+            depth: Optional[np.ndarray] = None,
+            depth_points: Optional[np.ndarray] = None,
+            depth_points_msg: Optional[Any] = None,
+            camera_info: Optional[Any] = None,
+            meta: Optional[Dict[str, Any]] = None,
+        ):
         self.image = image
         self.source = source
         self.timestamp = timestamp or time.time()
@@ -234,7 +234,7 @@ class CaptureResult:
         self.camera_info = camera_info
         
         # User-defined metadata container
-        self.custom_meta = meta or {} 
+        self.meta = meta or {} 
 
     def save(
         self, 
@@ -273,8 +273,8 @@ class CaptureResult:
             cv2.imwrite(str(depth_path), self.depth)
 
         # Compile full metadata (System authoritative + User custom)
-        # We start with custom so system keys can overwrite duplicates if necessary
-        full_meta = self.custom_meta.copy()
+        # We start with the existing meta so system keys can overwrite duplicates if necessary
+        full_meta = self.meta.copy() # CHANGE: use self.meta
         
         system_meta = {
             "photo_id": self.photo_id,
@@ -289,9 +289,8 @@ class CaptureResult:
             
         full_meta.update(system_meta)
 
-        # Update internal custom_meta to reflect what is on disk 
-        # (so view() can access system keys easily)
-        self.custom_meta = full_meta
+        # Update internal meta to reflect the full data saved to disk
+        self.meta = full_meta # CHANGE: update self.meta
 
         meta_path = source_dir / f"{self.photo_id}.yaml"
         _write_sidecar(meta_path, full_meta)
@@ -317,9 +316,9 @@ class CaptureResult:
         
         content = ""
         
-        if meta_keys and self.custom_meta:
+        if meta_keys and self.meta:
             filtered_meta = {}
-            for key, value in self.custom_meta.items():
+            for key, value in self.meta.items():
                 for pattern in meta_keys:
                     if fnmatch.fnmatch(key, pattern):
                         filtered_meta[key] = value
@@ -347,7 +346,7 @@ class CaptureResult:
             Useful for "zooming in" on a detection. I can capture at high res
             and then crop to isolate a region of interest:
 
-                result = logos.vision.capture('pan_tilt', resolution=(2592, 1944))
+                result = logos.vision.capture('pan_tilt', resolution=(1944 2592))
                 detections = [{"box_2d": [300, 400, 600, 700], "label": "thing"}]
                 zoomed = result.crop(detections[0]["box_2d"])
         """
@@ -383,16 +382,17 @@ class CaptureResult:
             I understood from it. The sidecar persists on disk, so I can
             review my annotations later via the filesystem.
         """
-        if self.path is None:
-            self.save()
+        # CHANGE: Update the unified meta dictionary directly
+        self.meta.update(kwargs)
 
-        self.custom_meta.update(kwargs)
-        
-        # If we have already saved to disk, update the file
+        # If already saved, update the sidecar file. If not, the metadata
+        # will be included the next time .save() is called.
         if self.path is not None:
             meta_path = Path(self.path).with_suffix(".yaml")
-            # We re-write the whole sidecar with the updated internal state
-            _write_sidecar(meta_path, self.custom_meta)
+            _write_sidecar(meta_path, self.meta)
+        # We no longer need to call self.save() here automatically.
+        # This makes the behavior more predictable: add_meta just adds data.
+        # The first call to save() or view() will persist it.
 
 
     def derive_world_coordinate(
@@ -702,7 +702,7 @@ class _WebcamManager:
         Grab the latest frame, activating the camera if needed.
 
         Args:
-            resolution: Target (width, height). Determines capture tier and
+            resolution: Target (height, width). Determines capture tier and
                 is used for final resize. None = source default.
 
         Returns:
@@ -710,7 +710,7 @@ class _WebcamManager:
         """
         if resolution is None:
             resolution = DEFAULT_RESOLUTION[self.source]
-        target_w, target_h = resolution
+        target_h, target_w = resolution
 
         tier = self._select_tier(target_w, target_h)
 
@@ -897,7 +897,7 @@ class _AstraManager:
 
         Args:
             feeds: Which feeds to capture. Defaults to ('rgb', 'depth_registered').
-            resolution: Target (width, height) for the RGB image.
+            resolution: Target (height, width) for the RGB image.
                 Depth is left at native resolution. None = default (640x480).
 
         Returns:
@@ -915,7 +915,7 @@ class _AstraManager:
 
         if resolution is None:
             resolution = DEFAULT_RESOLUTION[self.source]
-        target_w, target_h = resolution
+        target_h, target_w = resolution
 
         # Ensure subscriptions are active for requested feeds
         self._subscribe(feeds)
@@ -1062,11 +1062,11 @@ def capture(
             'pan_tilt'  — steerable high-res webcam (default).
             'top_down'  — rear downward-facing camera.
             'astra'     — Orbbec RGBD sensor (multi-feed).
-        resolution: Target (width, height) as a tuple. If None, uses the
+        resolution: Target (height, width) as a tuple. If None, uses the
             source's default resolution:
-                pan_tilt:  (1280, 960)
-                top_down:  (640, 480)
-                astra:     (640, 480)
+                pan_tilt:  (960, 1280)
+                top_down:  (480, 640)
+                astra:     (480, 640)
             For webcams, requesting >1280x960 triggers the high-res capture
             tier (2592x1944 native, downscaled to target).
         view: If True, automatically save and print a <file> tag so the
@@ -1089,7 +1089,7 @@ def capture(
             img = logos.vision.capture('pan_tilt', view=True)
 
         High-res capture for detail:
-            img = logos.vision.capture('pan_tilt', resolution=(2592, 1944))
+            img = logos.vision.capture('pan_tilt', resolution=(1944, 2592))
             zoomed = img.crop([300, 400, 600, 700])
 
         Astra with depth for navigation:

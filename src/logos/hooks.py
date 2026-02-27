@@ -23,20 +23,20 @@ STATE_PATH = WORKSPACE_PATH / "state"
 
 def _get_config_path(location: str) -> Path:
     """Helper to resolve the config file path from a friendly name."""
-    # if location is 'prelude' or 'live', return the corresponding path
-    if location == 'prelude':
-        return STATE_PATH / "prelude_hooks_config.yaml"
-    elif location == 'live':
-        return STATE_PATH / "live_hooks_config.yaml"
+    # if location is 'arche' or 'ephemera', return the corresponding path
+    if location == 'arche':
+        return STATE_PATH / "arche_hooks_config.yaml"
+    elif location == 'ephemera':
+        return STATE_PATH / "ephemera_hooks_config.yaml"
     else:
-        raise ValueError(f"Invalid config location '{location}'. Must be 'prelude' or 'live'.")
+        raise ValueError(f"Invalid config location '{location}'. Must be 'arche' or 'ephemera'.")
 
 def show(location: str) -> str:
     """
     Provides a concise summary of all hooks in a given [location]_hooks_config.yaml file.
 
     Args:
-        location: The configuration to list. Must be 'prelude' or 'live'.
+        location: The configuration to list. Must be 'arche' or 'ephemera'.
 
     Returns:
         A formatted string summarizing the hooks, excluding their code.
@@ -70,7 +70,7 @@ def upsert(location: str, name: str, *, description: Union[str, None] = None, tt
     Update an existing hook or create a new one in the requested configuration.
 
     Args:
-        location: Which config file to edit ('prelude' or 'live').
+        location: Which config file to edit ('arche' or 'ephemera').
         name: Unique hook name to update or create.
         description: Human-friendly summary to store with the hook.
         ttl: Number of cycles the hook should persist (e.g., 99 to pin, -99 to run once).
@@ -125,7 +125,7 @@ def remove(location: str, name: str):
     Removes a hook from a specified configuration.
 
     Args:
-        location: The configuration to modify. Must be 'prelude' or 'live'.
+        location: The configuration to modify. Must be 'arche' or 'ephemera'.
         name: The unique name of the hook to remove.
 
     Note to self:
