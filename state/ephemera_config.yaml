@@ -1,9 +1,11 @@
-- name: show_state
-  description: Shows time and logos.state
+- name: the_basics
+  description: Shows time, battery, and logos.state
   ttl: 99
   code: |-
-    import datetime
+    import datetime, time, logos
     print(f"# Current time: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+    batt = logos.base.get_battery()
+    print(f"Battery {batt['percent']}% ({batt['status']})\nCharger: {logos.base.get_charger_state()}")
     print(logos.state)
 
 - name: manage_memory
@@ -31,11 +33,10 @@
     import importlib
     # importlib.reload(hook_routines.vision_hook) # Force reload to pick up changes!
     hook_routines.vision_hook.run()
+    print("# astra_img and pt_seq available in global scope")
 
-- name: show_state
-  description: "Live view of my battery and status."
+- name: theoria
+  description: "A projection of my mind's eye."
   ttl: 99
-  code: |-
-    import logos
-    batt = logos.base.get_battery()
-    print(f"Battery {batt['percent']}% ({batt['status']})\nCharger: {logos.base.get_charger_state()}")
+  code: |
+    logos.chora.render()

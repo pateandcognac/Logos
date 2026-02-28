@@ -1,0 +1,33 @@
+chora:
+  map_frame: [map, odom]               # List in preference order
+  mind_palace_config: mind_palace_00.yaml  # Within Logos/config/
+  phantasmata_dir: phantasmata/         # Within src/logos/ API dir
+
+vision:
+  theoria_defaults:                     # Override built-in render() defaults
+    resolution: [768, 768]              # [height, width]
+    fov_deg: 60.0                       # Vertical FOV in degrees
+    camera_pos_relative: [0.0, 0.0, 0.7]
+    look_at_relative: [1.0, 0.0, 0.0]
+    include_robot: true
+    view: true
+    cloud_alpha: 1.0
+    cloud_density: 1.0
+    laser_scan_show: false
+    show_hud: true
+    save_unique: false
+    # save_unique: false → overwrites artifacts/chora/latest_render.png + sidecar
+    # save_unique: true  → ADDITIONALLY saves with logos.utils.make_time_id()
+    #                       base36 7-char ID as filename for png + sidecar
+  hook_captures:
+    - source: astra
+      active: true
+      view: true
+      var_name: astra_img
+      resolution: [480, 640]
+      astra_feeds: [rgb, depth_registered]
+    - source: theoria
+      active: true
+      view: true
+      var_name: theoria
+      # Any theoria_defaults overrides here

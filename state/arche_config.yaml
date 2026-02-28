@@ -2,6 +2,8 @@
   description: "A live view of my configured hooks."
   ttl: 99 # Run every loop and stay pinned
   code: |-
+    import time
+    from logos.core import verbosity, check_for_interrupt, help, Verbosity
     print("# Arche Hooks")
     print(logos.hooks.show('arche'))
     print("\n# Ephemera Hooks")

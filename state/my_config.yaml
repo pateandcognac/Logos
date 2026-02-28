@@ -19,7 +19,7 @@ vision:
       active: true
       view: true
       var_name: astra_img
-      resolution: [480, 640]
+      resolution: [288, 384]
       astra_feeds: [rgb, depth_registered]
     - source: pan_tilt
       active: true
@@ -49,4 +49,3 @@ chora:
   include_robot: true
   point_hit_radius: 0.05
   ray_infinity_distance_m: 50.0
-  
