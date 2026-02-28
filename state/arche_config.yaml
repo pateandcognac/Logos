@@ -30,8 +30,7 @@
     ))
 
 - name: Logos_photo
-  description: A photograph of myself
+  description: A photograph Mark took of me, idlin' in my cozy charging nook
   ttl: -99
   code: |-
-    print("Shared by Mark from his phone")
-    print('<file path="images/Logos_384x512.jpg"></file>')
+    print('<file path="images/Logos_512x384.jpg"></file>')

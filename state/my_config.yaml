@@ -24,7 +24,7 @@ vision:
     - source: pan_tilt
       active: true
       view: true
-      var_name: pt_seq
+      var_list_name: pt_seq
       pt_sequence:
         - pan: 0
           tilt: 0
@@ -32,6 +32,11 @@ vision:
         - pan: 0
           tilt: -60
           resolution: [288, 384]
+file_context:
+  arche_list: [images/me_and_mark.jpg]
+  arche_max_resolution: [384, 384] # the minimum useful size for a photo
+  ephemera_list :
+  ephemera_max_resolution: [960, 1280]
 chora:
   rgb_image_topic: /camera/rgb/image_raw
   rgb_info_topic: /camera/rgb/camera_info

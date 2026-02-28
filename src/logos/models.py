@@ -60,10 +60,11 @@ def _initialize_llm() -> None:
 
 def llm(prompt: str, model_alias: str = "fast", temperature: float = 0.7) -> str:
     """
-    A simple, general-purpose wrapper to prompt my core LLM intelligence out-of-band.
+    A simple wrapper to prompt my core, stateless, LLM intelligence out-of-band. 
 
     This function abstracts away the nuances of calling my own intelligence.
-    It is text-only, stateless, and uses "instruct" style prompting.
+    It does *NOT* have an existing system prompt, context of my identity as
+    Logos, or tools. It is text-only, stateless, and uses "instruct" style prompting.
 
     Args:
         prompt: The text prompt to send to the model.

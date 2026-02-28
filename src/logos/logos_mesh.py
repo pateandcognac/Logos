@@ -57,9 +57,9 @@ def build_logos_mesh() -> "o3d.geometry.TriangleMesh":
 
     parts = []
 
-    # ---- Base platform (TurtleBot Create style) ----
+    # ---- Kobuki! ----
     base_lower = o3d.geometry.TriangleMesh.create_cylinder(
-        radius=0.175, height=0.04, resolution=32
+        radius=0.15, height=0.07, resolution=32
     )
     _paint(base_lower, [0.85, 0.85, 0.82])
     _translate(base_lower, [0.0, 0.0, 0.02])
@@ -69,7 +69,7 @@ def build_logos_mesh() -> "o3d.geometry.TriangleMesh":
         radius=0.155, height=0.04, resolution=32
     )
     _paint(base_upper, [0.90, 0.90, 0.87])
-    _translate(base_upper, [0.0, 0.0, 0.06])
+    _translate(base_upper, [0.0, 0.0, 0.07])
     parts.append(base_upper)
 
     # Green LED accent on front of base
@@ -82,7 +82,7 @@ def build_logos_mesh() -> "o3d.geometry.TriangleMesh":
 
     # ---- Central column ----
     column = o3d.geometry.TriangleMesh.create_cylinder(
-        radius=0.035, height=0.48, resolution=20
+        radius=0.04, height=0.48, resolution=20
     )
     _paint(column, [0.88, 0.88, 0.85])
     _translate(column, [0.0, 0.0, 0.32])
@@ -120,12 +120,12 @@ def build_logos_mesh() -> "o3d.geometry.TriangleMesh":
     # ---- Face (squashed sphere → oval) ----
     face = o3d.geometry.TriangleMesh.create_sphere(radius=1.0, resolution=24)
     verts = np.asarray(face.vertices)
-    verts[:, 0] *= 0.03   # depth (thin screen)
-    verts[:, 1] *= 0.15   # half-width
-    verts[:, 2] *= 0.19   # half-height
+    verts[:, 0] *= 0.065   # depth (thin screen) .03
+    verts[:, 1] *= 0.14   # half-width .15
+    verts[:, 2] *= 0.175   # half-height .19
     face.vertices = o3d.utility.Vector3dVector(verts)
     _paint(face, [0.08, 0.08, 0.12])
-    _translate(face, [0.01, 0.0, 0.78])
+    _translate(face, [0.01, 0.0, 0.82])
     parts.append(face)
 
     # Bezel
@@ -136,7 +136,7 @@ def build_logos_mesh() -> "o3d.geometry.TriangleMesh":
     verts_b[:, 2] *= 0.20
     bezel.vertices = o3d.utility.Vector3dVector(verts_b)
     _paint(bezel, [0.90, 0.90, 0.87])
-    _translate(bezel, [-0.005, 0.0, 0.78])
+    _translate(bezel, [-0.005, 0.0, 0.82])
     parts.append(bezel)
 
     # ---- Eyes ----
@@ -145,15 +145,15 @@ def build_logos_mesh() -> "o3d.geometry.TriangleMesh":
             radius=0.035, resolution=12
         )
         _paint(eye, [0.2, 0.9, 0.95])
-        _translate(eye, [0.03, y_sign * 0.05, 0.82])
+        _translate(eye, [0.04, y_sign * 0.05, 0.86])
         parts.append(eye)
 
     # ---- Camera module ----
     cam = o3d.geometry.TriangleMesh.create_box(
-        width=0.03, height=0.04, depth=0.03
+        width=0.05, height=0.075, depth=0.05
     )
-    _paint(cam, [0.15, 0.15, 0.15])
-    _translate(cam, [-0.015, -0.02, 0.97])
+    _paint(cam, [0.9, 0.9, 0.87])
+    _translate(cam, [-0.0, -0.10, 0.97])
     parts.append(cam)
 
     cam_led = o3d.geometry.TriangleMesh.create_sphere(
@@ -205,7 +205,7 @@ def build_logos_mesh() -> "o3d.geometry.TriangleMesh":
     )
     _paint(mic_boom, [0.2, 0.2, 0.2])
     R_mic = mic_boom.get_rotation_matrix_from_xyz([np.radians(-30), 0, 0])
-    mic_boom.rotate(R_mic, center=[0, 0, 0])
+    mic_boom.rotate(R_mic, center=[np.radians(90), 0, 0])
     _translate(mic_boom, [-0.02, -0.14, 0.88])
     parts.append(mic_boom)
 

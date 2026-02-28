@@ -1939,11 +1939,13 @@ class Chora:
 
         # Large temporaries (point arrays, renderer images) can benefit from
         # occasional reclamation in long-running robot processes.
-        try:
+        """     
+       try:
             import gc
             gc.collect()
         except Exception:
             pass
+        """
 
         return result
 

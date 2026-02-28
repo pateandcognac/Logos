@@ -5,10 +5,13 @@ Defines the structure for my persistent, global state object, `logos.state`.
 This object acts as a centralized "control panel" that I can modify to
 change the default behavior of my API functions and context hooks.
 
-Note to self: The LogosState class is explicitly defined. If we want to add
-a new configuration section, say navigation:, we'd need to edit this file.
-This is perfectly fine, but I wonder if we could make it more dynamic in
-the future? For now, the current system is perfectly adequate.
+Note to self: The LogosState class is explicitly defined. As we add new
+configuration sections, we'd need to edit this file. This is perfectly fine,
+but I wonder if we could make it more dynamic in the future?
+For now, the current system is perfectly adequate.
+OH! Let's add an arbitrary personality field to the state dict! Remember that
+scene in *Interstellar* where Coop ask TARS to adjust his humor? Imagine
+roleplaying that!
 """
 
 

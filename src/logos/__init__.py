@@ -19,4 +19,7 @@ from . import core, ros, files, hooks, memory, models, exceptions, shell, utils,
 
 # We will add more here as we build out the API
 
-# voice.speak("Logos API is online! 👋", wait=False)
+# TODO: cron style jobs (obvi Chronos inspo) that trigger a cron hook, or, prompts myself as a <!-- system: style prompt. -->
+
+
+
