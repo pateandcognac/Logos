@@ -1,10 +1,12 @@
 # Logos/src/logos/memory.py
 
 """
-This module contains my tools for managing my own working memory (the io_buffer).
+This module contains tools for the current Hypomnemeta (io_buffer.jsonl) and historical records.
 I can use these to summarize past events, recall specific messages, and maintain
 a clean and relevant context window for my main cognition.
 """
+# TODO: Helper for adjusting max number of images to show.
+# Search. RAG tooling. etc.
 
 import os
 import json

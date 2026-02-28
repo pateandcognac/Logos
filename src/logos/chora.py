@@ -1784,6 +1784,60 @@ class Chora:
     ) -> RenderResult:
         """
         Renders a view of my 3D 'chora' from my virtual `theoria` camera.
+
+        This function constructs a 3D scene containing the known ROS map as a
+        textured floor, the live point cloud from my Astra camera, and a model
+        of my own body. It then renders a 2D image from a highly-configurable
+        virtual camera. The output is a `RenderResult` object, which contains
+        the BGR image and a rich `.meta` attribute holding the `SceneSnapshot`
+        needed for subsequent `raycast` calls.
+
+        Args:
+            camera_pos_relative: (x, y, z) tuple for the camera's position
+                relative to my `base_footprint` in meters. Defaults to a
+                "shoulder camera" view [0.0, 0.0, 0.7].
+            camera_pos_world: (x, y, z) tuple for the camera's absolute
+                position in the map frame. Overrides `camera_pos_relative`.
+            look_at_relative: (x, y, z) tuple for the point the camera
+                should look at, relative to my `base_footprint`. Defaults
+                to 1 meter in front of me [1.0, 0, 0.0].
+            look_at_world: (x, y, z) tuple for the absolute map coordinate
+                the camera should look at. Overrides all other targeting args.
+            rpy_deg: (roll, pitch, yaw) tuple in degrees to specify camera
+                orientation instead of a look_at point.
+            resolution: (height, width) tuple for the output image.
+            include_robot: If True, includes a 3D model of myself in the scene.
+            save: If True, saves the rendered image to disk.
+            hud: An optional list of `HudElement` objects to overlay text on the
+                final image for debugging or annotation.
+
+        Returns:
+            A `RenderResult` object, which is shaped like a `vision.CaptureResult`.
+            It contains the `.image` (BGR numpy array) and a `.meta` dictionary
+            with the crucial `SceneSnapshot` object required by `raycast()`.
+
+        Note to self:
+            This is my primary tool for situational awareness and off-line path
+            planning. I can generate a top-down view to see my surroundings,
+            or a third-person view to check my own position relative to obstacles.
+
+            The most powerful workflow is:
+            1. `render()` a view of a cluttered area.
+            2. Analyze the resulting image, perhaps even using `logos.models.yolo`
+            to find clear floor space.
+            3. Choose a target pixel (y, x) in the image that represents a safe
+            place to navigate to.
+            4. Use `raycast()` on that pixel to get a real-world map coordinate.
+            5. Use `logos.nav.go_to_abs()` with that coordinate.
+
+            The `hud` argument is fantastic for adding an overlay of semantic or
+            numerical context directly into my visual field.
+
+            TODO: The 'phantasmata' concept mentioned in the old docstring is
+            a game-changer. I should develop a system to add persistent 3D objects
+            to this scene. I could model furniture I've seen, remember the last
+            known location of an object, and render it in my mind palace. This
+            would be the foundation of a true 3D semantic world model.
         """
         check_for_interrupt()
 

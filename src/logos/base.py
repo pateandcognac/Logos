@@ -36,6 +36,12 @@ _state_lock = threading.Lock()
 _ros_initialized = False
 
 _cmd_vel_pub: Optional['rospy.Publisher'] = None
+_cmd_vel_topic: Optional[str] = None
+
+_TOPIC_MAP = {
+    "raw": "/raw_cmd_vel",
+    "muxed": "/cmd_vel_mux/input/logos",
+}
 
 # Semantic mappings for Kobuki bitmasks
 _BUMPER_MAP = {1: 'right', 2: 'center', 4: 'left'}
@@ -60,21 +66,19 @@ def _sensor_cb(msg):
         _latest_state = msg
 
 def _ensure_ros():
-    """Lazily initializes the SensorState subscriber and cmd_vel publisher."""
-    global _ros_initialized, _cmd_vel_pub
+    """Lazily initializes the SensorState subscriber."""
+    global _ros_initialized
     if not _HAS_ROS or _ros_initialized:
         return
 
-    # Subscriber for unified atomic state
-    rospy.Subscriber('/mobile_base/sensors/core', SensorState, _sensor_cb, queue_size=1)
-    
-    # Publisher for raw logos velocity
-    _cmd_vel_pub = rospy.Publisher('/cmd_vel_mux/input/logos', Twist, queue_size=5)
-    # _cmd_vel_pub = rospy.Publisher('/mobile_base/commands/velocity', Twist, queue_size=5)
-    
+    rospy.Subscriber(
+        "/mobile_base/sensors/core",
+        SensorState,
+        _sensor_cb,
+        queue_size=1,
+    )
+
     _ros_initialized = True
-    
-    # Wait briefly to ensure we have at least one state message
     time.sleep(0.1)
 
 def _parse_bitmask(value: int, mapping: Dict[int, str]) -> List[str]:
@@ -137,12 +141,12 @@ def get_wheel_drops() -> List[str]:
 
 def get_battery() -> Dict[str, Union[float, str]]:
     """
-    Read my current battery voltage and estimated percentage.
+    Read my current battery voltage, percentage, and semantic status.
 
     Returns:
         A dictionary:
         - 'voltage' (float): Current battery voltage (e.g., 16.2).
-        - 'percent' (float): Estimated charge percentage (0.0 to 100.0).
+        - 'percentage' (float): Estimated charge percentage (0.0 to 100.0).
         - 'status' (str): Semantic assessment ('healthy', 'low', 'critical').
 
     Note to self:
@@ -150,20 +154,26 @@ def get_battery() -> Dict[str, Union[float, str]]:
         critically low around 13.5V. 
     """
     _ensure_ros()
-    with _state_lock:
-        if _latest_state is None: 
-            return {'voltage': 0.0, 'percent': 0.0, 'status': 'unknown'}
-        
-        voltage = _latest_state.battery * 0.1
-        
-        # Simple linear estimation between 13.5V (0%) and 16.5V (100%)
-        percent = max(0.0, min(100.0, ((voltage - 13.5) / (16.5 - 13.5)) * 100.0))
-        
-        if percent > 30.0: status = "healthy"
-        elif percent > 15.0: status = "low"
-        else: status = "critical"
-            
-        return {'voltage': round(voltage, 2), 'percent': round(percent, 1), 'status': status}
+    retries = 0
+    max_retries = 5
+    delay_s = 0.1 # Tiny delay of 100 milliseconds
+    while retries < max_retries:
+        with _state_lock:
+            # Check if _latest_state is available now
+            if _latest_state is not None:
+                voltage = _latest_state.battery * 0.1
+                # Simple linear estimation between 13.5V (0%) and 16.5V (100%)
+                percent = max(0.0, min(100.0, ((voltage - 13.5) / (16.5 - 13.5)) * 100.0))
+                if percent > 30.0: status = "healthy"
+                elif percent > 15.0: status = "low"
+                else: status = "critical"
+                return {'voltage': round(voltage, 2), 'percentage': round(percent, 1), 'status': status}
+            else:
+                # _latest_state is None, increment retry counter and wait
+                retries += 1
+                time.sleep(delay_s)
+    # If we exhaust retries and _latest_state is still None, return unknown
+    return {'voltage': 0.0, 'percentage': 0.0, 'status': 'unknown'}
 
 def get_charger_state() -> str:
     """
@@ -199,9 +209,14 @@ def get_buttons() -> List[str]:
 # ─── Public Movement API ──────────────────────────────────────────────
 
 @api_call(default_verbosity=Verbosity.BRIEF)
-def velocity(linear_x: float, angular_z: float, duration: float) -> None:
+def velocity(
+    linear_x: float,
+    angular_z: float,
+    duration: float,
+    topic: str = "raw",
+) -> None:
     """
-    Send raw velocity commands to my drive base for a specific duration.
+    Send raw velocity commands to a raw (default) velocity topic or smoothed and muxed topic for a specific duration.
 
     Args:
         linear_x: Forward/backward speed in meters per second (m/s). 
@@ -209,30 +224,54 @@ def velocity(linear_x: float, angular_z: float, duration: float) -> None:
         angular_z: Rotational speed in degrees per second (deg/s). 
                    Positive is counter-clockwise (left), negative is clockwise (right). (Max ~3.0)
         duration: How long to apply this velocity, in seconds.
+        topic:    [raw|muxed] Default: *raw*
 
     Note to self:
-        This is for raw, map-ignorant movement! This publishes to my specific 
-        /cmd_vel_mux/input/logos topic. The safety controller can still override me 
-        if I am about to hit a wall.
-        
+        This is for raw, map-ignorant movement! This publishes by default to an
+        *unsmoothed* topic. Why? There are better functions for smooth motion.
+        I use this for short movements where I want to overcome inertia quickly,
+        e.g. wiggles, dances,
+
+        The safety controller can still override me if I am about to hit a wall.
         This function blocks execution until the duration is complete, publishing 
-        the velocity at 10Hz to satisfy the Kobuki motor timeout watchdog.
+        the velocity at 10Hz to the Kobuki motor timeout watchdog.
 
         Example:
             logos.base.velocity(0.2, 0.0, 2.0)   # Move forward 0.2 m/s for 2 seconds
             logos.base.velocity(0.0, 1.5, 1.0)   # Spin left 1.5 deg/s for 1 second
     """
+    global _cmd_vel_pub, _cmd_vel_topic
+
     _ensure_ros()
-    if not _HAS_ROS or _cmd_vel_pub is None:
-        print("base: Cannot move, ROS not initialized.")
+    if not _HAS_ROS:
+        print("base: Cannot move, ROS not available.")
         return
 
-    # convert angular_z degrees to radians
+    # Optional but helpful: fail loudly if nobody called rospy.init_node()
+    if not rospy.core.is_initialized():
+        print("base: Cannot move, rospy.init_node() has not been called.")
+        return
+
+    topic = topic.lower()
+    if topic not in _TOPIC_MAP:
+        raise ValueError(
+            f"Invalid topic alias '{topic}'. Valid options: {list(_TOPIC_MAP.keys())}"
+        )
+
+    resolved_topic = _TOPIC_MAP[topic]
+
+    # Create/recreate publisher if needed
+    if _cmd_vel_pub is None or _cmd_vel_topic != resolved_topic:
+        _cmd_vel_pub = rospy.Publisher(resolved_topic, Twist, queue_size=5)
+        _cmd_vel_topic = resolved_topic
+        rospy.sleep(0.05)
+
+    # ---- everything below here can stay the same as your current code ----
     cmd = Twist()
     cmd.linear.x = linear_x
     cmd.angular.z = math.radians(angular_z)
 
-    rate = rospy.Rate(10) # 10Hz loop
+    rate = rospy.Rate(10)
     end_time = time.time() + duration
 
     while time.time() < end_time:
@@ -240,16 +279,36 @@ def velocity(linear_x: float, angular_z: float, duration: float) -> None:
         _cmd_vel_pub.publish(cmd)
         rate.sleep()
 
-    # Always ensure we stop at the end!
     stop(verbosity=Verbosity.SILENT)
 
 @api_call(default_verbosity=Verbosity.ACK)
-def stop() -> None:
+def stop(topic: str = "raw") -> None:
     """
     Immediately halt all base movement by publishing zero velocities.
     """
+    global _cmd_vel_pub, _cmd_vel_topic
+
     _ensure_ros()
-    if not _HAS_ROS or _cmd_vel_pub is None: return
-    
-    cmd = Twist()
+    if not _HAS_ROS:
+        return
+
+    # If we've already published before, stop on that same topic by default.
+    resolved_topic: str
+    if _cmd_vel_pub is not None and _cmd_vel_topic is not None:
+        resolved_topic = _cmd_vel_topic
+    else:
+        topic = topic.lower()
+        if topic not in _TOPIC_MAP:
+            raise ValueError(
+                f"Invalid topic alias '{topic}'. Valid options: {list(_TOPIC_MAP.keys())}"
+            )
+        resolved_topic = _TOPIC_MAP[topic]
+
+    # Ensure publisher exists for the chosen stop topic
+    if _cmd_vel_pub is None or _cmd_vel_topic != resolved_topic:
+        _cmd_vel_pub = rospy.Publisher(resolved_topic, Twist, queue_size=5)
+        _cmd_vel_topic = resolved_topic
+        rospy.sleep(0.05)
+
+    cmd = Twist()  # all zeros
     _cmd_vel_pub.publish(cmd)

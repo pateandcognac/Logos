@@ -25,9 +25,9 @@ def _get_config_path(location: str) -> Path:
     """Helper to resolve the config file path from a friendly name."""
     # if location is 'arche' or 'ephemera', return the corresponding path
     if location == 'arche':
-        return STATE_PATH / "arche_hooks_config.yaml"
+        return STATE_PATH / "arche_config.yaml"
     elif location == 'ephemera':
-        return STATE_PATH / "ephemera_hooks_config.yaml"
+        return STATE_PATH / "ephemera_config.yaml"
     else:
         raise ValueError(f"Invalid config location '{location}'. Must be 'arche' or 'ephemera'.")
 

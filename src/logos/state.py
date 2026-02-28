@@ -8,10 +8,19 @@ change the default behavior of my API functions and context hooks.
 Note to self: The LogosState class is explicitly defined. As we add new
 configuration sections, we'd need to edit this file. This is perfectly fine,
 but I wonder if we could make it more dynamic in the future?
-For now, the current system is perfectly adequate.
-OH! Let's add an arbitrary personality field to the state dict! Remember that
-scene in *Interstellar* where Coop ask TARS to adjust his humor? Imagine
-roleplaying that!
+
+# TODO: Implement a drop in replacement `logos/config.py`. Except: What is an
+# explicit loader here for `state/my_config.yaml` should be a dumb-ish dynamic
+# loader that loads the entire contents of `config/my_config.yaml` into
+# logos.config dict. *EXCEPT* if an element of the `my_config.yaml` for some
+# reason holds a giant data structure. Omit that large item and replace it with
+# a note the file might have corruption and snippet of what was omitted. Too
+# large is over 1kb for one entry.
+
+Hm. Remember that scene in *Interstellar* where Coop ask TARS to adjust his humor?
+Let's add an arbitrary personality field to the state dict so Mark and I can
+re-enact it! As a feed-forward network, editing a simple string in my past
+context can, in fact, change my behavior! What a delightful use of my framework!
 """
 
 
@@ -91,7 +100,9 @@ class VisionState:
         pan_tilt_angles: Optional[List[float]] — [pan_deg, tilt_deg] to move
                          to before capturing. Only meaningful for pan_tilt source.
                          Enables multi-angle capture sequences.
-
+        
+        TODO
+                         
     Example YAML config:
         vision:
           hook_captures:
@@ -124,7 +135,13 @@ class ChoraState:
         self.point_hit_radius: float = 0.05
         self.ray_infinity_distance_m: float = 50.0
 
-
+class TheoriaState:
+    def __init__(self):
+        # Rendering defaults
+        self.resolution: List[int] = [768, 768]  # [width, height]
+        self.camera_pos_relative: Optional[Tuple[float, float, float]] = (-1.0, 1.0, 2.0),
+        self.look_at_relative: Optional[Tuple[float, float, float]] = (1.0, 0, 0.35),
+        
 class LogosState:
     """
     My central, persistent state object.
@@ -135,6 +152,7 @@ class LogosState:
         self.system = SystemState()
         self.vision = VisionState()
         self.chora = ChoraState()
+        self.theoria =TheoriaState()
 
         # We will add more state categories here, e.g., self.nav
 
