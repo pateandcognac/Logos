@@ -98,7 +98,7 @@ Logos/
 The relevant config sections. Note: `logos.state` is being renamed to
 `logos.config` project-wide. The `map3d` section is deliberately minimal:
 
-For more, eee `config/my_config_schema.yaml`
+For more, see `config/my_config_schema.yaml`
 
 A separate `config/map3d_tuning.yaml` (does not exist yet) holds advanced
 knobs (voxel size, SOR params, hit radius, point sizes, etc.) that rarely change.
