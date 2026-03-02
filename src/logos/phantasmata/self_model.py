@@ -29,6 +29,7 @@ Proportions from my physical form (all in meters):
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
@@ -42,10 +43,31 @@ except ImportError:
 
 # Import types for phantasma convention
 try:
-    from Logos.src.logos.map3d import SceneObject, HudElement
-except ImportError:
-    SceneObject = Any
-    HudElement = Any
+    from logos.map3d import SceneObject, HudElement
+except Exception:
+    @dataclass
+    class SceneObject:
+        name: str
+        kind: str
+        geometry: Any
+        render_visible: bool = True
+        raycast_visible: bool = True
+        costmap_affects: bool = False
+        shader: str = "defaultLit"
+        point_size: float = 3.0
+
+    @dataclass
+    class HudElement:
+        text: str
+        anchor: str = "top_left"
+        color: Tuple[int, int, int] = (255, 255, 255)
+        bg_color: Optional[Tuple[int, int, int]] = (0, 0, 0)
+        bg_alpha: float = 0.4
+        font_scale: float = 0.45
+        thickness: int = 1
+        font: int = 0
+        margin_px: int = 8
+        priority: int = 0
 
 
 # ---- SCHEMA ----
@@ -254,7 +276,7 @@ def build(params: Dict[str, Any], ctx: Any) -> Optional[SceneObject]:
         # Bezel
         bezel = o3d.geometry.TriangleMesh.create_sphere(radius=1.0, resolution=24)
         verts_b = np.asarray(bezel.vertices)
-        verts_b[:, 0] *= 0.025
+        verts_b[:, 0] *= 0.065
         verts_b[:, 1] *= 0.16
         verts_b[:, 2] *= 0.20
         bezel.vertices = o3d.utility.Vector3dVector(verts_b)
@@ -277,10 +299,10 @@ def build(params: Dict[str, Any], ctx: Any) -> Optional[SceneObject]:
     # ---- Camera Module ----
     if params.get('show_camera', True):
         cam = o3d.geometry.TriangleMesh.create_box(
-            width=0.05, height=0.075, depth=0.05
+            width=0.09, height=0.04, depth=0.04
         )
         _paint(cam, [0.90, 0.90, 0.87])
-        _translate(cam, [0.0, 0.0, 0.37])
+        _translate(cam, [-0.02, 0.065, 0.97])
         parts.append(cam)
 
         cam_led = o3d.geometry.TriangleMesh.create_sphere(
@@ -321,9 +343,9 @@ def build(params: Dict[str, Any], ctx: Any) -> Optional[SceneObject]:
             for p in arm_parts[1:]:
                 arm += p
 
-            # Rotate outward and slightly forward
+            # Arms down, rotate outward and slightly forward
             R_out = arm.get_rotation_matrix_from_xyz(
-                [np.radians(side_sign * -55), np.radians(-20), 0.0]
+                [np.radians(side_sign * -155), np.radians(20), 0.0]
             )
             arm.rotate(R_out, center=[0, 0, 0])
             _translate(arm, [0.01, side_sign * 0.07, 0.49])
@@ -336,7 +358,7 @@ def build(params: Dict[str, Any], ctx: Any) -> Optional[SceneObject]:
         )
         _paint(mic_boom, [0.2, 0.2, 0.2])
         R_mic = mic_boom.get_rotation_matrix_from_xyz([np.radians(-30), 0, 0])
-        mic_boom.rotate(R_mic, center=[np.radians(90), 0, 0])
+        mic_boom.rotate(R_mic, center=[np.radians(-90), 0, 0])
         _translate(mic_boom, [-0.02, -0.14, 0.88])
         parts.append(mic_boom)
 

@@ -13,6 +13,7 @@ Note to self:
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
@@ -25,9 +26,18 @@ except ImportError:
     _HAS_O3D = False
 
 try:
-    from Logos.src.logos.map3d import SceneObject
-except ImportError:
-    SceneObject = Any
+    from logos.map3d import SceneObject
+except Exception:
+    @dataclass
+    class SceneObject:
+        name: str
+        kind: str
+        geometry: Any
+        render_visible: bool = True
+        raycast_visible: bool = True
+        costmap_affects: bool = False
+        shader: str = "defaultLit"
+        point_size: float = 3.0
 
 
 SCHEMA = {

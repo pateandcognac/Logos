@@ -1,0 +1,95 @@
+# config/mind_palace_00.yaml
+#
+# Each key is a unique instance name. The AI refers to instances by this name.
+# Instances can be persistent (defined here) or transient (created at runtime
+# via map3d.place() — those don't appear in this file unless explicitly saved).
+
+instances:
+
+  # ---- System visualizations ----
+
+  metric_grid:
+    object: grid_overlay              # -> phantasmata/grid_overlay.py
+    description: "Reference grid on the floor for spatial reasoning"
+    params:
+      spacing_m: 1.0
+      z: 0.002                        # Nudge above floor to avoid z-fighting
+      color: [0.3, 0.3, 0.5]
+      alpha: 0.25
+      include_z_lines: false          # Vertical grid lines
+      z_range: [0.0, 2.0]            # If include_z_lines is true
+    render_visible: true
+    raycast_visible: false
+
+  nav_waypoints:
+    object: waypoints
+    description: "My navigation waypoints with emoji/image markers"
+    params:
+      waypoints_file: config/waypoints.yaml
+      default_render_mode: billboard  # billboard | theta | floor
+      show_floor_arrow: true
+      emoji_set: openmoji             # Directory of emoji PNGs
+    raycast_visible: false
+
+  obstacle_plane:
+    object: occupied_plane
+    description: >
+      Transparent red plane at lidar scan height showing occupied cells.
+      Helps me perceive depth and scale when comparing virtual to real views.
+    params:
+      z: 0.70
+      occupied_color: [1.0, 0.0, 0.0]
+      alpha: 0.15
+    render_visible: false             # Off by default, toggle when needed
+    raycast_visible: false
+
+  # ---- Physical objects (likenesses I create) ----
+
+  marks_coffee_table:
+    object: coffee_table
+    description: "Oak coffee table in front of the couch, below lidar height"
+    pose:
+      position: [3.2, 1.1, 0.0]      # Map frame XYZ (meters)
+      rpy_deg: [0, 0, 45]            # Roll, Pitch, Yaw in degrees
+    params:
+      width: 1.1
+      depth: 0.55
+      color: [0.5, 0.35, 0.2]
+      shelf: true
+    raycast_visible: false            # I want to click the floor under it
+    costmap_affects: true             # Flatten Z, inject into costmap
+
+  hallway_cabinet:
+    object: cabinet
+    description: "IKEA Besta in the hallway near the front door"
+    pose:
+      position: [5.1, 0.3, 0.0]
+      rpy_deg: [0, 0, 90]
+    params:
+      width: 1.2
+      height: 0.64
+      depth: 0.40
+      doors_open: false
+      door_angle_deg: 0
+      color: [0.9, 0.9, 0.85]
+    raycast_visible: false
+    costmap_affects: true
+
+  # ---- Live monitoring ----
+
+  charging_dock:
+    object: charging_dock
+    description: >
+      My charging station. Monitors battery level, pops HUD alerts when low,
+      and changes its own visual state to show a battery indicator.
+    pose:
+      position: [0.5, -1.2, 0.0]
+      rpy_deg: [0, 0, 0]
+    params:
+      warn_threshold_pct: 30
+      crit_threshold_pct: 15
+      color_normal: [0.4, 0.4, 0.4]
+      color_warn: [1.0, 0.8, 0.0]
+      color_crit: [1.0, 0.0, 0.0]
+
+

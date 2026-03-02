@@ -30,11 +30,33 @@ if TYPE_CHECKING:
 # Re-export SceneObject from map3d for convenience
 # (phantasmata can import directly from here)
 try:
-    from Logos.src.logos.map3d import SceneObject, HudElement, MapSnapshot
-except ImportError:
+    from logos.map3d import SceneObject, HudElement, MapSnapshot
+except Exception:
     # For standalone testing or when map3d isn't available yet
-    SceneObject = Any  # type: ignore
-    HudElement = Any  # type: ignore
+    @dataclass
+    class SceneObject:
+        name: str
+        kind: str
+        geometry: Any
+        render_visible: bool = True
+        raycast_visible: bool = True
+        costmap_affects: bool = False
+        shader: str = "defaultLit"
+        point_size: float = 3.0
+
+    @dataclass
+    class HudElement:
+        text: str
+        anchor: str = "top_left"
+        color: Tuple[int, int, int] = (255, 255, 255)
+        bg_color: Optional[Tuple[int, int, int]] = (0, 0, 0)
+        bg_alpha: float = 0.4
+        font_scale: float = 0.45
+        thickness: int = 1
+        font: int = 0
+        margin_px: int = 8
+        priority: int = 0
+
     MapSnapshot = Any  # type: ignore
 
 
