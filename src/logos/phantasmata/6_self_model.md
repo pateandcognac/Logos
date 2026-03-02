@@ -6,7 +6,7 @@
 2. **A prompt-engineering artifact** — written in first person, demonstrating
    API usage, sensor reading, state inspection, and HUD contribution
 
-The self-model is special-cased in chora: it always exists, always follows the
+The self-model is special-cased in map3d: it always exists, always follows the
 robot's TF pose, and is managed separately from mind_palace.yaml instances.
 But it follows the same `SCHEMA`/`build()`/`hud()` convention.
 
@@ -77,7 +77,7 @@ def build(params, ctx):
     """
     Construct my 3D body.
 
-    I build geometry at the origin — chora applies my TF-derived pose after.
+    I build geometry at the origin — map3d applies my TF-derived pose after.
     """
     parts = []
 
@@ -95,7 +95,7 @@ def build(params, ctx):
 
     if params['show_astra_frustum']:
         # I visualize my Astra's FOV as a semi-transparent pyramid
-        # The frustum mesh needs to be in base_link frame (chora handles the rest)
+        # The frustum mesh needs to be in base_link frame (map3d handles the rest)
         # I'm using thin box meshes for edges since Open3D 0.13 LineSet doesn't
         # render in OffscreenRenderer — this is a known 0.13 gotcha.
         ...

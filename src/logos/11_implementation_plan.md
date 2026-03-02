@@ -4,12 +4,12 @@
 
 1. **Extract HUD to `logos/vision.py`**
    - Move `HudElement`, `HUD_ANCHORS`, font constants, `overlay_hud()`
-   - Update chora.py to import from vision.py
+   - Update map3d.py to import from vision.py
    - Verify existing HUD still works
 
-2. **Add `PhantasmaContext` dataclass to chora.py**
+2. **Add `PhantasmaContext` dataclass to map3d.py**
 
-3. **Add phantasma lifecycle manager to `Chora` class**
+3. **Add phantasma lifecycle manager to `Map3d` class**
    - `_load_mind_palace()` — parse YAML, import modules, validate schemas
    - `_build_phantasma_instance()` — call `build()`, apply pose transform, cache
    - `_rebuild_dynamic_phantasmata()` — for render loop
@@ -45,7 +45,7 @@
    - Live face and arm pose updates
    - Sensor reading. Not particularly useful on a rendering, but useful as "how to read a sensor with my API context"
 
-10. **Special-case self-model in chora**
+10. **Special-case self-model in map3d**
     - Always loaded, always follows robot TF
     - Not in mind_palace.yaml (managed separately)
     - Still follows SCHEMA/build()/hud() convention
@@ -58,7 +58,7 @@
 
 ### Phase 4: Config & Polish
 
-14. **`config/chora_tuning.yaml`** — externalize advanced renderer settings
-15. **Simplify `logos.config.chora`** to minimal keys
+14. **`config/map3d_tuning.yaml`** — externalize advanced renderer settings
+15. **Simplify `logos.config.map3d`** to minimal keys
 16. **Integrate with `logos.help()` system** — crawl phantasmata/, format SCHEMA
 17. **Remove `gc.collect()` per-render** — gate behind setting or Nth-render

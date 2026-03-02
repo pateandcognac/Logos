@@ -6,16 +6,16 @@ under the `logos` namespace.
 """
 
 # Import the state class and create a single, persistent instance for me to use.
-from .state import LogosState, load_state_from_yaml
-state = LogosState()
-load_state_from_yaml(state)
+from .config import LogosConfig, load_state_from_yaml
+config = LogosConfig()
+load_state_from_yaml(config)
 import time
 
 # Core convenience imports
 from .core import Verbosity, verbosity, check_for_interrupt, help
 
 # Submodules
-from . import core, ros, files, hooks, memory, models, exceptions, shell, utils, vision, pantilt, leds, voice, base, nav, chora
+from . import core, ros, files, hooks, memory, models, exceptions, shell, utils, vision, pantilt, leds, voice, base, nav, map3d
 
 # We will add more here as we build out the API
 

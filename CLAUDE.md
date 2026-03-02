@@ -1,9 +1,9 @@
-# Phantasmata: Dynamic Object System for Chora
+# Phantasmata: Dynamic Object System for Map3d
 
 ## Spec for Claude Code Implementation
 
 **Project:** Logos — a ROS Noetic Turtlebot2-like robot controlled by a VLLM
-**Module:** `~/robot_workspaces/Logos/src/logos/chora.py` (virtual 3D world renderer, ROS map, navigation tool)
+**Module:** `src/logos/map3d.py` (virtual 3D world renderer, ROS map, navigation tool)
 **Author context:** Mark (human), Claude (spec author), Claude Code (implementer)
 **Python:** 3.8 strict (ROS Noetic constraint)
 **Open3D:** 0.13.0 strict — do NOT upgrade or assume newer API
@@ -23,7 +23,7 @@ environment each loop; this means the agent can always see and use
 up-to-the-moment information and the data structure that goes with it,
 without context bombing it into the main io_buffer or bloating Python memory.
 
-Chora is Logos's "mind palace" — a virtual 3D renderer that lets the AI see its
+Map3d is Logos's "mind palace" — a virtual 3D renderer that lets the AI see its
 environment from arbitrary viewpoints using the ROS occupancy grid, live RGBD
 point cloud, and a self-model. The AI can then raycast rendered pixels back to
 world coordinates for navigation and spatial reasoning.
@@ -35,7 +35,7 @@ than hardcoded renderer features. Each phantasma is a `.py` file that returns
 Open3D geometry and/or HUD overlays, with full access to the Python runtime,
 ROS, the Logos API, and the filesystem.
 
-### What stays in Chora core
+### What stays in Map3d core
 
 - The occupancy grid floor plane (it IS the world)
 - The live Astra point cloud (raw sensor data)
@@ -52,7 +52,7 @@ debug visualizations, walls, decorative objects, "where are my keys"
 pointers — all of it. Even HUD contributions (compass bar, scale indicator,
 world-space labels) can come from phantasmata.
 
-### What moves out of Chora
+### What moves out of Map3d
 
 - **The self-model** moves from `logos_mesh.py` to `self_model.py`, living
   alongside phantasmata. It becomes the most important phantasma: a dynamic,
@@ -60,11 +60,12 @@ world-space labels) can come from phantasmata.
   prompt-engineering artifact and API usage example.
 - **HUD rendering** (the `_overlay_hud` mechanism, `HudElement` dataclass,
   anchor system) moves to `logos/vision.py` so it's reusable for real camera
-  image overlays too. Chora calls into it.
+  image overlays too. Map3d calls into it.
 
-#### Important Note about testing:
+#### Important Note about testing from Mark:
 
-In practice, the `logos` API is loaded by an external ROS python_worker_node which interfaces with the AI cognition_node that provides it code to execute. Without this pipeline, you may have trouble testing the code you've written yourself. Ask the human for assistance as needed.
+In practice, the `logos` API is loaded by an external ROS python_worker_node which interfaces with the AI cognition_node that provides it code to execute. Without this pipeline, you may have trouble testing the code you've written yourself. Ask the Mark for assistance as needed.
+btw - You should be able to use `git` afaik? So feel free to make use of it.
 
 ---
 
@@ -74,9 +75,9 @@ In practice, the `logos` API is loaded by an external ROS python_worker_node whi
 Logos/
 ├── config/
 │   ├── mind_palace_00.yaml        # Instance placement & params
-│   └── chora_tuning.yaml          # Advanced renderer knobs
+│   └── map3d_tuning.yaml          # Advanced renderer knobs
 ├── src/logos/
-│   ├── chora.py                   # Core renderer + phantasma lifecycle
+│   ├── map3d.py                   # Core renderer + phantasma lifecycle
 │   ├── vision.py                  # HUD system (extracted), camera capture
 │   ├── self_model.py              # Logos's own mesh + augmentations
 │   └── ...
@@ -95,14 +96,14 @@ Logos/
 ### logos.config (was logos.state)
 
 The relevant config sections. Note: `logos.state` is being renamed to
-`logos.config` project-wide. The `chora` section is deliberately minimal:
+`logos.config` project-wide. The `map3d` section is deliberately minimal:
 
 For more, eee `config/my_config_schema.yaml`
 
-A separate `config/chora_tuning.yaml` (does not exist yet) holds advanced
+A separate `config/map3d_tuning.yaml` (does not exist yet) holds advanced
 knobs (voxel size, SOR params, hit radius, point sizes, etc.) that rarely change.
 This file also serves as documentation of all available tuning parameters. These
-values are loaded into `chora.settings` at init and can be changed programmatically.
+values are loaded into `map3d.settings` at init and can be changed programmatically.
 
 Moving forward, `logos.state` will be used by ROS callbacks, etc, to hold
 robot state, rather than configuration preferences.
@@ -171,7 +172,7 @@ pose:
 ```
 
 This would make the object "follow" whatever frame is specified — the robot
-(`base_link`), the camera (`camera_rgb_optical_frame`), etc. Chora would
+(`base_link`), the camera (`camera_rgb_optical_frame`), etc. Map3d would
 TF-transform the pose to map frame at render time.
 
 **Implementation note:** This is elegant but adds TF lookup cost per frame per
@@ -193,9 +194,9 @@ See `Logos/src/logos/7_hud_system_extraction.md`
 
 ---
 
-## 8. Chora API Changes
+## 8. Map3d API Changes
 
-See `Logos/src/logos/8_chora_api_changes.md`
+See `Logos/src/logos/8_map3d_api_changes.md`
 
 ---
 
@@ -304,7 +305,7 @@ See `Logos/src/logos/12_long_term_todos.md`
 
 Before implementing, Claude Code should consider searching or reading these files for context:
 - `Logos/memory/api_dashboard.md` — A `logos.help()` dump.
-- `src/logos/chora.py` — the existing renderer (uploaded, 2100 lines) 
+- `src/logos/map3d.py` — the existing renderer (uploaded, 2100 lines) 
 - `src/logos/core.py` — `@api_call`, `Verbosity`, `check_for_interrupt`
 - `src/logos/ros.py` — `logos_ros` helpers (TF, pose, topics)
 - `src/logos/vision.py` — existing camera capture system, where HUD will live
@@ -328,7 +329,7 @@ A: Mark here :D There is a related TODO in the top 25 lines of `state.py`
    (Need to know if SCHEMA is sufficient or if there's a registration step.)
 
 A: I'm not sure. `def help()` starts at line 131 of core.py. Check it out and
-   either make an elegant integrated solution there, or a distinct chora
+   either make an elegant integrated solution there, or a distinct map3d
    helper, or whatever.  If integrating with help(), it is important that the
    info dumps of normal logos API functions and phantasmata be distinct.
 

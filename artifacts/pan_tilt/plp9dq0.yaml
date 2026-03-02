@@ -1,0 +1,14 @@
+pt_seq_step: 0_-60
+photo_id: plp9dq0
+source: pan_tilt
+timestamp: 1772312894.1057286
+resolution:
+- 288
+- 384
+pose:
+  x: -0.0020751083490334887
+  y: -0.0022831891218961856
+  theta: -0.1502862564509453
+pan_tilt_degs:
+- 0.0
+- -60.0

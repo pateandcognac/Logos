@@ -139,7 +139,8 @@ def summarize_io_buffer(cell_indices: List[int], guidance: str = None):
     if not response_str:
         print("summarize_io_buffer: Received no response from LLM.")
         return
-
+    
+    import re
     try:
         # Clean up potential markdown fences
         match = re.search(r'```(?:json)?\s*(.*?)\s*```', response_str, re.DOTALL)

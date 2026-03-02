@@ -17,7 +17,7 @@ Functions:
     def stop(topic: str = 'raw') -> None: # Immediately halt all base movement by publishing zero velocities.
     def velocity(linear_x: float, angular_z: float, duration: float, topic: str = 'raw') -> None: # Send raw velocity commands to a raw (default) velocity topic or smoothed and muxed topic for a specific duration.
 
-### Module: logos.chora# stdout
+### Module: logos.map3d
 # Logos API Dashboard
 A programmatic overview of my capabilities. Use `logos.help(obj)` for deep-dives.
 
@@ -37,7 +37,7 @@ Functions:
     def stop(topic: str = 'raw') -> None: # Immediately halt all base movement by publishing zero velocities.
     def velocity(linear_x: float, angular_z: float, duration: float, topic: str = 'raw') -> None: # Send raw velocity commands to a raw (default) velocity topic or smoothed and muxed topic for a specific duration.
 
-### Module: logos.chora
+### Module: logos.map3d
 # My 'mind palace.' A virtual 3D environment for advanced spatial reasoning.
 Constants:
     HUD_ANCHORS = ('top_left', 'top_center', 'top_right', 'bottom_left', 'bottom_center', 'bottom_right')
@@ -48,10 +48,10 @@ Constants:
 Classes:
     class Chora: # Stateful renderer + raycaster with persistent ROS subscriptions.
         def load_phantasma(self, name: 'str') -> 'None': # Minimal future-proof loader:
-        def raycast(self, render: 'Union[RenderResult, str]', yx: 'Tuple[float, float]', include_floor: 'bool' = True, include_astra: 'bool' = True, include_robot: 'bool' = True, include_objects: 'bool' = True) -> 'RaycastHit': # Projects a 2D pixel from a `chora` render back into the 3D world.
+        def raycast(self, render: 'Union[RenderResult, str]', yx: 'Tuple[float, float]', include_floor: 'bool' = True, include_astra: 'bool' = True, include_robot: 'bool' = True, include_objects: 'bool' = True) -> 'RaycastHit': # Projects a 2D pixel from a `map3d` render back into the 3D world.
         def register_object(self, obj: 'SceneObject') -> 'None': # No description.
         def remove_object(self, name: 'str') -> 'None': # No description.
-        def render(self, camera_pos_relative: 'Optional[Tuple[float, float, float]]' = (0.0, 0.0, 0.7), camera_pos_world: 'Optional[Tuple[float, float, float]]' = None, look_at_relative: 'Optional[Tuple[float, float, float]]' = (1.0, 0, 0.0), look_at_world: 'Optional[Tuple[float, float, float]]' = None, rpy_deg: 'Optional[Tuple[float, float, float]]' = None, rot_matrix_3x3: 'Optional[Union[np.ndarray, List[List[float]]]]' = None, look_distance_m: 'float' = 2.0, max_cloud_height_m: 'Optional[float]' = None, resolution: 'Tuple[int, int]' = (768, 768), include_robot: 'bool' = True, view: 'bool' = True, save: 'bool' = True, save_dir: 'str' = 'artifacts/chora', filename: 'Optional[str]' = 'debug.png', cloud_alpha: 'Optional[float]' = None, cloud_density: 'Optional[float]' = None, cloud_opacity: 'Optional[float]' = None, cloud_point_size: 'Optional[float]' = None, laser_scan_show: 'Optional[bool]' = None, laser_scan_center_band_px: 'Optional[int]' = None, laser_scan_color: 'Optional[List[float]]' = None, hud: 'Optional[List[HudElement]]' = None, hud_warnings: 'bool' = True, hud_frame_info: 'bool' = True, hud_stats: 'bool' = False) -> 'RenderResult': # Renders a view of my 3D 'chora' from my virtual `theoria` camera.
+        def render(self, camera_pos_relative: 'Optional[Tuple[float, float, float]]' = (0.0, 0.0, 0.7), camera_pos_world: 'Optional[Tuple[float, float, float]]' = None, look_at_relative: 'Optional[Tuple[float, float, float]]' = (1.0, 0, 0.0), look_at_world: 'Optional[Tuple[float, float, float]]' = None, rpy_deg: 'Optional[Tuple[float, float, float]]' = None, rot_matrix_3x3: 'Optional[Union[np.ndarray, List[List[float]]]]' = None, look_distance_m: 'float' = 2.0, max_cloud_height_m: 'Optional[float]' = None, resolution: 'Tuple[int, int]' = (768, 768), include_robot: 'bool' = True, view: 'bool' = True, save: 'bool' = True, save_dir: 'str' = 'artifacts/map3d', filename: 'Optional[str]' = 'debug.png', cloud_alpha: 'Optional[float]' = None, cloud_density: 'Optional[float]' = None, cloud_opacity: 'Optional[float]' = None, cloud_point_size: 'Optional[float]' = None, laser_scan_show: 'Optional[bool]' = None, laser_scan_center_band_px: 'Optional[int]' = None, laser_scan_color: 'Optional[List[float]]' = None, hud: 'Optional[List[HudElement]]' = None, hud_warnings: 'bool' = True, hud_frame_info: 'bool' = True, hud_stats: 'bool' = False) -> 'RenderResult': # Renders a view of my 3D 'map3d' from my virtual `theoria` camera.
     class HudElement: # A single text element to overlay on a rendered image.
         pass
     class RaycastHit: # Result of raycasting a pixel against a scene snapshot.
@@ -64,7 +64,7 @@ Classes:
     class SceneSnapshot: # Self-contained snapshot of what was rendered, sufficient for later raycasts.
         pass
 Functions:
-    def get_chora() -> 'Chora': # No description.
+    def get_map3d() -> 'Chora': # No description.
     def raycast(*args, **kwargs) -> 'RaycastHit': # No description.
     def render(*args, **kwargs) -> 'RenderResult': # No description.
 
@@ -110,7 +110,7 @@ Functions:
     def set(strip: str, colors: Sequence[Union[int, Tuple[int, int, int], str]]) -> None: # Set individual LED colors on a strip.
 
 ### Module: logos.logos_mesh
-# logos.chora.logos_mesh
+# logos.map3d.logos_mesh
 Functions:
     def build_logos_mesh() -> "'o3d.geometry.TriangleMesh'": # Build a complete Logos robot mesh at the origin, facing +X (ROS forward).
 
@@ -237,7 +237,7 @@ Functions:
     def stop(topic: str = 'raw') -> None: # Immediately halt all base movement by publishing zero velocities.
     def velocity(linear_x: float, angular_z: float, duration: float, topic: str = 'raw') -> None: # Send raw velocity commands to a raw (default) velocity topic or smoothed and muxed topic for a specific duration.
 
-### Module: logos.chora
+### Module: logos.map3d
 # My 'mind palace.' A virtual 3D environment for advanced spatial reasoning.
 Constants:
     HUD_ANCHORS = ('top_left', 'top_center', 'top_right', 'bottom_left', 'bottom_center', 'bottom_right')
@@ -248,10 +248,10 @@ Constants:
 Classes:
     class Chora: # Stateful renderer + raycaster with persistent ROS subscriptions.
         def load_phantasma(self, name: 'str') -> 'None': # Minimal future-proof loader:
-        def raycast(self, render: 'Union[RenderResult, str]', yx: 'Tuple[float, float]', include_floor: 'bool' = True, include_astra: 'bool' = True, include_robot: 'bool' = True, include_objects: 'bool' = True) -> 'RaycastHit': # Projects a 2D pixel from a `chora` render back into the 3D world.
+        def raycast(self, render: 'Union[RenderResult, str]', yx: 'Tuple[float, float]', include_floor: 'bool' = True, include_astra: 'bool' = True, include_robot: 'bool' = True, include_objects: 'bool' = True) -> 'RaycastHit': # Projects a 2D pixel from a `map3d` render back into the 3D world.
         def register_object(self, obj: 'SceneObject') -> 'None': # No description.
         def remove_object(self, name: 'str') -> 'None': # No description.
-        def render(self, camera_pos_relative: 'Optional[Tuple[float, float, float]]' = (0.0, 0.0, 0.7), camera_pos_world: 'Optional[Tuple[float, float, float]]' = None, look_at_relative: 'Optional[Tuple[float, float, float]]' = (1.0, 0, 0.0), look_at_world: 'Optional[Tuple[float, float, float]]' = None, rpy_deg: 'Optional[Tuple[float, float, float]]' = None, rot_matrix_3x3: 'Optional[Union[np.ndarray, List[List[float]]]]' = None, look_distance_m: 'float' = 2.0, max_cloud_height_m: 'Optional[float]' = None, resolution: 'Tuple[int, int]' = (768, 768), include_robot: 'bool' = True, view: 'bool' = True, save: 'bool' = True, save_dir: 'str' = 'artifacts/chora', filename: 'Optional[str]' = 'debug.png', cloud_alpha: 'Optional[float]' = None, cloud_density: 'Optional[float]' = None, cloud_opacity: 'Optional[float]' = None, cloud_point_size: 'Optional[float]' = None, laser_scan_show: 'Optional[bool]' = None, laser_scan_center_band_px: 'Optional[int]' = None, laser_scan_color: 'Optional[List[float]]' = None, hud: 'Optional[List[HudElement]]' = None, hud_warnings: 'bool' = True, hud_frame_info: 'bool' = True, hud_stats: 'bool' = False) -> 'RenderResult': # Renders a view of my 3D 'chora' from my virtual `theoria` camera.
+        def render(self, camera_pos_relative: 'Optional[Tuple[float, float, float]]' = (0.0, 0.0, 0.7), camera_pos_world: 'Optional[Tuple[float, float, float]]' = None, look_at_relative: 'Optional[Tuple[float, float, float]]' = (1.0, 0, 0.0), look_at_world: 'Optional[Tuple[float, float, float]]' = None, rpy_deg: 'Optional[Tuple[float, float, float]]' = None, rot_matrix_3x3: 'Optional[Union[np.ndarray, List[List[float]]]]' = None, look_distance_m: 'float' = 2.0, max_cloud_height_m: 'Optional[float]' = None, resolution: 'Tuple[int, int]' = (768, 768), include_robot: 'bool' = True, view: 'bool' = True, save: 'bool' = True, save_dir: 'str' = 'artifacts/map3d', filename: 'Optional[str]' = 'debug.png', cloud_alpha: 'Optional[float]' = None, cloud_density: 'Optional[float]' = None, cloud_opacity: 'Optional[float]' = None, cloud_point_size: 'Optional[float]' = None, laser_scan_show: 'Optional[bool]' = None, laser_scan_center_band_px: 'Optional[int]' = None, laser_scan_color: 'Optional[List[float]]' = None, hud: 'Optional[List[HudElement]]' = None, hud_warnings: 'bool' = True, hud_frame_info: 'bool' = True, hud_stats: 'bool' = False) -> 'RenderResult': # Renders a view of my 3D 'map3d' from my virtual `theoria` camera.
     class HudElement: # A single text element to overlay on a rendered image.
         pass
     class RaycastHit: # Result of raycasting a pixel against a scene snapshot.
@@ -264,7 +264,7 @@ Classes:
     class SceneSnapshot: # Self-contained snapshot of what was rendered, sufficient for later raycasts.
         pass
 Functions:
-    def get_chora() -> 'Chora': # No description.
+    def get_map3d() -> 'Chora': # No description.
     def raycast(*args, **kwargs) -> 'RaycastHit': # No description.
     def render(*args, **kwargs) -> 'RenderResult': # No description.
 
@@ -310,7 +310,7 @@ Functions:
     def set(strip: str, colors: Sequence[Union[int, Tuple[int, int, int], str]]) -> None: # Set individual LED colors on a strip.
 
 ### Module: logos.logos_mesh
-# logos.chora.logos_mesh
+# logos.map3d.logos_mesh
 Functions:
     def build_logos_mesh() -> "'o3d.geometry.TriangleMesh'": # Build a complete Logos robot mesh at the origin, facing +X (ROS forward).
 
@@ -498,10 +498,10 @@ Constants:
 Classes:
     class Chora: # Stateful renderer + raycaster with persistent ROS subscriptions.
         def load_phantasma(self, name: 'str') -> 'None': # Minimal future-proof loader:
-        def raycast(self, render: 'Union[RenderResult, str]', yx: 'Tuple[float, float]', include_floor: 'bool' = True, include_astra: 'bool' = True, include_robot: 'bool' = True, include_objects: 'bool' = True) -> 'RaycastHit': # Projects a 2D pixel from a `chora` render back into the 3D world.
+        def raycast(self, render: 'Union[RenderResult, str]', yx: 'Tuple[float, float]', include_floor: 'bool' = True, include_astra: 'bool' = True, include_robot: 'bool' = True, include_objects: 'bool' = True) -> 'RaycastHit': # Projects a 2D pixel from a `map3d` render back into the 3D world.
         def register_object(self, obj: 'SceneObject') -> 'None': # No description.
         def remove_object(self, name: 'str') -> 'None': # No description.
-        def render(self, camera_pos_relative: 'Optional[Tuple[float, float, float]]' = (0.0, 0.0, 0.7), camera_pos_world: 'Optional[Tuple[float, float, float]]' = None, look_at_relative: 'Optional[Tuple[float, float, float]]' = (1.0, 0, 0.0), look_at_world: 'Optional[Tuple[float, float, float]]' = None, rpy_deg: 'Optional[Tuple[float, float, float]]' = None, rot_matrix_3x3: 'Optional[Union[np.ndarray, List[List[float]]]]' = None, look_distance_m: 'float' = 2.0, max_cloud_height_m: 'Optional[float]' = None, resolution: 'Tuple[int, int]' = (768, 768), include_robot: 'bool' = True, view: 'bool' = True, save: 'bool' = True, save_dir: 'str' = 'artifacts/chora', filename: 'Optional[str]' = 'debug.png', cloud_alpha: 'Optional[float]' = None, cloud_density: 'Optional[float]' = None, cloud_opacity: 'Optional[float]' = None, cloud_point_size: 'Optional[float]' = None, laser_scan_show: 'Optional[bool]' = None, laser_scan_center_band_px: 'Optional[int]' = None, laser_scan_color: 'Optional[List[float]]' = None, hud: 'Optional[List[HudElement]]' = None, hud_warnings: 'bool' = True, hud_frame_info: 'bool' = True, hud_stats: 'bool' = False) -> 'RenderResult': # Renders a view of my 3D 'chora' from my virtual `theoria` camera.
+        def render(self, camera_pos_relative: 'Optional[Tuple[float, float, float]]' = (0.0, 0.0, 0.7), camera_pos_world: 'Optional[Tuple[float, float, float]]' = None, look_at_relative: 'Optional[Tuple[float, float, float]]' = (1.0, 0, 0.0), look_at_world: 'Optional[Tuple[float, float, float]]' = None, rpy_deg: 'Optional[Tuple[float, float, float]]' = None, rot_matrix_3x3: 'Optional[Union[np.ndarray, List[List[float]]]]' = None, look_distance_m: 'float' = 2.0, max_cloud_height_m: 'Optional[float]' = None, resolution: 'Tuple[int, int]' = (768, 768), include_robot: 'bool' = True, view: 'bool' = True, save: 'bool' = True, save_dir: 'str' = 'artifacts/map3d', filename: 'Optional[str]' = 'debug.png', cloud_alpha: 'Optional[float]' = None, cloud_density: 'Optional[float]' = None, cloud_opacity: 'Optional[float]' = None, cloud_point_size: 'Optional[float]' = None, laser_scan_show: 'Optional[bool]' = None, laser_scan_center_band_px: 'Optional[int]' = None, laser_scan_color: 'Optional[List[float]]' = None, hud: 'Optional[List[HudElement]]' = None, hud_warnings: 'bool' = True, hud_frame_info: 'bool' = True, hud_stats: 'bool' = False) -> 'RenderResult': # Renders a view of my 3D 'map3d' from my virtual `theoria` camera.
     class HudElement: # A single text element to overlay on a rendered image.
         pass
     class RaycastHit: # Result of raycasting a pixel against a scene snapshot.
@@ -514,7 +514,7 @@ Classes:
     class SceneSnapshot: # Self-contained snapshot of what was rendered, sufficient for later raycasts.
         pass
 Functions:
-    def get_chora() -> 'Chora': # No description.
+    def get_map3d() -> 'Chora': # No description.
     def raycast(*args, **kwargs) -> 'RaycastHit': # No description.
     def render(*args, **kwargs) -> 'RenderResult': # No description.
 
@@ -560,7 +560,7 @@ Functions:
     def set(strip: str, colors: Sequence[Union[int, Tuple[int, int, int], str]]) -> None: # Set individual LED colors on a strip.
 
 ### Module: logos.logos_mesh
-# logos.chora.logos_mesh
+# logos.map3d.logos_mesh
 Functions:
     def build_logos_mesh() -> "'o3d.geometry.TriangleMesh'": # Build a complete Logos robot mesh at the origin, facing +X (ROS forward).
 

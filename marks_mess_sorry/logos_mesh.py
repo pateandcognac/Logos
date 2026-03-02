@@ -1,14 +1,14 @@
 """
-logos.chora.logos_mesh
+logos.map3d.logos_mesh
 
-Replacement robot mesh for Chora — a stylized 3D representation of
+Replacement robot mesh for Map3d — a stylized 3D representation of
 the Logos robot built from Open3D primitives.
 
 Standalone usage:
-    from logos.chora.logos_mesh import build_logos_mesh
+    from logos.map3d.logos_mesh import build_logos_mesh
     mesh = build_logos_mesh()
 
-Drop-in for Chora._create_robot_mesh():
+Drop-in for Map3d._create_robot_mesh():
     Replace the body of _create_robot_mesh() with the contents of
     the patched version at the bottom of this file.
 """

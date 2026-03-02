@@ -1,0 +1,43 @@
+# config/mind_palace_00.yaml
+#
+# My mind palace configuration - the phantasma instances that populate my
+# virtual world. Each key is a unique instance name that I can reference
+# programmatically.
+#
+# Instances can be:
+#   - Persistent (defined here, loaded at startup)
+#   - Transient (created via map3d.place(), not saved unless requested)
+#
+# Usage:
+#   map3d.list_instances()     # See what's placed
+#   map3d.set_visible('metric_grid', render=False)  # Toggle visibility
+#   map3d.update_instance('metric_grid', spacing_m=0.5)  # Change params
+#   map3d.reload_mind_palace()  # Reload after editing this file
+
+instances:
+
+  # ---- System Visualizations ----
+
+  metric_grid:
+    object: grid_overlay
+    description: "Reference grid on the floor for spatial reasoning"
+    params:
+      spacing_m: 1.0
+      extent_m: 10.0
+      z: 0.002                        # Nudge above floor to avoid z-fighting
+      color: [0.3, 0.3, 0.5]
+      line_thickness: 0.005
+    render_visible: true
+    raycast_visible: false
+
+  # ---- Debug Overlays (off by default) ----
+
+  # obstacle_plane:
+  #   object: occupied_plane
+  #   description: "Transparent red plane showing occupied map cells"
+  #   params:
+  #     z: 0.70
+  #     occupied_color: [1.0, 0.0, 0.0]
+  #     occupied_threshold: 50
+  #   render_visible: false           # Enable when debugging nav
+  #   raycast_visible: false

@@ -122,6 +122,10 @@ def llm(prompt: str, model_alias: str = "fast", temperature: float = 0.7) -> str
         print(f"Failed to parse Gemini worker output: {e}\nRaw output:\n{proc.stdout!r}")
         return ""
 
+    if "error" in data:
+        print(f"Gemini worker returned error: {data.get('error')}")
+        return ""
+
     text = data.get("text", "")
     if not isinstance(text, str):
         print(f"Gemini worker returned non-string text: {text!r}")

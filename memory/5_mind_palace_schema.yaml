@@ -2,7 +2,7 @@
 #
 # Each key is a unique instance name. The AI refers to instances by this name.
 # Instances can be persistent (defined here) or transient (created at runtime
-# via chora.place() — those don't appear in this file unless explicitly saved).
+# via map3d.place() — those don't appear in this file unless explicitly saved).
 
 instances:
 

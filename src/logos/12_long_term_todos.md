@@ -37,8 +37,8 @@ Collected from the design conversation. Not blocking the implementation above.
 
 ### Long-term / Exploratory
 
-- [ ] **`logos.state` as ROS callback target** — instead of `get_pose()`,
-  have `logos.state.pose` updated by a callback. Pro: always fresh, no
+- [ ] **`logos.config` as ROS callback target** — instead of `get_pose()`,
+  have `logos.config.pose` updated by a callback. Pro: always fresh, no
   blocking call. Con: adds callback overhead, thread-safety concerns for
   large high-frequency data (point clouds). **Recommendation:** good for
   low-frequency scalar state (pose, battery, joint positions). Bad for

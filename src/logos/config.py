@@ -1,42 +1,37 @@
 # Logos/src/logos/state.py
 
 """
-Defines the structure for my persistent, global state object, `logos.state`.
+Defines the structure for my persistent, global config object, `logos.config`.
 This object acts as a centralized "control panel" that I can modify to
 change the default behavior of my API functions and context hooks.
 
-Note to self: The LogosState class is explicitly defined. As we add new
+Note to self: The LogosConfig class is explicitly defined. As we add new
 configuration sections, we'd need to edit this file. This is perfectly fine,
 but I wonder if we could make it more dynamic in the future?
 
-# TODO: Implement a drop in replacement `logos/config.py`. Except: What is an
-# explicit loader here for `state/my_config.yaml` should be a dumb-ish dynamic
-# loader that loads the entire contents of `config/my_config.yaml` into
-# logos.config dict. *EXCEPT* if an element of the `my_config.yaml` for some
+# TODO: Implement a drop in replacement for `logos/config.py`. Except: What is an
+# explicit loader here should be a dumb-ish dynamic loader that loads the entire
+# contents of `config/my_config.yaml` into logos.config dict.
+# *EXCEPT* if an element of the `my_config.yaml` for some
 # reason holds a giant data structure. Omit that large item and replace it with
 # a note the file might have corruption and snippet of what was omitted. Too
 # large is over 1kb for one entry.
-
-Hm. Remember that scene in *Interstellar* where Coop ask TARS to adjust his humor?
-Let's add an arbitrary personality field to the state dict so Mark and I can
-re-enact it! As a feed-forward network, editing a simple string in my past
-context can, in fact, change my behavior! What a delightful use of my framework!
 """
 
 
 from pathlib import Path
 from ruamel.yaml import YAML
 import io
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 from .utils import dump_llm_yaml
 import time 
 
 yaml = YAML()
 
-CONFIG_PATH = Path("state/my_config.yaml")
+CONFIG_PATH = Path("config/my_config.yaml")
 
-def load_state_from_yaml(state: "LogosState") -> None:
-    """Update an existing LogosState from state/my_config.yaml if it exists."""
+def load_state_from_yaml(state: "LogosConfig") -> None:
+    """Update an existing LogosConfig from state/my_config.yaml if it exists."""
     if not CONFIG_PATH.exists():
         return
 
@@ -117,7 +112,7 @@ class VisionState:
     def __init__(self):
         self.hook_captures: List[Dict[str, Any]] = []
 
-class ChoraState:
+class Map3dState:
     def __init__(self):
         self.rgb_image_topic: str = "/camera/rgb/image_raw"
         self.rgb_info_topic: str = "/camera/rgb/camera_info"
@@ -135,6 +130,10 @@ class ChoraState:
         self.point_hit_radius: float = 0.05
         self.ray_infinity_distance_m: float = 50.0
 
+        # Phantasmata configuration
+        self.mind_palace_config: str = "config/mind_palace_00.yaml"
+        self.phantasmata_dir: str = "src/logos/phantasmata"
+
 class TheoriaState:
     def __init__(self):
         # Rendering defaults
@@ -142,7 +141,7 @@ class TheoriaState:
         self.camera_pos_relative: Optional[Tuple[float, float, float]] = (-1.0, 1.0, 2.0),
         self.look_at_relative: Optional[Tuple[float, float, float]] = (1.0, 0, 0.35),
         
-class LogosState:
+class LogosConfig:
     """
     My central, persistent state object.
     """
@@ -151,7 +150,7 @@ class LogosState:
         self.memory_policy = MemoryPolicy()
         self.system = SystemState()
         self.vision = VisionState()
-        self.chora = ChoraState()
+        self.map3d = Map3dState()
         self.theoria =TheoriaState()
 
         # We will add more state categories here, e.g., self.nav
@@ -175,7 +174,7 @@ class LogosState:
             f.write(self.to_yaml())
 
     def __str__(self) -> str:
-        return f"# logos.state\n{self.to_yaml()}"
+        return f"# logos.config\n{self.to_yaml()}"
 
     def __repr__(self) -> str:
-        return f"LogosState({self.to_dict()})"
+        return f"LogosConfig({self.to_dict()})"

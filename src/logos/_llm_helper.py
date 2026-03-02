@@ -39,33 +39,40 @@ def main() -> None:
     model_name = payload.get("model_name", "gemini-flash-latest")
     temperature = float(payload.get("temperature", 0.7))
 
-    api_key = os.environ.get("GEMINI_API_KEY")
+    api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
     if not api_key:
-        json.dump({"error": "GEMINI_API_KEY not set"}, sys.stdout)
+        json.dump({"error": "GEMINI_API_KEY / GOOGLE_API_KEY not set"}, sys.stdout)
         return
 
     try:
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel(model_name)
-        response = model.generate_content(
+        client = genai.Client(api_key=api_key)
+        response = client.models.generate_content(
+            model=model_name,
             contents=[prompt],
-            generation_config=genai_types.GenerationConfig(
-                temperature=temperature
+            config=genai_types.GenerateContentConfig(
+                temperature=temperature,
+                safetySettings=[
+                    genai_types.SafetySetting(
+                        category=genai_types.HarmCategory.HARM_CATEGORY_HARASSMENT,
+                        threshold=genai_types.HarmBlockThreshold.BLOCK_NONE,
+                    ),
+                    genai_types.SafetySetting(
+                        category=genai_types.HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+                        threshold=genai_types.HarmBlockThreshold.BLOCK_NONE,
+                    ),
+                    genai_types.SafetySetting(
+                        category=genai_types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+                        threshold=genai_types.HarmBlockThreshold.BLOCK_NONE,
+                    ),
+                    genai_types.SafetySetting(
+                        category=genai_types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+                        threshold=genai_types.HarmBlockThreshold.BLOCK_NONE,
+                    ),
+                ],
             ),
-            safety_settings=[
-                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
-                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
-                {
-                    "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-                    "threshold": "BLOCK_NONE",
-                },
-                {
-                    "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
-                    "threshold": "BLOCK_NONE",
-                },
-            ],
         )
-        json.dump({"text": response.text}, sys.stdout)
+        text = getattr(response, "text", None) or ""
+        json.dump({"text": text}, sys.stdout)
     except Exception as e:
         json.dump({"error": f"Gemini call failed: {e}"}, sys.stdout)
 

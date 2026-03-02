@@ -1,4 +1,4 @@
-# src/logos/chora.py
+# src/logos/map3d.py
 """
 My 'mind palace.' A virtual 3D environment for advanced spatial reasoning.
 
@@ -28,15 +28,25 @@ from __future__ import annotations
 
 from collections import OrderedDict
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 import os
 import time
 import math
 import threading
 import queue
 import importlib
+import importlib.util
+import sys
 import uuid
+import traceback
 import numpy as np
+
+# YAML loader for mind_palace config
+try:
+    from ruamel.yaml import YAML
+    _HAS_YAML = True
+except ImportError:
+    _HAS_YAML = False
 
 try:
     import rospy
@@ -96,6 +106,18 @@ try:
     from logos import ros as logos_ros
 except Exception:  # pragma: no cover
     logos_ros = None
+
+# HUD system is now in vision.py for reuse across camera and map3d rendering
+try:
+    from logos.vision import (
+        HudElement, HUD_ANCHORS, overlay_hud,
+        HUD_FONT_SIMPLEX, HUD_FONT_PLAIN, HUD_FONT_DUPLEX,
+        HUD_FONT_SMALL, HUD_FONT_MONO,
+    )
+    _HAS_VISION_HUD = True
+except ImportError:
+    _HAS_VISION_HUD = False
+    # Fallback definitions below if vision.py not available
 
 try:
     import ros_numpy
@@ -202,7 +224,7 @@ class RenderResult:
     image is BGR uint8 for consistency with the rest of Logos vision tooling.
     """
     image: np.ndarray
-    source: str = "chora"
+    source: str = "map3d"
     timestamp: float = 0.0
     resolution: Tuple[int, int] = (0, 0)
     photo_id: Optional[str] = None
@@ -220,9 +242,9 @@ class RenderResult:
             self.meta = self.meta or {}
 
             self.photo_id = self.meta.get("render_id", uuid.uuid4().hex[:12])
-            save_dir = "artifacts/chora"
+            save_dir = "artifacts/map3d"
             os.makedirs(save_dir, exist_ok=True)
-            self.path = path or os.path.join(save_dir, f"chora_{self.photo_id}.png")
+            self.path = path or os.path.join(save_dir, f"map3d_{self.photo_id}.png")
             cv2.imwrite(self.path, self.image)
 
         if view:
@@ -235,44 +257,45 @@ class RenderResult:
         print(f'<file path="{self.path}">theoria</file>')
 
 
-# Named anchor positions for HUD elements.  Elements sharing an anchor
-# are stacked vertically in priority order (lower = closer to anchor edge).
-HUD_ANCHORS = (
-    "top_left", "top_center", "top_right",
-    "bottom_left", "bottom_center", "bottom_right",
-)
+# HUD system: prefer imports from vision.py; fallback definitions here
+# if vision.py is not available (for standalone testing)
+if not _HAS_VISION_HUD:
+    # Named anchor positions for HUD elements. Elements sharing an anchor
+    # are stacked vertically in priority order (lower = closer to anchor edge).
+    HUD_ANCHORS = (
+        "top_left", "top_center", "top_right",
+        "bottom_left", "bottom_center", "bottom_right",
+    )
 
-# OpenCV font constants (so callers don't need to import cv2 themselves)
-HUD_FONT_SIMPLEX = 0        # cv2.FONT_HERSHEY_SIMPLEX
-HUD_FONT_PLAIN = 1          # cv2.FONT_HERSHEY_PLAIN
-HUD_FONT_DUPLEX = 2         # cv2.FONT_HERSHEY_DUPLEX
-HUD_FONT_SMALL = 6          # cv2.FONT_HERSHEY_COMPLEX_SMALL
-HUD_FONT_MONO = 7           # cv2.FONT_HERSHEY_SCRIPT_SIMPLEX — actually not mono
-# For actual monospace, FONT_HERSHEY_PLAIN (1) is closest in OpenCV.
+    # OpenCV font constants (so callers don't need to import cv2 themselves)
+    HUD_FONT_SIMPLEX = 0        # cv2.FONT_HERSHEY_SIMPLEX
+    HUD_FONT_PLAIN = 1          # cv2.FONT_HERSHEY_PLAIN
+    HUD_FONT_DUPLEX = 2         # cv2.FONT_HERSHEY_DUPLEX
+    HUD_FONT_SMALL = 6          # cv2.FONT_HERSHEY_COMPLEX_SMALL
+    HUD_FONT_MONO = 7           # cv2.FONT_HERSHEY_SCRIPT_SIMPLEX (not mono)
 
+    @dataclass
+    class HudElement:
+        """
+        A single text element to overlay on a rendered image.
 
-@dataclass
-class HudElement:
-    """
-    A single text element to overlay on a rendered image.
+        Positioning uses named anchors (see HUD_ANCHORS). Multiple elements
+        at the same anchor are stacked vertically, sorted by priority (lower
+        values render closer to the anchor edge, i.e. top for top_*, bottom
+        for bottom_*).
 
-    Positioning uses named anchors (see HUD_ANCHORS).  Multiple elements
-    at the same anchor are stacked vertically, sorted by priority (lower
-    values render closer to the anchor edge, i.e. top for top_*, bottom
-    for bottom_*).
-
-    Colors are BGR uint8 tuples for direct OpenCV compatibility.
-    """
-    text: str
-    anchor: str = "top_left"
-    color: Tuple[int, int, int] = (255, 255, 255)  # BGR white
-    bg_color: Optional[Tuple[int, int, int]] = (0, 0, 0)  # BGR; None = no bg
-    bg_alpha: float = 0.4  # 0.0 = fully transparent bg, 1.0 = opaque
-    font_scale: float = 0.45
-    thickness: int = 1
-    font: int = 0  # cv2.FONT_HERSHEY_SIMPLEX
-    margin_px: int = 8  # padding from image edge and between stacked elements
-    priority: int = 0  # lower = closer to anchor edge
+        Colors are BGR uint8 tuples for direct OpenCV compatibility.
+        """
+        text: str
+        anchor: str = "top_left"
+        color: Tuple[int, int, int] = (255, 255, 255)  # BGR white
+        bg_color: Optional[Tuple[int, int, int]] = (0, 0, 0)  # BGR; None = no bg
+        bg_alpha: float = 0.4  # 0.0 = fully transparent bg, 1.0 = opaque
+        font_scale: float = 0.45
+        thickness: int = 1
+        font: int = 0  # cv2.FONT_HERSHEY_SIMPLEX
+        margin_px: int = 8  # padding from image edge and between stacked elements
+        priority: int = 0  # lower = closer to anchor edge
 
 
 # --------------------------- Math Helpers ---------------------------
@@ -338,6 +361,43 @@ def _norm1000_to_pixel(norm_0_1000: float, size_px: int) -> float:
     return (n / 1000.0) * float(size_px - 1)
 
 
+def _euler_rpy_deg_to_rot_matrix(
+    roll: float,
+    pitch: float,
+    yaw: float,
+) -> np.ndarray:
+    """
+    Convert Roll/Pitch/Yaw in degrees to a 3x3 rotation matrix.
+
+    Uses ROS convention (XYZ intrinsic rotations):
+    R = Rz(yaw) * Ry(pitch) * Rx(roll)
+
+    Args:
+        roll: Rotation about X axis in degrees
+        pitch: Rotation about Y axis in degrees
+        yaw: Rotation about Z axis in degrees
+
+    Returns:
+        3x3 numpy rotation matrix
+    """
+    r = math.radians(roll)
+    p = math.radians(pitch)
+    y = math.radians(yaw)
+
+    cr, sr = math.cos(r), math.sin(r)
+    cp, sp = math.cos(p), math.sin(p)
+    cy, sy = math.cos(y), math.sin(y)
+
+    # Rz(yaw) * Ry(pitch) * Rx(roll)
+    rot = np.array([
+        [cy * cp, cy * sp * sr - sy * cr, cy * sp * cr + sy * sr],
+        [sy * cp, sy * sp * sr + cy * cr, sy * sp * cr - cy * sr],
+        [-sp,     cp * sr,                cp * cr],
+    ], dtype=np.float64)
+
+    return rot
+
+
 def _as_4x4(m: Any) -> np.ndarray:
     """
     Defensive conversion for camera matrices.
@@ -354,9 +414,9 @@ def _as_4x4(m: Any) -> np.ndarray:
     return a
 
 
-# --------------------------- Core Chora System ---------------------------
+# --------------------------- Core Map3d System ---------------------------
 
-class Chora:
+class Map3d:
     """
     Stateful renderer + raycaster with persistent ROS subscriptions.
     """
@@ -376,7 +436,7 @@ class Chora:
             raise RuntimeError("Open3D is not available (open3d imports failed).")
 
         if not rospy.core.is_initialized():
-            rospy.init_node("logos_chora", anonymous=True, disable_signals=True)
+            rospy.init_node("logos_map3d", anonymous=True, disable_signals=True)
 
         self.bridge = CvBridge()
 
@@ -422,9 +482,41 @@ class Chora:
         self._renders_lock = threading.Lock()
         self._renders_max: int = 10  # keep last N snapshots
 
-        # Objects (future: phantasmata)
+        # Objects (legacy manual object management)
         self._objects_lock = threading.Lock()
         self._objects: Dict[str, SceneObject] = {}
+
+        # ---- Phantasmata System ----
+        # Phantasma modules (loaded Python modules, keyed by module name)
+        self._phantasma_modules: Dict[str, Any] = {}
+        self._phantasma_modules_lock = threading.Lock()
+
+        # Instance configurations from mind_palace.yaml + runtime additions
+        self._instances: Dict[str, Dict[str, Any]] = {}
+        self._instances_lock = threading.Lock()
+
+        # Cached built geometry per instance (keyed by instance name)
+        self._instance_cache: Dict[str, List[SceneObject]] = {}
+        self._instance_cache_lock = threading.Lock()
+
+        # Configuration paths (can be overridden via logos.config.map3d)
+        self._phantasmata_dir: str = "src/logos/phantasmata"
+        self._mind_palace_path: str = "config/mind_palace_00.yaml"
+
+        # Try to read paths from logos.config.map3d
+        try:
+            import logos
+            if hasattr(logos, 'state') and hasattr(logos.config, 'map3d'):
+                map3d_state = logos.config.map3d
+                if hasattr(map3d_state, 'phantasmata_dir'):
+                    self._phantasmata_dir = map3d_state.phantasmata_dir
+                if hasattr(map3d_state, 'mind_palace_config'):
+                    self._mind_palace_path = map3d_state.mind_palace_config
+        except Exception:
+            pass
+
+        # Load mind palace configuration if it exists
+        self._load_mind_palace()
 
         # Per-render warning accumulator (cleared at start of each render).
         self._render_warnings: List[str] = []
@@ -474,7 +566,7 @@ class Chora:
         # _run_on_render_thread().
         self._render_task_queue: queue.Queue = queue.Queue()
         self._render_thread = threading.Thread(
-            target=self._render_worker, daemon=True, name="chora-render"
+            target=self._render_worker, daemon=True, name="map3d-render"
         )
         self._render_thread.start()
 
@@ -596,8 +688,8 @@ class Chora:
 
     def load_phantasma(self, name: str) -> None:
         """
-        Minimal future-proof loader:
-        expects phantasmata/<name>.py to define build() -> SceneObject or List[SceneObject].
+        Minimal legacy loader (deprecated, use place() instead).
+        Expects phantasmata/<name>.py to define build() -> SceneObject or List[SceneObject].
         """
         mod = importlib.import_module(f"phantasmata.{name}")
         if not hasattr(mod, "build"):
@@ -609,6 +701,683 @@ class Chora:
                 self.register_object(obj)
         else:
             self.register_object(built)
+
+    # ---------------- Phantasmata Lifecycle Manager ----------------
+
+    def _load_mind_palace(self) -> None:
+        """
+        Load phantom instance configurations from mind_palace.yaml.
+
+        This populates self._instances with the configuration for each
+        placed phantasma. The actual geometry is built lazily on first render.
+        """
+        if not _HAS_YAML:
+            return
+
+        if not os.path.exists(self._mind_palace_path):
+            return
+
+        try:
+            yaml = YAML()
+            with open(self._mind_palace_path, 'r') as f:
+                config = yaml.load(f) or {}
+
+            instances = config.get('instances', {})
+            if not isinstance(instances, dict):
+                return
+
+            with self._instances_lock:
+                for name, instance_config in instances.items():
+                    if isinstance(instance_config, dict):
+                        self._instances[name] = dict(instance_config)
+
+        except Exception as e:
+            print(f"[map3d] Warning: Failed to load mind_palace.yaml: {e}")
+
+    def _import_phantasma_module(self, module_name: str) -> Optional[Any]:
+        """
+        Import a phantasma module by name.
+
+        Args:
+            module_name: Name of the module (e.g., 'grid_overlay')
+
+        Returns:
+            The imported module, or None if import failed
+        """
+        with self._phantasma_modules_lock:
+            # Return cached module if already loaded
+            if module_name in self._phantasma_modules:
+                return self._phantasma_modules[module_name]
+
+        module_path = os.path.join(self._phantasmata_dir, f"{module_name}.py")
+
+        if not os.path.exists(module_path):
+            print(f"[map3d] Phantasma module not found: {module_path}")
+            return None
+
+        try:
+            # Generate unique module name to avoid conflicts
+            full_module_name = f"logos.phantasmata.{module_name}"
+
+            # Load the module
+            spec = importlib.util.spec_from_file_location(full_module_name, module_path)
+            if spec is None or spec.loader is None:
+                print(f"[map3d] Cannot load phantasma spec: {module_path}")
+                return None
+
+            module = importlib.util.module_from_spec(spec)
+            sys.modules[full_module_name] = module
+            spec.loader.exec_module(module)
+
+            # Validate required interface
+            if not hasattr(module, 'SCHEMA'):
+                print(f"[map3d] Phantasma {module_name} missing SCHEMA")
+                return None
+            if not hasattr(module, 'build'):
+                print(f"[map3d] Phantasma {module_name} missing build()")
+                return None
+
+            # Cache and return
+            with self._phantasma_modules_lock:
+                self._phantasma_modules[module_name] = module
+            return module
+
+        except Exception as e:
+            print(f"[map3d] Failed to import phantasma {module_name}: {e}")
+            traceback.print_exc()
+            return None
+
+    def _build_phantasma_context(
+        self,
+        instance_name: str,
+        instance_config: Dict[str, Any],
+        map_snapshot: Optional[MapSnapshot] = None,
+    ) -> Any:
+        """
+        Create a PhantasmaContext for a build() or hud() call.
+
+        Args:
+            instance_name: Name of the instance being built
+            instance_config: Configuration dict for this instance
+            map_snapshot: Current frozen map state
+
+        Returns:
+            PhantasmaContext instance
+        """
+        # Import PhantasmaContext from phantasmata module
+        try:
+            from logos.phantasmata.phantasma_convention import PhantasmaContext
+        except ImportError:
+            # Fallback: return a simple dict-like namespace
+            class SimpleContext:
+                def __init__(self, **kwargs):
+                    for k, v in kwargs.items():
+                        setattr(self, k, v)
+            PhantasmaContext = SimpleContext
+
+        # Get robot pose
+        robot_pose = None
+        try:
+            if logos_ros is not None and hasattr(logos_ros, 'get_pose'):
+                robot_pose = logos_ros.get_pose()
+        except Exception:
+            pass
+
+        # Get logos.config if available
+        config = {}
+        try:
+            import logos
+            if hasattr(logos, 'config'):
+                config = logos.config.to_dict() if hasattr(logos.config, 'to_dict') else {}
+            # elif hasattr(logos, 'state'):
+            #    config = logos.config.to_dict() if hasattr(logos.config, 'to_dict') else {}
+        except Exception:
+            pass
+
+        # Get REPL namespace if available
+        ns = {}
+        try:
+            import logos
+            if hasattr(logos, '_py_namespace'):
+                ns = logos._py_namespace
+        except Exception:
+            pass
+
+        return PhantasmaContext(
+            config=config,
+            ns=ns,
+            tf_buffer=self._get_tf_buffer(),
+            robot_pose=robot_pose,
+            map_snapshot=map_snapshot,
+            world_frame=self._get_world_frame(),
+            instance_name=instance_name,
+            instance_config=instance_config,
+            render_timestamp=time.time(),
+        )
+
+    def _merge_params_with_schema(
+        self,
+        params: Dict[str, Any],
+        schema: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """
+        Merge user params with schema defaults.
+
+        Args:
+            params: User-provided parameters
+            schema: The phantasma's SCHEMA dict
+
+        Returns:
+            Merged parameters dict
+        """
+        merged = {}
+
+        # Fill in schema defaults
+        for key, spec in schema.items():
+            if isinstance(spec, dict):
+                merged[key] = spec.get('default')
+            else:
+                merged[key] = spec
+
+        # Override with user params
+        merged.update(params)
+        return merged
+
+    def _apply_pose_to_geometry(
+        self,
+        geometry: Any,
+        pose_config: Optional[Dict[str, Any]],
+    ) -> Any:
+        """
+        Apply pose transformation to Open3D geometry.
+
+        Args:
+            geometry: Open3D geometry object
+            pose_config: Pose config with 'position' and/or 'rpy_deg'
+
+        Returns:
+            The transformed geometry (modified in-place)
+        """
+        if pose_config is None:
+            return geometry
+
+        position = pose_config.get('position')
+        rpy_deg = pose_config.get('rpy_deg')
+
+        if position is None and rpy_deg is None:
+            return geometry
+
+        # Build 4x4 transform matrix
+        mat = np.eye(4, dtype=np.float64)
+
+        if rpy_deg is not None:
+            roll, pitch, yaw = rpy_deg
+            mat[:3, :3] = _euler_rpy_deg_to_rot_matrix(roll, pitch, yaw)
+
+        if position is not None:
+            mat[:3, 3] = position
+
+        geometry.transform(mat)
+        return geometry
+
+    def _build_phantasma_instance(
+        self,
+        instance_name: str,
+        instance_config: Dict[str, Any],
+        ctx: Any,
+        force_rebuild: bool = False,
+    ) -> Optional[List[SceneObject]]:
+        """
+        Build the geometry for a single phantasma instance.
+
+        Args:
+            instance_name: Name of the instance
+            instance_config: Configuration dict
+            ctx: PhantasmaContext for this build
+            force_rebuild: If True, ignore cache
+
+        Returns:
+            List of SceneObject, or None if build failed
+        """
+        object_name = instance_config.get('object')
+        if not object_name:
+            return None
+
+        # Import the module
+        module = self._import_phantasma_module(object_name)
+        if module is None:
+            return None
+
+        # Check if we need to rebuild
+        is_dynamic = getattr(module, 'DYNAMIC', False)
+
+        if not force_rebuild and not is_dynamic:
+            with self._instance_cache_lock:
+                if instance_name in self._instance_cache:
+                    return self._instance_cache[instance_name]
+
+        # For dynamic modules, check should_rebuild if present
+        if is_dynamic and not force_rebuild:
+            if hasattr(module, 'should_rebuild') and callable(module.should_rebuild):
+                params = self._merge_params_with_schema(
+                    instance_config.get('params', {}),
+                    getattr(module, 'SCHEMA', {}),
+                )
+                try:
+                    if not module.should_rebuild(params, ctx):
+                        with self._instance_cache_lock:
+                            if instance_name in self._instance_cache:
+                                return self._instance_cache[instance_name]
+                except Exception as e:
+                    print(f"[map3d] should_rebuild() failed for {instance_name}: {e}")
+
+        # Merge params with schema defaults
+        schema = getattr(module, 'SCHEMA', {})
+        params = self._merge_params_with_schema(
+            instance_config.get('params', {}),
+            schema,
+        )
+
+        # Call build()
+        try:
+            result = module.build(params, ctx)
+        except Exception as e:
+            print(f"[map3d] build() failed for {instance_name}: {e}")
+            traceback.print_exc()
+            return None
+
+        if result is None:
+            return None
+
+        # Normalize to list
+        if isinstance(result, list):
+            objects = result
+        else:
+            objects = [result]
+
+        # Apply instance-level settings and pose
+        pose_config = instance_config.get('pose')
+        render_visible = instance_config.get('render_visible', True)
+        raycast_visible = instance_config.get('raycast_visible', True)
+        shader = instance_config.get('shader', 'defaultLit')
+
+        processed_objects = []
+        for i, obj in enumerate(objects):
+            if obj is None:
+                continue
+
+            # Replace __auto__ name with instance name
+            if hasattr(obj, 'name') and obj.name == '__auto__':
+                obj.name = f"{instance_name}_{i}" if len(objects) > 1 else instance_name
+
+            # Apply pose transform to geometry
+            if pose_config is not None and hasattr(obj, 'geometry'):
+                self._apply_pose_to_geometry(obj.geometry, pose_config)
+
+            # Override visibility and shader from instance config
+            if hasattr(obj, 'render_visible'):
+                obj.render_visible = render_visible
+            if hasattr(obj, 'raycast_visible'):
+                obj.raycast_visible = raycast_visible
+            if hasattr(obj, 'shader'):
+                obj.shader = shader
+
+            processed_objects.append(obj)
+
+        # Cache the result
+        with self._instance_cache_lock:
+            self._instance_cache[instance_name] = processed_objects
+
+        return processed_objects
+
+    def _collect_hud_contributions(
+        self,
+        map_snapshot: Optional[MapSnapshot] = None,
+    ) -> List[HudElement]:
+        """
+        Collect HUD contributions from all phantasmata with hud() functions.
+
+        Returns:
+            List of HudElement from all phantasmata
+        """
+        hud_elements: List[HudElement] = []
+
+        with self._instances_lock:
+            instances_copy = dict(self._instances)
+
+        for instance_name, instance_config in instances_copy.items():
+            if not instance_config.get('render_visible', True):
+                continue
+
+            object_name = instance_config.get('object')
+            if not object_name:
+                continue
+
+            module = self._import_phantasma_module(object_name)
+            if module is None:
+                continue
+
+            if not hasattr(module, 'hud') or not callable(module.hud):
+                continue
+
+            # Build context and call hud()
+            ctx = self._build_phantasma_context(
+                instance_name, instance_config, map_snapshot
+            )
+            params = self._merge_params_with_schema(
+                instance_config.get('params', {}),
+                getattr(module, 'SCHEMA', {}),
+            )
+
+            try:
+                elements = module.hud(params, ctx)
+                if elements:
+                    hud_elements.extend(elements)
+            except Exception as e:
+                print(f"[map3d] hud() failed for {instance_name}: {e}")
+
+        return hud_elements
+
+    # ---------------- Phantasmata Public API ----------------
+
+    @api_call(default_verbosity=Verbosity.ACK)
+    def place(
+        self,
+        name: str,
+        object: str,
+        pose: Optional[Dict[str, Any]] = None,
+        params: Optional[Dict[str, Any]] = None,
+        description: str = "",
+        render_visible: bool = True,
+        raycast_visible: bool = True,
+        costmap_affects: bool = False,
+        shader: str = "defaultLit",
+        save_to_yaml: bool = False,
+    ) -> None:
+        """
+        Place a new phantasma instance in my mind palace.
+
+        Args:
+            name: Unique identifier for this instance
+            object: Name of the phantasma module (e.g., 'grid_overlay')
+            pose: Position and orientation dict:
+                  {'position': [x, y, z], 'rpy_deg': [roll, pitch, yaw]}
+            params: Parameters to pass to build(), merged with SCHEMA defaults
+            description: Human-readable description of this instance
+            render_visible: Whether to show in rendered images
+            raycast_visible: Whether hittable by raycast
+            costmap_affects: Whether to inject into navigation costmap
+            shader: Open3D shader to use ('defaultLit' or 'defaultUnlit')
+            save_to_yaml: If True, persist to mind_palace.yaml
+
+        Note to self:
+            This is how I populate my virtual world. I can place furniture,
+            waypoints, debug visualizations, or any phantasma I've defined.
+            The instance persists until I remove it or restart.
+        """
+        instance_config = {
+            'object': object,
+            'description': description,
+            'render_visible': render_visible,
+            'raycast_visible': raycast_visible,
+            'costmap_affects': costmap_affects,
+            'shader': shader,
+            'params': params or {},
+        }
+
+        if pose is not None:
+            instance_config['pose'] = pose
+
+        with self._instances_lock:
+            self._instances[name] = instance_config
+
+        # Clear any cached geometry for this instance
+        with self._instance_cache_lock:
+            self._instance_cache.pop(name, None)
+
+        if save_to_yaml:
+            self._save_mind_palace()
+
+    @api_call(default_verbosity=Verbosity.ACK)
+    def remove(self, name: str, save_to_yaml: bool = False) -> None:
+        """
+        Remove a phantasma instance from my mind palace.
+
+        Args:
+            name: Name of the instance to remove
+            save_to_yaml: If True, persist the removal to mind_palace.yaml
+        """
+        # Call cleanup if the module has it
+        with self._instances_lock:
+            instance_config = self._instances.get(name)
+
+        if instance_config:
+            object_name = instance_config.get('object')
+            if object_name:
+                module = self._import_phantasma_module(object_name)
+                if module and hasattr(module, 'cleanup') and callable(module.cleanup):
+                    try:
+                        ctx = self._build_phantasma_context(name, instance_config, None)
+                        module.cleanup(ctx)
+                    except Exception as e:
+                        print(f"[map3d] cleanup() failed for {name}: {e}")
+
+        with self._instances_lock:
+            self._instances.pop(name, None)
+
+        with self._instance_cache_lock:
+            self._instance_cache.pop(name, None)
+
+        if save_to_yaml:
+            self._save_mind_palace()
+
+    @api_call(default_verbosity=Verbosity.ACK)
+    def update_instance(self, name: str, **param_overrides) -> None:
+        """
+        Update parameters for an existing phantasma instance.
+
+        Args:
+            name: Name of the instance
+            **param_overrides: Parameter values to update
+        """
+        with self._instances_lock:
+            if name not in self._instances:
+                raise ValueError(f"Instance '{name}' not found")
+
+            if 'params' not in self._instances[name]:
+                self._instances[name]['params'] = {}
+
+            self._instances[name]['params'].update(param_overrides)
+
+        # Clear cache to trigger rebuild
+        with self._instance_cache_lock:
+            self._instance_cache.pop(name, None)
+
+    @api_call(default_verbosity=Verbosity.ACK)
+    def move_instance(
+        self,
+        name: str,
+        position: Optional[List[float]] = None,
+        rpy_deg: Optional[List[float]] = None,
+    ) -> None:
+        """
+        Move a phantasma instance to a new pose.
+
+        Args:
+            name: Name of the instance
+            position: New [x, y, z] position in meters
+            rpy_deg: New [roll, pitch, yaw] in degrees
+        """
+        with self._instances_lock:
+            if name not in self._instances:
+                raise ValueError(f"Instance '{name}' not found")
+
+            if 'pose' not in self._instances[name]:
+                self._instances[name]['pose'] = {}
+
+            if position is not None:
+                self._instances[name]['pose']['position'] = list(position)
+            if rpy_deg is not None:
+                self._instances[name]['pose']['rpy_deg'] = list(rpy_deg)
+
+        # Clear cache to trigger rebuild
+        with self._instance_cache_lock:
+            self._instance_cache.pop(name, None)
+
+    @api_call(default_verbosity=Verbosity.ACK)
+    def set_visible(
+        self,
+        name: str,
+        render: Optional[bool] = None,
+        raycast: Optional[bool] = None,
+    ) -> None:
+        """
+        Toggle visibility settings for a phantasma instance.
+
+        Args:
+            name: Name of the instance
+            render: If specified, set render_visible
+            raycast: If specified, set raycast_visible
+        """
+        with self._instances_lock:
+            if name not in self._instances:
+                raise ValueError(f"Instance '{name}' not found")
+
+            if render is not None:
+                self._instances[name]['render_visible'] = render
+            if raycast is not None:
+                self._instances[name]['raycast_visible'] = raycast
+
+    def list_instances(self) -> Dict[str, Dict[str, Any]]:
+        """
+        List all phantasma instances currently placed in my mind palace.
+
+        Returns:
+            Dict mapping instance names to their configuration summaries
+        """
+        with self._instances_lock:
+            result = {}
+            for name, config in self._instances.items():
+                result[name] = {
+                    'object': config.get('object'),
+                    'description': config.get('description', ''),
+                    'render_visible': config.get('render_visible', True),
+                    'raycast_visible': config.get('raycast_visible', True),
+                }
+            return result
+
+    def describe_instance(self, name: str) -> Dict[str, Any]:
+        """
+        Get the full configuration for a specific instance.
+
+        Args:
+            name: Name of the instance
+
+        Returns:
+            Full configuration dict
+        """
+        with self._instances_lock:
+            if name not in self._instances:
+                raise ValueError(f"Instance '{name}' not found")
+            return dict(self._instances[name])
+
+    def list_phantasmata(self) -> List[str]:
+        """
+        List all available phantasma modules.
+
+        Returns:
+            List of module names (e.g., ['grid_overlay', 'waypoints'])
+        """
+        if not os.path.isdir(self._phantasmata_dir):
+            return []
+
+        modules = []
+        for filename in os.listdir(self._phantasmata_dir):
+            if not filename.endswith('.py'):
+                continue
+            if filename.startswith('_'):
+                continue
+            if filename == 'phantasma_convention.py':
+                continue
+            modules.append(filename[:-3])
+
+        return sorted(modules)
+
+    def describe_phantasma(self, object_name: str) -> Dict[str, Any]:
+        """
+        Get information about a phantasma module.
+
+        Args:
+            object_name: Name of the phantasma module
+
+        Returns:
+            Dict with 'docstring', 'schema', 'dynamic', 'has_hud'
+        """
+        module = self._import_phantasma_module(object_name)
+        if module is None:
+            raise ValueError(f"Phantasma '{object_name}' not found or failed to import")
+
+        return {
+            'docstring': module.__doc__ or '',
+            'schema': getattr(module, 'SCHEMA', {}),
+            'dynamic': getattr(module, 'DYNAMIC', False),
+            'has_hud': hasattr(module, 'hud') and callable(module.hud),
+        }
+
+    @api_call(default_verbosity=Verbosity.ACK)
+    def reload_mind_palace(self) -> None:
+        """
+        Reload the mind_palace.yaml configuration.
+
+        This clears all current instances and reloads from disk.
+        Useful after manually editing the config file.
+        """
+        with self._instances_lock:
+            self._instances.clear()
+
+        with self._instance_cache_lock:
+            self._instance_cache.clear()
+
+        self._load_mind_palace()
+
+    @api_call(default_verbosity=Verbosity.ACK)
+    def rebuild(self, name: Optional[str] = None) -> None:
+        """
+        Force rebuild of phantasma geometry.
+
+        Args:
+            name: Specific instance to rebuild, or None for all instances
+        """
+        if name is not None:
+            with self._instance_cache_lock:
+                self._instance_cache.pop(name, None)
+        else:
+            with self._instance_cache_lock:
+                self._instance_cache.clear()
+
+    def _save_mind_palace(self) -> None:
+        """
+        Save current instances to mind_palace.yaml.
+        """
+        if not _HAS_YAML:
+            print("[map3d] Cannot save: ruamel.yaml not available")
+            return
+
+        try:
+            yaml = YAML()
+            yaml.default_flow_style = False
+
+            config = {'instances': {}}
+            with self._instances_lock:
+                for name, instance in self._instances.items():
+                    config['instances'][name] = dict(instance)
+
+            os.makedirs(os.path.dirname(self._mind_palace_path), exist_ok=True)
+            with open(self._mind_palace_path, 'w') as f:
+                yaml.dump(config, f)
+
+        except Exception as e:
+            print(f"[map3d] Failed to save mind_palace.yaml: {e}")
 
     # ---------------- Mesh/PCD preprocessing ----------------
 
@@ -1116,6 +1885,9 @@ class Chora:
         """
         Build a robot mesh for rendering.
 
+        I first try to use the self_model phantasma for my body representation.
+        If that fails, I fall back to the legacy logos_mesh module.
+
         For raycasting, we freeze triangle/vertex arrays into MeshSnapshot to
         prevent future transforms (or rebuilds) from changing the past.
         """
@@ -1123,9 +1895,48 @@ class Chora:
         if tfm is None:
             return None
 
+        # Try to build from self_model phantasma first
         if not hasattr(self, "_logos_base_mesh") or self._logos_base_mesh is None:
-            from logos.logos_mesh import build_logos_mesh
-            self._logos_base_mesh = build_logos_mesh()
+            mesh_built = False
+
+            # Try self_model phantasma
+            try:
+                from logos.phantasmata.phantasma_convention import PhantasmaContext
+                from logos.phantasmata import self_model
+
+                # Build with default params
+                schema = getattr(self_model, 'SCHEMA', {})
+                params = {}
+                for key, spec in schema.items():
+                    if isinstance(spec, dict):
+                        params[key] = spec.get('default')
+                    else:
+                        params[key] = spec
+
+                # Create minimal context
+                ctx = PhantasmaContext(
+                    instance_name='self',
+                    instance_config={'object': 'self_model'},
+                )
+
+                result = self_model.build(params, ctx)
+                if result is not None and hasattr(result, 'geometry'):
+                    self._logos_base_mesh = result.geometry
+                    mesh_built = True
+            except Exception as e:
+                # Fallback will be used
+                pass
+
+            # Fallback to legacy logos_mesh
+            if not mesh_built:
+                try:
+                    from Logos.marks_mess_sorry.logos_mesh import build_logos_mesh
+                    self._logos_base_mesh = build_logos_mesh()
+                except Exception:
+                    return None
+
+        if self._logos_base_mesh is None:
+            return None
 
         robot = o3d.geometry.TriangleMesh(self._logos_base_mesh)
         robot.transform(tfm)
@@ -1142,7 +1953,7 @@ class Chora:
         with self._render_warnings_lock:
             if msg not in self._render_warnings:
                 self._render_warnings.append(msg)
-                print(f"[chora] WARN: {msg}")
+                print(f"[map3d] WARN: {msg}")
 
     def _get_render_warnings(self) -> List[str]:
         with self._render_warnings_lock:
@@ -1209,7 +2020,7 @@ class Chora:
             except Exception as e:
                 last_err = e
 
-        print(f"[chora] TF point transform failed ({candidate_frames} -> {world_frame}): {last_err}")
+        print(f"[map3d] TF point transform failed ({candidate_frames} -> {world_frame}): {last_err}")
         return None
 
     def _resolve_camera_and_lookat(
@@ -1425,7 +2236,43 @@ class Chora:
                 scene.add_geometry("robot", robot_mesh_render, lit)
                 robot_mesh_frozen = self._freeze_mesh(robot_mesh_render)
 
-        # Registered objects (render from live geometry, raycast from frozen arrays)
+        # ---- Phantasmata ----
+        # Build and render all phantasma instances
+        phantasma_objects: List[SceneObject] = []
+        with self._instances_lock:
+            instances_copy = dict(self._instances)
+
+        for instance_name, instance_config in instances_copy.items():
+            if not instance_config.get('render_visible', True):
+                continue
+
+            ctx = self._build_phantasma_context(instance_name, instance_config, map_snapshot)
+            built_objects = self._build_phantasma_instance(
+                instance_name, instance_config, ctx
+            )
+
+            if built_objects:
+                for obj in built_objects:
+                    if obj is None or not getattr(obj, 'render_visible', True):
+                        continue
+
+                    phantasma_objects.append(obj)
+
+                    # Create material for this object
+                    mat = rendering.Material()
+                    shader = getattr(obj, 'shader', 'defaultLit')
+                    mat.shader = shader
+
+                    if getattr(obj, 'kind', 'mesh') == "pointcloud":
+                        mat.point_size = float(getattr(obj, 'point_size', 3.0))
+
+                    scene.add_geometry(
+                        f"phantasma:{instance_name}:{getattr(obj, 'name', 'geom')}",
+                        obj.geometry,
+                        mat
+                    )
+
+        # Registered objects (legacy manual object management)
         objs_live: List[SceneObject] = []
         with self._objects_lock:
             for _, obj in self._objects.items():
@@ -1440,7 +2287,9 @@ class Chora:
                 mat.point_size = float(obj.point_size)
             scene.add_geometry(f"obj:{obj.name}", obj.geometry, mat)
 
-        objs_frozen = self._freeze_objects(objs_live)
+        # Freeze all objects (legacy + phantasmata) for raycasting
+        all_raycast_objects = objs_live + phantasma_objects
+        objs_frozen = self._freeze_objects(all_raycast_objects)
 
         # Camera
         scene.camera.look_at(look_at_world_pos, camera_world_pos, [0.0, 0.0, 1.0])
@@ -1612,8 +2461,19 @@ class Chora:
     ) -> np.ndarray:
         """
         Render HUD elements onto image (mutates in-place, also returns it).
+
+        Note: This now delegates to vision.overlay_hud when available,
+        keeping a fallback implementation for standalone testing.
         """
-        if not _HAS_CV2 or not elements:
+        if not elements:
+            return image
+
+        # Prefer the canonical implementation from vision.py
+        if _HAS_VISION_HUD:
+            return overlay_hud(image, elements)
+
+        # Fallback implementation for standalone testing
+        if not _HAS_CV2:
             return image
 
         h_img, w_img = image.shape[:2]
@@ -1765,7 +2625,7 @@ class Chora:
         include_robot: bool = True,
         view: bool = True,
         save: bool = True,
-        save_dir: str = "artifacts/chora",
+        save_dir: str = "artifacts/map3d",
         filename: Optional[str] = "debug.png",
         # Point cloud display — None = use self.settings value
         cloud_alpha: Optional[float] = None,
@@ -1783,7 +2643,7 @@ class Chora:
         hud_stats: bool = False,
     ) -> RenderResult:
         """
-        Renders a view of my 3D 'chora' from my virtual `theoria` camera.
+        Renders a view of my 3D 'map3d' from my virtual `theoria` camera.
 
         This function constructs a 3D scene containing the known ROS map as a
         textured floor, the live point cloud from my Astra camera, and a model
@@ -1892,7 +2752,7 @@ class Chora:
             except RuntimeError as e:
                 if "TF failed" in str(e) and attempt < tf_max_retries - 1:
                     print(
-                        f"[chora] TF not ready (attempt {attempt + 1}/"
+                        f"[map3d] TF not ready (attempt {attempt + 1}/"
                         f"{tf_max_retries}), retrying in "
                         f"{tf_retry_delay_s}s..."
                     )
@@ -1952,6 +2812,11 @@ class Chora:
             show_frame_info=hud_frame_info,
             show_stats=hud_stats,
         ))
+
+        # Collect HUD contributions from phantasmata
+        phantasma_hud = self._collect_hud_contributions(map_snapshot)
+        all_hud.extend(phantasma_hud)
+
         if hud:
             all_hud.extend(hud)
         if all_hud:
@@ -1967,7 +2832,7 @@ class Chora:
 
         result = RenderResult(
             image=img_bgr,
-            source="chora",
+            source="map3d",
             timestamp=snapshot.timestamp,
             resolution=(height, width),
             photo_id=None,
@@ -2014,7 +2879,7 @@ class Chora:
         include_objects: bool = True,
     ) -> RaycastHit:
         """
-        Projects a 2D pixel from a `chora` render back into the 3D world.
+        Projects a 2D pixel from a `map3d` render back into the 3D world.
         """
         check_for_interrupt()
 
@@ -2118,29 +2983,94 @@ class Chora:
 
 # --------------------------- Module Singleton ---------------------------
 
-_CHORA_SINGLETON: Optional[Chora] = None
+_CHORA_SINGLETON: Optional[Map3d] = None
 _CHORA_LOCK = threading.Lock()
 
 
-def get_chora() -> Chora:
+def get_map3d() -> Map3d:
     global _CHORA_SINGLETON
     with _CHORA_LOCK:
         if _CHORA_SINGLETON is None:
-            _CHORA_SINGLETON = Chora()
+            _CHORA_SINGLETON = Map3d()
         return _CHORA_SINGLETON
 
 
 @api_call(default_verbosity=Verbosity.ACK)
 def render(*args, **kwargs) -> RenderResult:
-    return get_chora().render(*args, **kwargs)
+    return get_map3d().render(*args, **kwargs)
 
 
 @api_call(default_verbosity=Verbosity.ACK)
 def raycast(*args, **kwargs) -> RaycastHit:
-    return get_chora().raycast(*args, **kwargs)
+    return get_map3d().raycast(*args, **kwargs)
+
+
+# ---- Module-level Phantasmata API ----
+
+@api_call(default_verbosity=Verbosity.ACK)
+def place(*args, **kwargs) -> None:
+    """Place a phantasma instance. See Map3d.place() for details."""
+    return get_map3d().place(*args, **kwargs)
+
+
+@api_call(default_verbosity=Verbosity.ACK)
+def remove(*args, **kwargs) -> None:
+    """Remove a phantasma instance. See Map3d.remove() for details."""
+    return get_map3d().remove(*args, **kwargs)
+
+
+@api_call(default_verbosity=Verbosity.ACK)
+def update_instance(*args, **kwargs) -> None:
+    """Update phantasma instance params. See Map3d.update_instance() for details."""
+    return get_map3d().update_instance(*args, **kwargs)
+
+
+@api_call(default_verbosity=Verbosity.ACK)
+def move_instance(*args, **kwargs) -> None:
+    """Move a phantasma instance. See Map3d.move_instance() for details."""
+    return get_map3d().move_instance(*args, **kwargs)
+
+
+@api_call(default_verbosity=Verbosity.ACK)
+def set_visible(*args, **kwargs) -> None:
+    """Set phantasma visibility. See Map3d.set_visible() for details."""
+    return get_map3d().set_visible(*args, **kwargs)
+
+
+def list_instances() -> Dict[str, Dict[str, Any]]:
+    """List all phantasma instances. See Map3d.list_instances() for details."""
+    return get_map3d().list_instances()
+
+
+def describe_instance(name: str) -> Dict[str, Any]:
+    """Describe a phantasma instance. See Map3d.describe_instance() for details."""
+    return get_map3d().describe_instance(name)
+
+
+def list_phantasmata() -> List[str]:
+    """List available phantasma modules. See Map3d.list_phantasmata() for details."""
+    return get_map3d().list_phantasmata()
+
+
+def describe_phantasma(object_name: str) -> Dict[str, Any]:
+    """Describe a phantasma module. See Map3d.describe_phantasma() for details."""
+    return get_map3d().describe_phantasma(object_name)
+
+
+@api_call(default_verbosity=Verbosity.ACK)
+def reload_mind_palace() -> None:
+    """Reload mind_palace.yaml. See Map3d.reload_mind_palace() for details."""
+    return get_map3d().reload_mind_palace()
+
+
+@api_call(default_verbosity=Verbosity.ACK)
+def rebuild(name: Optional[str] = None) -> None:
+    """Force rebuild phantasmata. See Map3d.rebuild() for details."""
+    return get_map3d().rebuild(name)
 
 
 __all__ = [
+    # Data structures
     "RenderResult",
     "RaycastHit",
     "SceneObject",
@@ -2151,8 +3081,22 @@ __all__ = [
     "HUD_FONT_PLAIN",
     "HUD_FONT_DUPLEX",
     "HUD_FONT_SMALL",
-    "Chora",
-    "get_chora",
+    # Core class and singleton
+    "Map3d",
+    "get_map3d",
+    # Render/raycast API
     "render",
     "raycast",
+    # Phantasmata API
+    "place",
+    "remove",
+    "update_instance",
+    "move_instance",
+    "set_visible",
+    "list_instances",
+    "describe_instance",
+    "list_phantasmata",
+    "describe_phantasma",
+    "reload_mind_palace",
+    "rebuild",
 ]

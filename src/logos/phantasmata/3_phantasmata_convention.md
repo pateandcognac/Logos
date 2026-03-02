@@ -25,7 +25,7 @@ SCHEMA = {
 
 # Lifecycle flag (default False if absent)
 #   False = I'm built once and cached until my params change or
-#           someone calls chora.rebuild(). Efficient for static geometry.
+#           someone calls map3d.rebuild(). Efficient for static geometry.
 #   True  = I'm rebuilt every render. Use for live/animated state.
 DYNAMIC = False
 
@@ -40,7 +40,7 @@ def build(params, ctx):
     Returns:
         SceneObject, List[SceneObject], or None.
         None means "I have nothing to show right now."
-        Name field can be '__auto__' — chora replaces with my instance name.
+        Name field can be '__auto__' — map3d replaces with my instance name.
     """
     ...
 ```
@@ -144,7 +144,7 @@ class PhantasmaContext:
     robot_pose: Optional[dict]
     # {'x', 'y', 'z', 'yaw', 'roll', 'pitch'} in map frame, or None
 
-    # ---- Chora-specific ----
+    # ---- Map3d-specific ----
     map_snapshot: Optional[MapSnapshot]  # Current frozen map for this render
     world_frame: str                     # Active world frame ("map" / "odom" / "")
 

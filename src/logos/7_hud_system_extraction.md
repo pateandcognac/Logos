@@ -1,11 +1,11 @@
-## 7. Chora HUD System Extraction
+## 7. Map3d HUD System Extraction
 ### 7.1 Move to logos/vision.py
 
-The HUD rendering mechanism currently in chora (`_overlay_hud`, `HudElement`,
+The HUD rendering mechanism currently in map3d (`_overlay_hud`, `HudElement`,
 anchor constants, font constants) should be extracted to `logos/vision.py` as a
 general-purpose overlay system. This makes it available for:
 
-- Chora renders (virtual camera)
+- Map3d renders (virtual camera)
 - Physical Astra camera captures
 - Pan-tilt webcam captures
 - Any future image source
@@ -49,7 +49,7 @@ def overlay_hud(image: np.ndarray, elements: List[HudElement]) -> np.ndarray:
 `build()` returns `SceneObject`, `List[SceneObject]`, or `None`.
 `hud()` returns `List[HudElement]` or `None`.
 
-They are separate functions. Chora calls `build()` to get geometry for the 3D
+They are separate functions. Map3d calls `build()` to get geometry for the 3D
 scene, and calls `hud()` to get 2D overlays that are composited after rendering.
 This clean separation means:
 

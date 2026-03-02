@@ -6,9 +6,9 @@ import json
 def run_policy_check():
     """
     The core logic for the automated memory manager. It reads the io_buffer,
-    applies the policy from logos.state, and triggers summarization if needed.
+    applies the policy from logos.config, and triggers summarization if needed.
     """
-    policy = logos.state.memory_policy
+    policy = logos.config.memory_policy
     if not policy.enabled:
         return
 

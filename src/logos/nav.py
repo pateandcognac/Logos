@@ -195,14 +195,17 @@ def go_to_abs(x: float, y: float, theta_deg: Optional[float] = None, wait: bool 
     return task
 
 
+# add go_to_relative
+
+
 @api_call(default_verbosity=Verbosity.BRIEF)
-def move_relative(forward_m: float, turn_deg: float, wait: bool = True) -> NavTask:
+def turn_then_drive(turn_deg: float, forward_m: float, wait: bool = True) -> NavTask:
     """
-    Move a relative distance using odometry (turn first, then drive forward).
+    Smoothed movement using odometry (rotate first, then drive forward/backward).
 
     Args:
-        forward_m: Meters to drive straight. Can be negative to back up.
         turn_deg: Degrees to turn *before* driving. Positive is left, negative is right.
+        forward_m: Meters to drive straight. Can be negative to back up.
         wait: If True, blocks until the movement is finished.
 
     Returns:

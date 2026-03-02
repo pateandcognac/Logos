@@ -289,7 +289,7 @@ def help(
 
         # Global State
         output.append("### Global State")
-        output.append("    logos.state: Persistent configuration (print it to view as YAML)")
+        output.append("    logos.config: Persistent configuration (print it to view as YAML)")
         output.append("    logos.verbosity(level): Context manager to mute/debug output")
         output.append("")
 

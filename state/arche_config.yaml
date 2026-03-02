@@ -17,13 +17,13 @@
     logos.help()
 
 - name: file_tree
-  description: Shows the layout of my workspace, as configured by logos.state.files
+  description: Shows the layout of my workspace, as configured by logos.config.files
   ttl: 99
   code: |-
     # Read configuration from the state object
-    max_depth = logos.state.files.max_depth
-    show_ext = logos.state.files.show_extensions
-    inline_masks = logos.state.files.inline_meta_masks
+    max_depth = logos.config.files.max_depth
+    show_ext = logos.config.files.show_extensions
+    inline_masks = logos.config.files.inline_meta_masks
 
     print(logos.files.tree(
         max_depth=max_depth,

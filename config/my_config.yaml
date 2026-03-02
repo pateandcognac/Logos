@@ -32,6 +32,7 @@ vision:
     save_unique: false
     # save_unique: false → overwrites artifacts/map3d/latest_render.png + sidecar
     # save_unique: true  → ADDITIONALLY saves with logos.utils.make_time_id()
+    #                       base36 7-char ID as filename for png + sidecar
   hook_captures:
     - source: astra
       active: true

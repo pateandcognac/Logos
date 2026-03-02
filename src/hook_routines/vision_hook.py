@@ -3,7 +3,7 @@
 """
 The Eyes of the Pneuma. 👁️
 
-This hook routine executes the camera capture plan defined in `logos.state.vision`.
+This hook routine executes the camera capture plan defined in `logos.config.vision`.
 It handles simple single-shot captures as well as multi-step pan/tilt sequences.
 
 It populates the global Python environment with `CaptureResult` objects (or lists of them)
@@ -15,7 +15,7 @@ import time
 
 def run():
     # Iterate through the configured capture hooks
-    for config in logos.state.vision.hook_captures:
+    for config in logos.config.vision.hook_captures:
         # 1. Skip if not active
         if not config.get('active', True):
             continue

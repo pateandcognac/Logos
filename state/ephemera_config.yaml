@@ -1,12 +1,12 @@
 - name: the_basics
-  description: Shows time, battery, and logos.state
+  description: Shows time, battery, and logos.config
   ttl: 99
   code: |-
     import datetime, time, logos
     print(f"# Current time: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
     batt = logos.base.get_battery()
     print(f"Battery {batt['percent']}% ({batt['status']})\nCharger: {logos.base.get_charger_state()}")
-    print(logos.state)
+    print(logos.config)
 
 - name: manage_memory
   description: Automatically summarizes my io_buffer based on my memory_policy.
@@ -39,4 +39,4 @@
   description: "A projection of my mind's eye."
   ttl: 99
   code: |
-    logos.chora.render()
+    logos.map3d.render()

@@ -49,10 +49,7 @@ except ImportError:
 _debug_pubs: Dict[str, Any] = {}
 _bridge = None
 
-__all__ = [
-    "capture", "crop", "warm_up", "release", "publish_debug",
-    "CaptureResult", "FOV", "DEFAULT_RESOLUTION", "SOURCES",
-]
+# __all__ is defined at the end of the file to include HUD exports
 
 
 # ─── Constants ────────────────────────────────────────────────────────
@@ -1325,3 +1322,189 @@ def publish_debug(
         pub.publish(msg)
     except Exception as e:
         print(f"vision: Failed to publish debug image: {e}")
+
+
+# ============================================================================
+# HUD System
+# ============================================================================
+#
+# The HUD (Heads-Up Display) system for overlaying text and graphical elements
+# onto rendered images. Originally from map3d.py, now extracted here so it can
+# be reused for real camera image overlays too.
+
+from dataclasses import dataclass
+
+# Named anchor positions for HUD elements. Elements sharing an anchor
+# are stacked vertically in priority order (lower = closer to anchor edge).
+HUD_ANCHORS = (
+    "top_left", "top_center", "top_right",
+    "bottom_left", "bottom_center", "bottom_right",
+)
+
+# OpenCV font constants (so callers don't need to import cv2 themselves)
+HUD_FONT_SIMPLEX = 0        # cv2.FONT_HERSHEY_SIMPLEX
+HUD_FONT_PLAIN = 1          # cv2.FONT_HERSHEY_PLAIN
+HUD_FONT_DUPLEX = 2         # cv2.FONT_HERSHEY_DUPLEX
+HUD_FONT_SMALL = 6          # cv2.FONT_HERSHEY_COMPLEX_SMALL
+HUD_FONT_MONO = 7           # cv2.FONT_HERSHEY_SCRIPT_SIMPLEX (not actually mono)
+# For actual monospace, FONT_HERSHEY_PLAIN (1) is closest in OpenCV.
+
+
+@dataclass
+class HudElement:
+    """
+    A single text element to overlay on a rendered image.
+
+    Positioning uses named anchors (see HUD_ANCHORS). Multiple elements
+    at the same anchor are stacked vertically, sorted by priority (lower
+    values render closer to the anchor edge, i.e. top for top_*, bottom
+    for bottom_*).
+
+    Colors are BGR uint8 tuples for direct OpenCV compatibility.
+
+    Attributes:
+        text: The text to display
+        anchor: Position anchor (one of HUD_ANCHORS)
+        color: Text color as BGR tuple (0-255)
+        bg_color: Background color as BGR tuple, or None for no background
+        bg_alpha: Background transparency (0.0 = transparent, 1.0 = opaque)
+        font_scale: OpenCV font scale factor
+        thickness: Text stroke thickness in pixels
+        font: OpenCV font constant (e.g., HUD_FONT_SIMPLEX)
+        margin_px: Padding from image edge and between stacked elements
+        priority: Lower values render closer to anchor edge
+    """
+    text: str
+    anchor: str = "top_left"
+    color: Tuple[int, int, int] = (255, 255, 255)  # BGR white
+    bg_color: Optional[Tuple[int, int, int]] = (0, 0, 0)  # BGR; None = no bg
+    bg_alpha: float = 0.4  # 0.0 = fully transparent bg, 1.0 = opaque
+    font_scale: float = 0.45
+    thickness: int = 1
+    font: int = 0  # cv2.FONT_HERSHEY_SIMPLEX
+    margin_px: int = 8  # padding from image edge and between stacked elements
+    priority: int = 0  # lower = closer to anchor edge
+
+
+def overlay_hud(
+    image: np.ndarray,
+    elements: List[HudElement],
+) -> np.ndarray:
+    """
+    Render HUD elements onto an image.
+
+    This composites text overlays at the specified anchor positions.
+    Elements at the same anchor are stacked vertically by priority.
+
+    Args:
+        image: BGR uint8 numpy array (modified in-place)
+        elements: List of HudElement objects to render
+
+    Returns:
+        The modified image (same reference as input)
+
+    Note to self:
+        This is how I annotate my visual field with contextual information.
+        I can add warnings, status indicators, coordinates, labels, or any
+        text I need to see while reasoning about an image.
+    """
+    if not elements:
+        return image
+
+    h_img, w_img = image.shape[:2]
+
+    # Group elements by anchor
+    groups: Dict[str, List[HudElement]] = {}
+    for el in elements:
+        anchor = el.anchor if el.anchor in HUD_ANCHORS else "top_left"
+        groups.setdefault(anchor, []).append(el)
+
+    # Sort each group by priority
+    for anchor in groups:
+        groups[anchor].sort(key=lambda e: e.priority)
+
+    # Render each group
+    for anchor, elems in groups.items():
+        is_top = anchor.startswith("top")
+        is_right = anchor.endswith("right")
+        is_center = anchor.endswith("center")
+
+        # Pre-compute text sizes for each element
+        line_infos = []
+        for el in elems:
+            (tw, th), baseline = cv2.getTextSize(
+                el.text, el.font, el.font_scale, el.thickness
+            )
+            line_infos.append(((tw, th), baseline, el))
+
+        # Compute starting Y position
+        margin = elems[0].margin_px if elems else 8
+        if is_top:
+            y_cursor = margin
+        else:
+            # For bottom anchors, start from bottom and work up
+            total_h = sum(ts[1] + bl + margin for (ts, bl, _) in line_infos)
+            y_cursor = h_img - total_h - margin
+
+        # Render each element
+        for (tw, th), baseline, el in line_infos:
+            pad = el.margin_px
+            line_h = th + baseline
+
+            # Compute X position based on anchor
+            if is_center:
+                x = (w_img - tw) // 2
+            elif is_right:
+                x = w_img - tw - pad
+            else:
+                x = pad
+
+            text_y = y_cursor + th
+
+            # Draw background rectangle if specified
+            if el.bg_color is not None:
+                x1 = max(x - pad, 0)
+                y1 = max(y_cursor - pad // 2, 0)
+                x2 = min(x + tw + pad, w_img)
+                y2 = min(text_y + baseline + pad // 2, h_img)
+
+                if el.bg_alpha >= 1.0:
+                    # Fully opaque background
+                    cv2.rectangle(
+                        image, (x1, y1), (x2, y2),
+                        el.bg_color, cv2.FILLED,
+                    )
+                elif el.bg_alpha > 0.0:
+                    # Semi-transparent background via alpha blending
+                    roi = image[y1:y2, x1:x2].copy()
+                    overlay = np.full_like(roi, el.bg_color, dtype=np.uint8)
+                    blended = cv2.addWeighted(
+                        overlay, el.bg_alpha,
+                        roi, 1.0 - el.bg_alpha,
+                        0,
+                    )
+                    image[y1:y2, x1:x2] = blended
+
+            # Draw text
+            cv2.putText(
+                image, el.text, (x, text_y),
+                el.font, el.font_scale, el.color, el.thickness,
+                cv2.LINE_AA,
+            )
+
+            y_cursor += line_h + pad
+
+    return image
+
+
+# Update __all__ to include HUD exports
+__all__ = [
+    # Original exports
+    "capture", "crop", "warm_up", "release", "publish_debug",
+    "CaptureResult", "FOV", "DEFAULT_RESOLUTION", "SOURCES",
+    # HUD exports
+    "HudElement", "HUD_ANCHORS",
+    "HUD_FONT_SIMPLEX", "HUD_FONT_PLAIN", "HUD_FONT_DUPLEX",
+    "HUD_FONT_SMALL", "HUD_FONT_MONO",
+    "overlay_hud",
+]

@@ -1,9 +1,9 @@
-## 8. Chora API Changes
+## 8. Map3d API Changes
 
 ### 8.1 New Phantasma Lifecycle Methods
 
 ```python
-class Chora:
+class Map3d:
 
     # ---- Instance management (AI-facing API) ----
 
@@ -48,7 +48,7 @@ class Chora:
         Update params on an existing instance and trigger rebuild.
 
         Note to self:
-            chora.update_instance('hallway_cabinet', doors_open=True,
+            map3d.update_instance('hallway_cabinet', doors_open=True,
                                   door_angle_deg=90)
         """
         ...
@@ -155,8 +155,8 @@ When saving a render to disk, optionally save a JSON sidecar containing
 everything needed to raycast that image later:
 
 ```python
-# artifacts/chora/latest_render.png       <- the image
-# artifacts/chora/latest_render.json      <- the sidecar
+# artifacts/map3d/latest_render.png       <- the image
+# artifacts/map3d/latest_render.json      <- the sidecar
 ```
 
 Sidecar contains:

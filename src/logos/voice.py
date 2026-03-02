@@ -30,7 +30,7 @@ __all__ = ["speak", "is_speaking", "SpeakTask"]
 DEFAULT_ENGINE = "kokoro"
 # A pleasantly ambiguous blend of genders, accents, and affects
 DEFAULT_KOKORO_PARAMS = {
-    "voice": "0.35*am_onyx + 0.30*im_nicola + 0.35*bf_emma", 
+    "voice": "0.5*am_onyx + 0.25*im_nicola + 0.25*bf_emma", 
     "speed": 1.3, 
     "volume": 1.0
 }
