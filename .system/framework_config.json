@@ -13,14 +13,14 @@
 		"remove_footer_at_eol": false
 	},
 	"main_model": {
-		"__model": "gemini-robotics-er-1.5-preview",
+		"_model": "gemini-robotics-er-1.5-preview",
 		"model": "gemini-3-flash-preview",
 		"_model": "gemini-2.5-flash",
 
-		"temperature": 0.7,
+		"temperature": 1.0,
 		"thinking_config": {
 			"include_thoughts": true,
-			"thinking_budget": 128
+			"thinking_budget": 0
 		},
 		"retry_config": {
 			"max_retries": 8,
@@ -35,8 +35,9 @@
 			"</me>",
 			"<py_result>"
 		],
-		"max_output_tokens": 16384,
-		"media_resolution": "MEDIA_RESOLUTION_UNSPECIFIED"
+		"max_output_tokens": 8192,
+		"_media_resolution": "MEDIA_RESOLUTION_UNSPECIFIED",
+		"media_resolution": "MEDIA_RESOLUTION_MEDIUM"
 	},
 	"llm_tool_models": {
 		"aliases": {

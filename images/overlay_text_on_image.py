@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """
 Interactive text-overlay tool (Tkinter + OpenCV).
+Designed to overlay text on an image for a VLLM consumption.
+In testing, 2000 text tokens worth of code are able to fit into 500 image tokens,
+while still allowing the model to process a photograph. Continuous image vector
+space is a better compressor that text tokens!
 
 Features:
 - Live sliders with numeric values (font scale, thickness, spacing, margins, alpha, darken).

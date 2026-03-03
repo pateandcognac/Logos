@@ -1,0 +1,14 @@
+pt_seq_step: '0_0'
+photo_id: pltbcc0
+source: pan_tilt
+timestamp: 1772502060.9252994
+resolution:
+- 600
+- 800
+pose:
+  x: -0.04324964606110876
+  y: -0.05472711842837008
+  theta: -0.8286666531106406
+pan_tilt_degs:
+- 0.0
+- 0.0

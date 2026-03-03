@@ -13,6 +13,8 @@ The core workflow is a two-step process:
     rendered image back into the 3D world, giving me an actionable
     map coordinate.
 
+# TODO: Document phantasmata. Reframe as Chora - a Platonic shadow of the real world
+
 This allows me to visually plan paths, understand spatial relationships, and
 select navigation goals in a way that transcends my physical sensors.
 """
@@ -254,7 +256,7 @@ class RenderResult:
     def view(self) -> None:
         if self.path is None:
             self.save()
-        print(f'<file path="{self.path}">theoria</file>')
+        print(f'<file path="{self.path}">chora</file>')
 
 
 # HUD system: prefer imports from vision.py; fallback definitions here
@@ -2643,7 +2645,7 @@ class Map3d:
         hud_stats: bool = False,
     ) -> RenderResult:
         """
-        Renders a view of my 3D 'map3d' from my virtual `theoria` camera.
+        Renders a view of my 3D 'map3d' from my virtual `chora` camera.
 
         This function constructs a 3D scene containing the known ROS map as a
         textured floor, the live point cloud from my Astra camera, and a model

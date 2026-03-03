@@ -19,15 +19,15 @@ yaml.indent(mapping=2, sequence=4, offset=2)
 
 # This assumes the python_worker_node's CWD is the workspace root.
 WORKSPACE_PATH = Path.cwd()
-STATE_PATH = WORKSPACE_PATH / "state"
+CONFIG_PATH = WORKSPACE_PATH / "config"
 
 def _get_config_path(location: str) -> Path:
     """Helper to resolve the config file path from a friendly name."""
     # if location is 'arche' or 'ephemera', return the corresponding path
     if location == 'arche':
-        return STATE_PATH / "arche_config.yaml"
+        return CONFIG_PATH / "arche_config.yaml"
     elif location == 'ephemera':
-        return STATE_PATH / "ephemera_config.yaml"
+        return CONFIG_PATH / "ephemera_config.yaml"
     else:
         raise ValueError(f"Invalid config location '{location}'. Must be 'arche' or 'ephemera'.")
 

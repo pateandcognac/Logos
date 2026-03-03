@@ -1,0 +1,14 @@
+pt_seq_step: '0_0'
+photo_id: pltdni0
+source: pan_tilt
+timestamp: 1772505054.7842138
+resolution:
+- 600
+- 800
+pose:
+  x: 0.0
+  y: 0.0
+  theta: -0.020000000000001936
+pan_tilt_degs:
+- 0.0
+- 0.0

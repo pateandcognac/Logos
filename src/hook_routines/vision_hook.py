@@ -24,6 +24,10 @@ def run():
         var_name = config.get('var_name')
         view = config.get('view', False)
         
+        # 1.5 Skip if chora
+        if source =='chora':
+            continue
+
         # 2. Handle Pan/Tilt Sequences (Special Case)
         if source == 'pan_tilt' and 'pt_sequence' in config:
             sequence_results = []

@@ -134,7 +134,7 @@ class Map3dState:
         self.mind_palace_config: str = "config/mind_palace_00.yaml"
         self.phantasmata_dir: str = "src/logos/phantasmata"
 
-class TheoriaState:
+class ChoraState:
     def __init__(self):
         # Rendering defaults
         self.resolution: List[int] = [768, 768]  # [width, height]
@@ -151,7 +151,7 @@ class LogosConfig:
         self.system = SystemState()
         self.vision = VisionState()
         self.map3d = Map3dState()
-        self.theoria =TheoriaState()
+        self.chora =ChoraState()
 
         # We will add more state categories here, e.g., self.nav
 

@@ -5,7 +5,7 @@
     import datetime, time, logos
     print(f"# Current time: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
     batt = logos.base.get_battery()
-    print(f"Battery {batt['percent']}% ({batt['status']})\nCharger: {logos.base.get_charger_state()}")
+    print(f"Battery {batt['percentage']}% ({batt['status']})\nCharger: {logos.base.get_charger_state()}")
     print(logos.config)
 
 - name: manage_memory
@@ -35,8 +35,9 @@
     hook_routines.vision_hook.run()
     print("# astra_img and pt_seq available in global scope")
 
-- name: theoria
+- name: chora
   description: "A projection of my mind's eye."
   ttl: 99
   code: |
-    logos.map3d.render()
+    chora = logos.map3d.render(camera_pos_relative = [-1.0, 0.0, 2.0],look_at_relative = [0.5, 0, 0.35])
+    print("# chora variable contains RenderResult of map3d")
