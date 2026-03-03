@@ -96,8 +96,7 @@ class VisionState:
                          to before capturing. Only meaningful for pan_tilt source.
                          Enables multi-angle capture sequences.
         
-        TODO
-                         
+                      
     Example YAML config:
         vision:
           hook_captures:
@@ -134,8 +133,6 @@ class Map3dState:
         self.mind_palace_config: str = "config/mind_palace_00.yaml"
         self.phantasmata_dir: str = "src/logos/phantasmata"
 
-class ChoraState:
-    def __init__(self):
         # Rendering defaults
         self.resolution: List[int] = [768, 768]  # [width, height]
         self.camera_pos_relative: Optional[Tuple[float, float, float]] = (-1.0, 1.0, 2.0),
@@ -151,7 +148,6 @@ class LogosConfig:
         self.system = SystemState()
         self.vision = VisionState()
         self.map3d = Map3dState()
-        self.chora =ChoraState()
 
         # We will add more state categories here, e.g., self.nav
 

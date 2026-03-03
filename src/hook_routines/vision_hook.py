@@ -8,6 +8,9 @@ It handles simple single-shot captures as well as multi-step pan/tilt sequences.
 
 It populates the global Python environment with `CaptureResult` objects (or lists of them)
 based on the `var_name` configured in the YAML.
+
+TODO: Helper to assemble a quad of 4 images, 768x768, each image 384x384. top-down, and 3 downward pan-tilts
+
 """
 
 import logos
@@ -24,9 +27,6 @@ def run():
         var_name = config.get('var_name')
         view = config.get('view', False)
         
-        # 1.5 Skip if chora
-        if source =='chora':
-            continue
 
         # 2. Handle Pan/Tilt Sequences (Special Case)
         if source == 'pan_tilt' and 'pt_sequence' in config:

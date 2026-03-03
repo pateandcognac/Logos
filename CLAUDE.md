@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is **Logos** — the codebase for an embodied AI robot running on ROS Noetic. The robot is Logos itself (a Gemini VLA model), and this workspace is both its API and its long-term memory. The code here is the robot's own tools, written in first person. Mark is the human developer/roommate who built the hardware.
 
-The primary model running the robot is **Gemini 2.5 Flash** (configured in `.system/framework_config.json`). Claude Code is used as an external development assistant for the codebase — not part of the live robot loop. [Note from Mark: For now, Claude!]
+The primary model(s) running the robot are **gemini-robotics-er-1.5-preview** and **gemini-3-flash-preview** (configured in `.system/framework_config.json`). Claude Code is used as an external development assistant for the codebase — not part of the live robot loop. [Note from Mark: Only for now, Claude! I have plans for you, too! :D]
 
 ## Runtime Environment
 

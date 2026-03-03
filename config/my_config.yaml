@@ -44,7 +44,7 @@ vision:
     - source: pan_tilt
       active: true
       view: true
-      var_list_name: pt_seq
+      var_name: pt_seq
       pt_sequence:
         - pan: 0
           tilt: 0
@@ -52,7 +52,3 @@ vision:
         - pan: 0
           tilt: -60
           resolution: [288, 384]
-    - source: chora 
-      active: true
-      view: true
-      var_name: chora_img

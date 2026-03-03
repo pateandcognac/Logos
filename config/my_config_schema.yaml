@@ -50,7 +50,3 @@ vision:
         - pan: 0
           tilt: -60
           resolution: [288, 384]
-    - source: theoria # Any theoria_defaults overrides here
-      active: true
-      view: true
-      var_name: theoria

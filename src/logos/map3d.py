@@ -326,25 +326,6 @@ def _quat_to_rot_matrix(qx: float, qy: float, qz: float, qw: float) -> np.ndarra
     ], dtype=np.float64)
 
 
-def _euler_rpy_deg_to_rot_matrix(roll: float, pitch: float, yaw: float) -> np.ndarray:
-    """Roll/pitch/yaw in degrees -> 3x3 rotation matrix, ROS convention (XYZ intrinsic)."""
-    r = math.radians(roll)
-    p = math.radians(pitch)
-    y = math.radians(yaw)
-
-    cr, sr = math.cos(r), math.sin(r)
-    cp, sp = math.cos(p), math.sin(p)
-    cy, sy = math.cos(y), math.sin(y)
-
-    # Rz(yaw) * Ry(pitch) * Rx(roll)
-    rot = np.array([
-        [cy * cp, cy * sp * sr - sy * cr, cy * sp * cr + sy * sr],
-        [sy * cp, sy * sp * sr + cy * cr, sy * sp * cr - cy * sr],
-        [-sp,     cp * sr,                cp * cr],
-    ], dtype=np.float64)
-    return rot
-
-
 def _normalize_norm1000(val: float) -> float:
     """Clamp 0..1000 and map 1000 exactly to the last pixel (not width)."""
     if math.isnan(val):
@@ -508,7 +489,7 @@ class Map3d:
         # Try to read paths from logos.config.map3d
         try:
             import logos
-            if hasattr(logos, 'state') and hasattr(logos.config, 'map3d'):
+            if hasattr(logos, 'config') and hasattr(logos.config, 'map3d'):
                 map3d_state = logos.config.map3d
                 if hasattr(map3d_state, 'phantasmata_dir'):
                     self._phantasmata_dir = map3d_state.phantasmata_dir
@@ -831,8 +812,6 @@ class Map3d:
             import logos
             if hasattr(logos, 'config'):
                 config = logos.config.to_dict() if hasattr(logos.config, 'to_dict') else {}
-            # elif hasattr(logos, 'state'):
-            #    config = logos.config.to_dict() if hasattr(logos.config, 'to_dict') else {}
         except Exception:
             pass
 
