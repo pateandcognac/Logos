@@ -27,7 +27,7 @@ try:
 except ImportError:
     _HAS_ROS = False
 
-__all__ = ["go_to_abs", "move_relative", "cancel_all", "NavTask"]
+__all__ = ["go_to_abs", "move_relative", "turn_then_drive", "approach_coordinate", "cancel_all", "NavTask"]
 
 
 class NavTask:
@@ -75,12 +75,12 @@ class NavTask:
 
     def progress(self) -> float:
         """
-        Estimates how far along the path the robot is, from 0.0 to 1.0.
+        Uses Euclidean distance to estimate how far along the path I am. 0.0 is start pose. 1.0 is goal. Values can rise and fall as I navigate, even beyond 0 and 1.
         
         Note to self:
-            This uses straight-line (Euclidean) distance. If I have to drive 
-            around a large obstacle, this number might briefly go down before 
-            it goes up! Don't panic, just trust the nav stack.
+            This uses straight-line (Euclidean) distance. If I have to drive through
+            rooms or around a large obstacles, this number can go down before it 
+            goes up, and may even pass 1.0 before reaching goal. This is usable information!
         """
         if self._total_distance <= 0.01:
             return 1.0 # We started basically at the goal
@@ -92,6 +92,9 @@ class NavTask:
         current_distance = math.hypot(self._goal_x - pose['x'], self._goal_y - pose['y'])
         
         # Calculate progress (clamped between 0.0 and 1.0 just in case)
+        # Wait. Perhaps we should allow negative numbers?  This could enable behavior like:
+        # if progress < -0.25 then speak("just a sec. gotta take a little detour first.")
+
         p = 1.0 - (current_distance / self._total_distance)
         return max(0.0, min(1.0, p))
 
@@ -195,7 +198,51 @@ def go_to_abs(x: float, y: float, theta_deg: Optional[float] = None, wait: bool 
     return task
 
 
-# add go_to_relative
+@api_call(default_verbosity=Verbosity.BRIEF)
+def move_relative(forward: float, left: float, wait: bool = True) -> NavTask:
+    """
+    Move relative to my CURRENT position/orientation using the map navigation stack.
+
+    This calculates a destination coordinate based on my current pose and uses
+    `go_to_abs` to get there safely.
+
+    Args:
+        forward: Meters to move forward (positive) or backward (negative).
+        left: Meters to move left (positive) or right (negative).
+        wait: If True, blocks until I arrive.
+
+    Note to self:
+        Unlike `turn_then_drive` (which is blind), this uses `move_base`.
+        It allows me to say "move 1m forward" while still respecting the map
+        and avoiding obstacles.
+
+        Example:
+            logos.nav.move_relative(1.0, 0.0)   # Move 1m forward safely
+            logos.nav.move_relative(0.0, -0.5)  # Strafe/nav 0.5m to my right
+    
+    # Rework this to take simple (x,y) movement, e.g., (0.5, 0.25) means sets a nav goal 0.5m forward and 0.25m to my left.
+    # theta is optional and defaults to current heading.
+    """
+    pose = ros.get_pose()
+    if not pose:
+        print("nav: Cannot move relative, current pose unknown.")
+        return NavTask(None, 0, 0, 0, 0)
+
+    # Current state
+    x, y, theta_deg = pose['x'], pose['y'], pose['theta']
+    theta_rad = math.radians(theta_deg)
+    
+    # Calculate global offsets
+    # Global dx = forward*cos(theta) - left*sin(theta)
+    # Global dy = forward*sin(theta) + left*cos(theta)
+    dx = (forward * math.cos(theta_rad)) - (left * math.sin(theta_rad))
+    dy = (forward * math.sin(theta_rad)) + (left * math.cos(theta_rad))
+    
+    target_x = x + dx
+    target_y = y + dy
+    
+    # Preserve current orientation for the arrival
+    return go_to_abs(target_x, target_y, theta_deg=theta_deg, wait=wait)
 
 
 @api_call(default_verbosity=Verbosity.BRIEF)

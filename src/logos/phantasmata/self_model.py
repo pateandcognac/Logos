@@ -299,7 +299,7 @@ def build(params: Dict[str, Any], ctx: Any) -> Optional[SceneObject]:
     # ---- Camera Module ----
     if params.get('show_camera', True):
         cam = o3d.geometry.TriangleMesh.create_box(
-            width=0.09, height=0.04, depth=0.04
+            width=0.04, height=0.04, depth=0.09
         )
         _paint(cam, [0.90, 0.90, 0.87])
         _translate(cam, [-0.02, 0.065, 0.97])
@@ -421,7 +421,30 @@ def hud(params: Dict[str, Any], ctx: Any) -> Optional[List[HudElement]]:
                     priority=0,
                 ))
     """
-    return None
+    elements = []
+    
+    # 1. Battery Status
+    try:
+        import logos
+        battery = logos.base.get_battery()
+        pct = battery.get('percentage', 0.0)
+        status = battery.get('status', 'unknown')
+        
+        color = (0, 255, 0) # Green
+        if status == 'low': color = (0, 255, 255) # Yellow
+        elif status == 'critical': color = (0, 0, 255) # Red
+        
+        elements.append(HudElement(
+            text=f"BAT: {pct:.0f}%",
+            anchor="bottom_center",
+            color=color,
+            bg_color=(0, 0, 0),
+            priority=0
+        ))
+    except Exception:
+        pass
+        
+    return elements
 
 
 def cleanup(ctx: Any) -> None:

@@ -23,7 +23,7 @@ instances:
     description: "Reference grid on the floor for spatial reasoning"
     params:
       spacing_m: 1.0
-      extent_m: 10.0
+      extent_m: 15.0
       z: 0.002                        # Nudge above floor to avoid z-fighting
       color: [0.3, 0.3, 0.5]
       line_thickness: 0.005

@@ -30,7 +30,7 @@ voice:
   espeak_params:
     voice: "en-us+m1"
     speed": 0.9
-    volume: 1.0
+    volume: 0.9
 
 map3d:
   phantasmata_dir: "src/logos/phantasmata"

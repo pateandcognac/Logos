@@ -155,7 +155,7 @@ def get_battery() -> Dict[str, Union[float, str]]:
     """
     _ensure_ros()
     retries = 0
-    max_retries = 5
+    max_retries = 10 # for slow startup issues
     delay_s = 0.1 # Tiny delay of 100 milliseconds
     while retries < max_retries:
         with _state_lock:
@@ -227,10 +227,10 @@ def velocity(
         topic:    [raw|muxed] Default: *raw*
 
     Note to self:
-        This is for raw, map-ignorant movement! This publishes by default to an
-        *unsmoothed* topic. Why? There are better functions for smoothed motion.
-        I use this for short movements where I want to overcome inertia quickly,
-        e.g. wiggles, dances,
+        This is for raw, map-ignorant movement! I use 'raw' for short, sharp 
+        movements where I want to overcome inertia quickly (e.g., wiggles, 
+        dances). I can use 'muxed' for smoother, "teleop-style" movements
+        that respect the standard acceleration limits.
 
         The safety controller can still override me if I am about to hit a wall.
         This function blocks execution until the duration is complete, publishing 

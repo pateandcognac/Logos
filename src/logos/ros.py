@@ -84,6 +84,45 @@ def transform_point_to_map(
         print(f"ROS TF Error: Could not transform {source_frame} to map at {timestamp}: {e}")
         return None
 
+def transform_map_to_frame(
+    x: float, 
+    y: float, 
+    z: float, 
+    target_frame: str
+) -> Optional[Tuple[float, float, float]]:
+    """
+    Transforms a 3D coordinate from the 'map' frame into a specific target frame.
+    Uses the latest available transform (Time(0)).
+    
+    Args:
+        x, y, z: Coordinates in the map frame.
+        target_frame: The frame to transform into (e.g. 'pan_tilt_link').
+        
+    Returns:
+        (x, y, z) in the target frame, or None if TF fails.
+    """
+    buf = get_tf_buffer()
+    
+    point_in = PointStamped()
+    point_in.header.stamp = rospy.Time(0)
+    point_in.header.frame_id = "map"
+    point_in.point.x = x
+    point_in.point.y = y
+    point_in.point.z = z
+
+    try:
+        transform = buf.lookup_transform(
+            target_frame,
+            "map",
+            rospy.Time(0),
+            rospy.Duration(0.5)
+        )
+        point_out = tf2_geometry_msgs.do_transform_point(point_in, transform)
+        return (point_out.point.x, point_out.point.y, point_out.point.z)
+    except Exception as e:
+        print(f"ROS TF Error: Could not transform map to {target_frame}: {e}")
+        return None
+
 def get_action_client(name: str, action_type, wait_time: float = 2.0):
     """
     Retrieves (or creates) a SimpleActionClient.

@@ -35,6 +35,7 @@ import os
 from .core import api_call, Verbosity, check_for_interrupt
 from .utils import make_time_id, dump_yaml
 from .ros import get_pose
+from . import config as logos_config
 
 # ROS imports — gated so the module can be introspected without a live node
 try:
@@ -46,10 +47,13 @@ except ImportError:
     _HAS_ROS = False
 
 
+vision_cfg = logos_config.merged.get('vision', {})
+
 _debug_pubs: Dict[str, Any] = {}
 _bridge = None
 
-# __all__ is defined at the end of the file to include HUD exports
+# __all__ is defined at the end of the file to include exports
+# always update  __all__!
 
 
 # ─── Constants ────────────────────────────────────────────────────────
@@ -461,6 +465,139 @@ class CaptureResult:
             x=float(avg_pt[0]), y=float(avg_pt[1]), z=float(avg_pt[2]),
             source_frame=source_frame, timestamp=self.timestamp
         )
+
+    def overlay_coordinate_grid(self, rows: int = 3, cols: int = 4) -> None:
+        """
+        Burn a grid of sampled 3D coordinates directly into the image.
+
+        This leverages the ViT's ability to "read" dense data visually, 
+        effectively compressing spatial information into the image tokens rather
+        than spending text tokens.
+
+        Displays:
+            - Green Dot: Sampling location.
+            - C (Cyan): Camera Frame coordinates (X, Y, Z) relative to sensor.
+            - M (Orange): Map Frame coordinates (X, Y, Z) absolute.
+            - Red Text: invalid/noisy surface (NaN depth).
+
+        Args:
+            rows: Number of vertical sample points.
+            cols: Number of horizontal sample points.
+        """
+        if self.depth_points is None:
+            print("vision: Cannot overlay grid, no depth data available.")
+            return
+
+        h, w = self.image.shape[:2]
+        
+        # Calculate grid spacing (inset by 1/(N+1) to center the grid)
+        # For 3x3 on 480x640, this yields points like you described.
+        y_step = h // (rows + 1)
+        x_step = w // (cols + 1)
+        
+        hud_elements = []
+        
+        # We need the ROS transform helper
+        from . import ros
+
+        for r in range(1, rows + 1):
+            for c in range(1, cols + 1):
+                py, px = r * y_step, c * x_step
+                
+                # Draw the sampling anchor dot
+                cv2.circle(self.image, (px, py), 3, (0, 255, 0), -1)
+
+                # --- Sampling Logic with NaN Search ---
+                # Search a small radius if the exact pixel is invalid (NaN)
+                sample_pt = None
+                search_radius = 4
+                
+                # Extract the patch
+                y1 = max(0, py - search_radius)
+                y2 = min(h, py + search_radius + 1)
+                x1 = max(0, px - search_radius)
+                x2 = min(w, px + search_radius + 1)
+                
+                patch = self.depth_points[y1:y2, x1:x2]
+                
+                # Find valid (non-NaN, non-zero) points in patch
+                # depth_points is (H, W, 3)
+                valid_mask = ~np.isnan(patch).any(axis=2) & (patch[:, :, 2] != 0)
+                valid_pts = patch[valid_mask]
+
+                if valid_pts.size > 0:
+                    # Take the median to reject outliers/noise
+                    sample_pt = np.median(valid_pts, axis=0)
+                
+                # --- Text Generation ---
+                if sample_pt is not None:
+                    # Camera Frame (X-Right, Y-Down, Z-Forward usually)
+                    cx, cy, cz = sample_pt
+                    cam_text = f"C({cx:.2f}, {cy:.2f}, {cz:.2f})"
+                    
+                    # Map Frame (Transform using stored timestamp)
+                    map_pt = ros.transform_point_to_map(
+                        cx, cy, cz, 
+                        self.depth_points_msg.header.frame_id, 
+                        self.timestamp
+                    )
+                    
+                    if map_pt:
+                        mx, my, mz = map_pt
+                        map_text = f"M({mx:.2f}, {my:.2f}, {mz:.2f})"
+                    else:
+                        map_text = "M: TF Error"
+
+                    # Add HUD Elements (Camera = Cyan, Map = Orange)
+                    # We manually place them near the point
+                    # Note: We use a trick here. HudElement usually uses anchors.
+                    # To place text at arbitrary px, we need a slight adaptation
+                    # or we just draw directly. 
+                    #
+                    # Since overlay_hud is anchor-based, let's just use cv2 directly 
+                    # here for precision placement next to the dot.
+                    
+                    # Camera Coords
+                    self._draw_label_at(px + 5, py - 10, cam_text, (255, 255, 0)) # Cyan
+                    # Map Coords
+                    self._draw_label_at(px + 5, py + 5, map_text, (0, 165, 255)) # Orange
+
+                else:
+                    # Invalid Surface
+                    self._draw_label_at(px + 2, py, "NaN", (0, 0, 255)) # Red
+
+    def _draw_label_at(self, x: int, y: int, text: str, color: Tuple[int, int, int]):
+        """Helper to draw semi-transparent text at a specific pixel."""
+        font_scale = 0.3
+        thickness = 1
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        (tw, th), baseline = cv2.getTextSize(text, font, font_scale, thickness)
+        
+        # Background box
+        pad = 2
+
+        """        
+        cv2.rectangle(
+            self.image, 
+            (x - pad, y - th - pad), 
+            (x + tw + pad, y + baseline + pad), 
+            (0, 0, 0), 
+            cv2.FILLED
+        )
+        
+        """
+        # Text
+        cv2.putText(
+            self.image, 
+            text, 
+            (x, y), 
+            font, 
+            font_scale, 
+            color, 
+            thickness, 
+            cv2.LINE_AA
+        )
+
 
 
 # ─── Camera Managers (internal) ───────────────────────────────────────
@@ -1100,20 +1237,19 @@ def capture(
 
     # 1. Resolve source from Config if not explicitly provided
     if source is None:
+        # The key is 'default_source', not 'default'
         source = vision_cfg.get('default_source', 'pan_tilt')
-
-    if source not in SOURCES:
-        raise ValueError(f"Unknown source '{source}'. Choose from: {SOURCES}")
 
     # 2. Resolve resolution from Config if not explicitly provided
     if resolution is None:
-        # Check if config has an override for this specific source
         res_cfg = vision_cfg.get('resolutions', {})
+        # res_list should be a list like [h, w]
         res_list = res_cfg.get(source)
         if res_list and len(res_list) == 2:
+            # YAML gives lists, we need a tuple
             resolution = tuple(res_list)
         else:
-            resolution = DEFAULT_RESOLUTION[source]
+            resolution = DEFAULT_RESOLUTION.get(source, (480, 640))
 
     if source not in SOURCES:
         raise ValueError(f"Unknown source '{source}'. Choose from: {SOURCES}")
@@ -1514,7 +1650,134 @@ def overlay_hud(
     return image
 
 
-# Update __all__ to include HUD exports
+def make_quad_composite(
+    items: List[Union[np.ndarray, CaptureResult]],
+    labels: Optional[List[str]] = None,
+    meta_keys: Optional[List[str]] = None,
+    target_res: Tuple[int, int] = (960, 1280)
+) -> CaptureResult:
+    """
+    Stitches up to 4 images into a 2x2 grid (Quad View) with metadata overlays.
+
+    Layout:
+        0 | 1
+        --+--
+        2 | 3
+
+    Args:
+        items: List of 1-4 images (numpy arrays) or CaptureResult objects.
+        labels: Optional list of custom base labels for each quadrant.
+                If None, defaults to the source name (e.g., "pan_tilt").
+        meta_keys: Optional list of wildcard patterns (e.g., ["pan_tilt*", "pose"])
+                   to select metadata fields to display below the label.
+        target_res: (Height, Width) of the final composite image.
+                    Default (960, 1280) -> quadrants are 480x640.
+
+    Returns:
+        A new CaptureResult containing the composite image.
+    """
+    total_h, total_w = target_res
+    quad_h, quad_w = total_h // 2, total_w // 2
+    
+    # Create black canvas
+    canvas = np.zeros((total_h, total_w, 3), dtype=np.uint8)
+    
+    # Quadrant offsets: (y, x)
+    offsets = [
+        (0, 0),           # 0: Top-Left
+        (0, quad_w),      # 1: Top-Right
+        (quad_h, 0),      # 2: Bottom-Left
+        (quad_h, quad_w)  # 3: Bottom-Right
+    ]
+
+    for i in range(min(len(items), 4)):
+        item = items[i]
+        
+        # --- Prepare Image & Text ---
+        hud_lines = []
+        
+        if isinstance(item, CaptureResult):
+            img = item.image
+            
+            # 1. Base Label
+            if labels and i < len(labels) and labels[i]:
+                base_label = labels[i]
+            else:
+                base_label = item.source
+            hud_lines.append(base_label)
+            
+            # 2. Metadata Filtering
+            if meta_keys:
+                # Merge system props with custom meta for filtering
+                # This ensures we catch 'pan_tilt_degs' even if not saved to disk yet
+                lookup = item.meta.copy()
+                if item.pan_tilt_degs:
+                    lookup['pan_tilt'] = item.pan_tilt_degs
+                if item.pose:
+                    lookup['pose'] = item.pose
+                
+                for key, val in lookup.items():
+                    for pattern in meta_keys:
+                        if fnmatch.fnmatch(key, pattern):
+                            # Format values compactly
+                            if isinstance(val, float):
+                                val_str = f"{val:.1f}"
+                            elif isinstance(val, (list, tuple)) and len(val) == 2 and isinstance(val[0], float):
+                                # Compact formatting for [pan, tilt]
+                                val_str = f"[{val[0]:.0f}, {val[1]:.0f}]"
+                            elif isinstance(val, dict) and 'x' in val:
+                                # Compact pose
+                                val_str = f"x:{val['x']:.1f} y:{val['y']:.1f}"
+                            else:
+                                val_str = str(val)
+                            
+                            hud_lines.append(f"{key}: {val_str}")
+                            break # Match found for this key, move to next
+        else:
+            # Plain numpy array
+            img = item
+            text = labels[i] if (labels and i < len(labels)) else f"Cam {i}"
+            hud_lines.append(text)
+
+        # --- Resize & Overlay ---
+        # Resize to fit quadrant
+        if img.shape[:2] != (quad_h, quad_w):
+            img = cv2.resize(img, (quad_w, quad_h), interpolation=cv2.INTER_AREA)
+
+        # Apply HUD elements stacked vertically
+        hud_elements = []
+        for j, line in enumerate(hud_lines):
+            hud_elements.append(HudElement(
+                text=line,
+                anchor="top_left",
+                priority=j,
+                font_scale=0.4,
+                thickness=1,
+                bg_color=(0, 0, 0),
+                bg_alpha=0.6,
+                margin_px=5
+            ))
+            
+        overlay_hud(img, hud_elements)
+
+        # --- Paste into Canvas ---
+        y_off, x_off = offsets[i]
+        canvas[y_off:y_off+quad_h, x_off:x_off+quad_w] = img
+
+    # --- Draw Dividers ---
+    # Draw black crosshair to separate quadrants
+    cv2.line(canvas, (0, quad_h), (total_w, quad_h), (0, 0, 0), 4)
+    cv2.line(canvas, (quad_w, 0), (quad_w, total_h), (0, 0, 0), 4)
+
+    return CaptureResult(
+        image=canvas,
+        source="composite",
+        meta={"composition": "quad_view", "count": len(items)}
+    )
+
+# IMPORTANT! Don't forget to update __all__ to include any exports we want to expose!!!
+# Did we miss anything? Are we hiding anything useful?
+
 __all__ = [
     # Original exports
     "capture", "crop", "warm_up", "release", "publish_debug",
@@ -1524,4 +1787,6 @@ __all__ = [
     "HUD_FONT_SIMPLEX", "HUD_FONT_PLAIN", "HUD_FONT_DUPLEX",
     "HUD_FONT_SMALL", "HUD_FONT_MONO",
     "overlay_hud",
+    # Tool
+    "make_quad_composite",
 ]

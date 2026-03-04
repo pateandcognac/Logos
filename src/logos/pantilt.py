@@ -21,14 +21,15 @@ import time
 import threading
 import rospy
 from std_msgs.msg import Int32
-from .core import api_call, Verbosity
+from .core import api_call, Verbosity, check_for_interrupt
 from typing import Dict, Optional, Tuple
 
 
 __all__ = [
-    "move", "nudge", "home", "get_position", "look_at_pixel",
-    "PAN_RANGE", "TILT_RANGE", "HOME",
+    "move", "nudge", "home", "get_position", "look_at_pixel", "look_at_coord",
+    "PAN_RANGE", "TILT_RANGE", "HOME", "FOV",
 ]
+
 
 
 # ─── Servo Constants (internal) ──────────────────────────────────────
@@ -140,57 +141,94 @@ def _tilt_pos_cb(msg):
         _current_tilt_counts = msg.data
 
 
-def _publish_servo(pan_counts: int, tilt_counts: int):
+def _publish_servo(pan_counts: int, tilt_counts: int, repeat: int = 1):
     """
     Send servo commands to the Arduino.
-
-    Publishes each axis 3 times with short delays — a pragmatic reliability
-    measure for the serial bridge, carried over from proven legacy code.
+    
+    Args:
+        repeat: Number of times to publish. We use >1 for 'insurance' 
+                on final destination moves.
     """
     _ensure_publishers()
-    for _ in range(3):
+    for i in range(repeat):
         _pan_pub.publish(Int32(data=pan_counts))
-        time.sleep(0.05)
         _tilt_pub.publish(Int32(data=tilt_counts))
-        time.sleep(0.05)
+        if i < repeat - 1:
+            time.sleep(0.01) # Very brief gap if repeating
 
 
 # ─── Public API ───────────────────────────────────────────────────────
 
 @api_call(default_verbosity=Verbosity.BRIEF)
-def move(pan_deg: float, tilt_deg: float) -> Tuple[float, float]:
+def move(
+    pan_deg: float, 
+    tilt_deg: float, 
+    duration: float = 0.5, 
+    steps: int = 10
+) -> Tuple[float, float]:
     """
-    Move the pan/tilt head to an absolute position in degrees.
+    Move the pan/tilt head to an absolute position with interpolation and easing.
 
     Args:
-        pan_deg:  Target pan angle. Positive = right, negative = left.
-        tilt_deg: Target tilt angle. Positive = up, negative = down.
+        pan_deg: Target pan.
+        tilt_deg: Target tilt.
+        duration: Total time for the movement in seconds.
+        steps: Number of intermediate points. Set to 0 or 1 for immediate jumps.
 
     Returns:
-        The clamped (pan, tilt) degrees actually commanded, which may
-        differ from the request if limits were hit.
+        The clamped (pan, tilt) degrees actually commanded.
 
     Note to self:
-        This is my primary gaze control. Degree values are intuitive:
-            logos.pantilt.move(0, 0)      # Look straight ahead
-            logos.pantilt.move(45, 20)    # Look right and slightly up
-            logos.pantilt.move(-80, -60)  # Far left, looking down
-
-        Physical limits: pan {PAN_RANGE}, tilt {TILT_RANGE}.
-        Values outside these are silently clamped.
+        Interpolation makes my movements look more natural and prevents
+        hardware-straining 'snaps'. I use Quadratic Out easing to 
+        decelerate smoothly into the target.
     """
     _ensure_subscribers()
-    clamped_pan, clamped_tilt = _clamp_deg(pan_deg, tilt_deg)
+    target_pan, target_tilt = _clamp_deg(pan_deg, tilt_deg)
+    
+    # Get our current starting point
+    start_pan, start_tilt = get_position()
+    
+    # Calculate deltas
+    d_pan = target_pan - start_pan
+    d_tilt = target_tilt - start_tilt
 
-    pan_counts = _deg_to_counts(clamped_pan, _HOME_PAN_COUNTS)
-    tilt_counts = _deg_to_counts(clamped_tilt, _HOME_TILT_COUNTS)
+    # Immediate jump if no duration/steps requested
+    if duration <= 0 or steps <= 1:
+        p_cnt = _deg_to_counts(target_pan, _HOME_PAN_COUNTS)
+        t_cnt = _deg_to_counts(target_tilt, _HOME_TILT_COUNTS)
+        _publish_servo(p_cnt, t_cnt, repeat=3)
+        return (target_pan, target_tilt)
 
-    # Clamp servo counts as a safety belt
-    pan_counts = max(_SERVO_MIN, min(_SERVO_MAX, pan_counts))
-    tilt_counts = max(_TILT_SERVO_MIN, min(_TILT_SERVO_MAX, tilt_counts))
+    step_delay = duration / steps
 
-    _publish_servo(pan_counts, tilt_counts)
-    return (clamped_pan, clamped_tilt)
+    for i in range(1, steps + 1):
+        check_for_interrupt()
+        
+        # Normalized time (0.0 to 1.0)
+        t = i / steps
+        
+        # Quadratic Out Easing: f(t) = 1 - (1-t)^2
+        # This gives us a linear start and a soft deceleration at the end.
+        ease_t = 1 - (1 - t) * (1 - t)
+        
+        curr_pan = start_pan + (d_pan * ease_t)
+        curr_tilt = start_tilt + (d_tilt * ease_t)
+        
+        p_cnt = _deg_to_counts(curr_pan, _HOME_PAN_COUNTS)
+        t_cnt = _deg_to_counts(curr_tilt, _HOME_TILT_COUNTS)
+        
+        # Publish current step (no repeat needed during interpolation)
+        _publish_servo(p_cnt, t_cnt, repeat=1)
+        
+        time.sleep(step_delay)
+
+    # Final "Insurance" publish to ensure we are exactly at the target
+    final_p = _deg_to_counts(target_pan, _HOME_PAN_COUNTS)
+    final_t = _deg_to_counts(target_tilt, _HOME_TILT_COUNTS)
+    _publish_servo(final_p, final_t, repeat=3)
+    
+    return (target_pan, target_tilt)
 
 
 @api_call(default_verbosity=Verbosity.BRIEF)
@@ -314,4 +352,53 @@ def look_at_pixel(
     new_pan = current_pan + pan_offset
     new_tilt = current_tilt + tilt_offset
 
-    return move(new_pan, new_tilt, verbosity=Verbosity.SILENT)
+    return move(new_pan, new_tilt, duration=0.4, verbosity=Verbosity.SILENT)
+
+
+@api_call(default_verbosity=Verbosity.BRIEF)
+def look_at_coord(x: float, y: float, z: float) -> Tuple[float, float]:
+    """
+    Rotate the pan/tilt head to look at a specific 3D coordinate in the map frame.
+
+    Args:
+        x, y, z: The target 3D coordinate in the map frame (meters).
+                 Often obtained from `logos.map3d.raycast()`.
+
+    Returns:
+        The new absolute (pan, tilt) position in degrees.
+
+    Note to self:
+        This is incredibly powerful! I can click on a point in my mind palace
+        (map3d render), raycast it to a 3D point, and then physically look at it.
+    """
+    from . import ros
+    
+    # We need to transform the target point into the frame of the pan_tilt_link
+    # to figure out the angles. We add a small offset because the camera itself
+    # is mounted slightly above the servo axis, but aiming from the link is usually
+    # close enough for jazz.
+    target_frame = "pan_tilt_link"
+    
+    local_pt = ros.transform_map_to_frame(x, y, z, target_frame)
+    if local_pt is None:
+        print(f"pantilt: Could not transform target ({x}, {y}, {z}) to {target_frame}.")
+        return get_position()
+        
+    local_x, local_y, local_z = local_pt
+    
+    # Calculate spherical coordinates (yaw/pitch) from the Cartesian point.
+    # In ROS standard frames: X is forward, Y is left, Z is up.
+    
+    # Yaw (pan) = atan2(y, x)
+    pan_rad = math.atan2(local_y, local_x)
+    
+    # Pitch (tilt) = atan2(z, x)
+    # Note: math.hypot(x, y) gives the ground distance. 
+    # Tilt is the angle 'up' from the horizon.
+    dist_xy = math.hypot(local_x, local_y)
+    tilt_rad = math.atan2(local_z, dist_xy)
+    
+    pan_deg = math.degrees(pan_rad)
+    tilt_deg = math.degrees(tilt_rad)
+    
+    return move(pan_deg, tilt_deg, duration=1.0, verbosity=Verbosity.SILENT)

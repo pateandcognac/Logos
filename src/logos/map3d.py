@@ -246,7 +246,7 @@ class RenderResult:
             self.photo_id = self.meta.get("render_id", uuid.uuid4().hex[:12])
             save_dir = "artifacts/map3d"
             os.makedirs(save_dir, exist_ok=True)
-            self.path = path or os.path.join(save_dir, f"map3d_{self.photo_id}.png")
+            self.path = path or os.path.join(save_dir, f"{self.photo_id}.png")
             cv2.imwrite(self.path, self.image)
 
         if view:
@@ -256,7 +256,7 @@ class RenderResult:
     def view(self) -> None:
         if self.path is None:
             self.save()
-        print(f'<file path="{self.path}">chora</file>')
+        print(f'<file path="{self.path}">Chora\n</file>')
 
 
 # HUD system: prefer imports from vision.py; fallback definitions here
