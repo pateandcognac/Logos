@@ -20,10 +20,10 @@
   description: Shows the layout of my workspace, as configured by logos.config.files
   ttl: 99
   code: |-
-    # Read configuration from the state object
-    max_depth = logos.config.files.max_depth
-    show_ext = logos.config.files.show_extensions
-    inline_masks = logos.config.files.inline_meta_masks
+    # Read configuration from the merged config object
+    max_depth = logos.config.merged.get('files', {}).get('max_depth', 5)
+    show_ext = logos.config.merged.get('files', {}).get('show_extensions', [])
+    inline_masks = logos.config.merged.get('files', {}).get('inline_meta_masks', [])
 
     print(logos.files.tree(
         max_depth=max_depth,

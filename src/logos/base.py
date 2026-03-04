@@ -216,7 +216,7 @@ def velocity(
     topic: str = "raw",
 ) -> None:
     """
-    Send raw velocity commands to a raw (default) velocity topic or smoothed and muxed topic for a specific duration.
+    Send raw velocity commands to a 'raw' (default) velocity topic or 'muxed' and smoothed topic for a specific duration.
 
     Args:
         linear_x: Forward/backward speed in meters per second (m/s). 
@@ -228,7 +228,7 @@ def velocity(
 
     Note to self:
         This is for raw, map-ignorant movement! This publishes by default to an
-        *unsmoothed* topic. Why? There are better functions for smooth motion.
+        *unsmoothed* topic. Why? There are better functions for smoothed motion.
         I use this for short movements where I want to overcome inertia quickly,
         e.g. wiggles, dances,
 

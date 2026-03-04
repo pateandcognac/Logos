@@ -13,7 +13,7 @@ The core workflow is a two-step process:
     rendered image back into the 3D world, giving me an actionable
     map coordinate.
 
-# TODO: Document phantasmata. Reframe as Chora - a Platonic shadow of the real world
+# TODO: Document phantasmata, and a how-to.
 
 This allows me to visually plan paths, understand spatial relationships, and
 select navigation goals in a way that transcends my physical sensors.
@@ -483,18 +483,17 @@ class Map3d:
         self._instance_cache_lock = threading.Lock()
 
         # Configuration paths (can be overridden via logos.config.map3d)
-        self._phantasmata_dir: str = "src/logos/phantasmata"
-        self._mind_palace_path: str = "config/mind_palace_00.yaml"
+        # self._phantasmata_dir: str = "src/logos/phantasmata"
+        # self._mind_palace_path: str = "config/mind_palace_00.yaml"
 
-        # Try to read paths from logos.config.map3d
+        # Try to read paths from logos.config.merged.map3d
         try:
             import logos
-            if hasattr(logos, 'config') and hasattr(logos.config, 'map3d'):
-                map3d_state = logos.config.map3d
-                if hasattr(map3d_state, 'phantasmata_dir'):
-                    self._phantasmata_dir = map3d_state.phantasmata_dir
-                if hasattr(map3d_state, 'mind_palace_config'):
-                    self._mind_palace_path = map3d_state.mind_palace_config
+            map3d_config = logos.config.merged.get('map3d', {})
+            if 'phantasmata_dir' in map3d_config:
+                self._phantasmata_dir = map3d_config['phantasmata_dir']
+            if 'chora_config' in map3d_config:
+                self._mind_palace_path = f"config/{map3d_config['chora_config']}" 
         except Exception:
             pass
 
@@ -2594,9 +2593,9 @@ class Map3d:
     @api_call(default_verbosity=Verbosity.ACK)
     def render(
         self,
-        camera_pos_relative: Optional[Tuple[float, float, float]] = (0.0, 0.0, 0.7),
+        camera_pos_relative: Optional[Tuple[float, float, float]] = (-0.75, -1.0, 2.0),
         camera_pos_world: Optional[Tuple[float, float, float]] = None,
-        look_at_relative: Optional[Tuple[float, float, float]] = (1.0, 0, 0.0),
+        look_at_relative: Optional[Tuple[float, float, float]] = (0.5, 0, 0.5),
         look_at_world: Optional[Tuple[float, float, float]] = None,
         rpy_deg: Optional[Tuple[float, float, float]] = None,
         rot_matrix_3x3: Optional[Union[np.ndarray, List[List[float]]]] = None,
@@ -2606,7 +2605,7 @@ class Map3d:
         include_robot: bool = True,
         view: bool = True,
         save: bool = True,
-        save_dir: str = "artifacts/map3d",
+        save_dir: str = "artifacts/chora",
         filename: Optional[str] = "debug.png",
         # Point cloud display — None = use self.settings value
         cloud_alpha: Optional[float] = None,

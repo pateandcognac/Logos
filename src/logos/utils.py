@@ -219,12 +219,13 @@ def _prepare_for_llm_yaml(
     return obj
 
 
-def dump_llm_yaml(
+def dump_yaml(
     data: Any,
     *,
     max_flow_line: int = _MAX_FLOW_LINE,
     block_scalar_min: int = _BLOCK_SCALAR_MIN,
 ) -> str:
+    """Creates a token optimized YAML of Python objects for my consumption."""
     prepared = _prepare_for_llm_yaml(
         data,
         max_flow_line=max_flow_line,

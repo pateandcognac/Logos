@@ -153,7 +153,7 @@ class SpeakTask:
 def speak(
     text: str, 
     wait: bool = True, 
-    engine: str = DEFAULT_ENGINE,
+    engine: Optional[str] = None,
     **kwargs
 ) -> SpeakTask:
     """
@@ -190,7 +190,7 @@ def speak(
                 logos.core.check_for_interrupt()
                 current_emoji = task.current_emoji()
                 if current_emoji == "😄":
-                    logos.base.velocity(0.0, 1.0, 0.2) # Happy wiggle
+                    logos.base.velocity(0.0, 90.0, 0.2) # Happy wiggle
                 elif current_emoji == "🤨":
                     logos.base.stop() # Suspicious freeze
                 elif current_emoji == "🔭":
@@ -207,7 +207,18 @@ def speak(
         print("Error: Voice system unavailable (Action Server not found).")
         return SpeakTask(None)
 
-    params = DEFAULT_KOKORO_PARAMS.copy()
+    import logos # Local import to fetch dynamic config
+    voice_cfg = logos.config.merged.get('voice', {})
+
+    # Resolve default engine
+    if engine is None:
+        engine = voice_cfg.get('default_engine', 'kokoro')
+
+    # Resolve default parameters based on the chosen engine
+    params_key = f"{engine}_params"
+    params = voice_cfg.get(params_key, {}).copy()
+    
+    # Finally, apply any explicit kwargs requested in this specific call
     if kwargs:
         params.update(kwargs)
     

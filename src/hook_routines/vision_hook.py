@@ -3,22 +3,30 @@
 """
 The Eyes of the Pneuma. 👁️
 
-This hook routine executes the camera capture plan defined in `logos.config.vision`.
+This hook routine executes the camera capture plan defined in `logos.config.merged.vision`.
 It handles simple single-shot captures as well as multi-step pan/tilt sequences.
 
 It populates the global Python environment with `CaptureResult` objects (or lists of them)
 based on the `var_name` configured in the YAML.
 
-TODO: Helper to assemble a quad of 4 images, 768x768, each image 384x384. top-down, and 3 downward pan-tilts
-
+Note to self: 
+To change what this hook captures on the fly without editing this file, 
+I can modify my prefs and let spooky action at a distance do the rest:
+    logos.config.prefs.setdefault('vision', logos.ConfigDict())
+    logos.config.prefs.vision.hook_captures = [ ... new list ... ]
+    logos.config.save()
 """
 
 import logos
 import time
 
 def run():
+    # Safely get the vision config from the merged view (defaults + prefs)
+    vision_config = logos.config.merged.get('vision', {})
+    hook_captures = vision_config.get('hook_captures', [])
+
     # Iterate through the configured capture hooks
-    for config in logos.config.vision.hook_captures:
+    for config in hook_captures:
         # 1. Skip if not active
         if not config.get('active', True):
             continue
@@ -27,7 +35,6 @@ def run():
         var_name = config.get('var_name')
         view = config.get('view', False)
         
-
         # 2. Handle Pan/Tilt Sequences (Special Case)
         if source == 'pan_tilt' and 'pt_sequence' in config:
             sequence_results = []

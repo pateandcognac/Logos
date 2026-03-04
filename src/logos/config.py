@@ -1,176 +1,160 @@
-# Logos/src/logos/state.py
+# Logos/src/logos/config.py
 
 """
-Defines the structure for my persistent, global config object, `logos.config`.
-This object acts as a centralized "control panel" that I can modify to
-change the default behavior of my API functions and context hooks.
+My central nervous system's configuration and persistent preferences. ⚙️
 
-Note to self: The LogosConfig class is explicitly defined. As we add new
-configuration sections, we'd need to edit this file. This is perfectly fine,
-but I wonder if we could make it more dynamic in the future?
+This module dynamically loads configuration from YAML files rather than 
+hardcoding structure. It maintains two distinct areas:
+1. `defaults`: The master list of default settings (read-only base).
+2. `prefs`: My custom preferences (what I tweak and save to disk).
 
-# TODO: Implement a drop in replacement for `logos/config.py`. Except: What is an
-# explicit loader here should be a dumb-ish dynamic loader that loads the entire
-# contents of `config/my_config.yaml` into logos.config dict.
-# *EXCEPT* if an element of the `my_config.yaml` for some
-# reason holds a giant data structure. Omit that large item and replace it with
-# a note the file might have corruption and snippet of what was omitted. Too
-# large is over 1kb for one entry.
+When API hooks or functions need a configuration value, they should read from
+`logos.config.merged`, which provides a seamless, deep-merged view of defaults 
+updated by my preferences.
+
+Note to self: 
+To change my behavior on the fly, I modify `logos.config.prefs` and save:
+    logos.config.prefs.setdefault('vision', ConfigDict())
+    logos.config.prefs.vision.resolution = [1920, 1080]
+    logos.config.save()
 """
-
 
 from pathlib import Path
 from ruamel.yaml import YAML
-import io
-from typing import Any, Dict, List, Optional, Tuple, Union
-from .utils import dump_llm_yaml
-import time 
+from typing import Any, Union
+from .utils import dump_yaml
 
-yaml = YAML()
+CONFIG_PREFS_PATH = Path("config/my_config.yaml")
+CONFIG_DEFAULTS_PATH = Path("config/default_config.yaml")
 
-CONFIG_PATH = Path("config/my_config.yaml")
-
-def load_state_from_yaml(state: "LogosConfig") -> None:
-    """Update an existing LogosConfig from state/my_config.yaml if it exists."""
-    if not CONFIG_PATH.exists():
-        return
-
-    yaml = YAML()
-    with CONFIG_PATH.open("r") as f:
-        data = yaml.load(f) or {}
-
-    # Shallow-ish merge by attribute
-    for section_name, section_data in data.items():
-        section = getattr(state, section_name, None)
-        if section is None or not hasattr(section, "__dict__"):
-            continue
-        for key, value in section_data.items():
-            if hasattr(section, key):
-                setattr(section, key, value)
-
-
-class MemoryPolicy:
-    """Defines the rules for the automated io_buffer management hook."""
-    def __init__(self):
-        self.enabled: bool = True
-        self.max_cells: int = 64
-        self.max_tokens: int = 16384
-        self.untouchable_tail: int = 8
-        self.min_cells_to_summarize: int = 8
-        self.summarizable_types: List[str] = [
-            'me', 'py_result', 'py_async', 'human', 'human_stt', 'system'
-        ]
-        self.age_weight: float = 0.8
-        self.size_weight: float = 0.2
-        self.max_contiguous_summaries: int = 4
-
-
-class FileState:
-    """Settings related to the filesystem API."""
-    def __init__(self):
-        self.show_extensions: List[str] = [
-            '.py', '.yaml', '.md', '.txt', '.json', '.png', '.jpg'
-        ]
-        self.max_depth: int = 5
-        self.inline_meta_masks: List[str] = ['*.meta']
-
-
-class SystemState:
-    """General system settings."""
-    def __init__(self):
-        self.save_state_on_loop: bool = True
-
-
-class VisionState:
+def _truncate_large_items(data: Any) -> Any:
     """
-    Settings for vision hooks and default camera behavior.
-
-    The `hook_captures` list defines what cameras are captured each cognition
-    loop by the vision hook. Each entry is a dict with:
-        source:          str — 'pan_tilt', 'top_down', or 'astra'
-        var_name:        str — Python variable name to assign the CaptureResult to.
-                         This persists in the <py> environment for Logos to use.
-        resolution:      Optional[List[int]] — [width, height], or null for default.
-        astra_feeds:     Optional[List[str]] — Astra feeds to include.
-        pan_tilt_angles: Optional[List[float]] — [pan_deg, tilt_deg] to move
-                         to before capturing. Only meaningful for pan_tilt source.
-                         Enables multi-angle capture sequences.
-        
-                      
-    Example YAML config:
-        vision:
-          hook_captures:
-            - source: astra
-              var_name: astra_img
-              resolution: [640, 480]
-              astra_feeds: [rgb, depth_registered]
-            - source: pan_tilt
-              var_name: pt_img
-              resolution: [1280, 960]
+    Recursively scans for and replaces items over 1KB in size.
+    Prevents giant data structures (like base64 images or massive arrays) 
+    from accidentally exploding my context window if loaded into config.
     """
-    def __init__(self):
-        self.hook_captures: List[Dict[str, Any]] = []
+    if isinstance(data, dict):
+        for k, v in list(data.items()):
+            if isinstance(v, (dict, list)):
+                data[k] = _truncate_large_items(v)
+            else:
+                str_v = str(v)
+                if len(str_v) > 1024:
+                    data[k] = f"<Omitted: Item '{k}' exceeds 1KB. Snippet: {str_v[:50]}...>"
+    elif isinstance(data, list):
+        for i, v in enumerate(data):
+            if isinstance(v, (dict, list)):
+                data[i] = _truncate_large_items(v)
+            else:
+                str_v = str(v)
+                if len(str_v) > 1024:
+                    data[i] = f"<Omitted: List item at index {i} exceeds 1KB. Snippet: {str_v[:50]}...>"
+    return data
 
-class Map3dState:
-    def __init__(self):
-        self.rgb_image_topic: str = "/camera/rgb/image_raw"
-        self.rgb_info_topic: str = "/camera/rgb/camera_info"
-        self.points_topic: str = "/camera/depth_registered/points"
-        self.map_topic: str = "/map"
-        self.base_frame: str = "base_footprint"
-        self.map_frame: str = "map"
+def _deep_merge(base: dict, override: dict) -> dict:
+    """Recursively merge an override dictionary into a base dictionary."""
+    merged = dict(base)
+    for k, v in override.items():
+        if k in merged and isinstance(merged[k], dict) and isinstance(v, dict):
+            merged[k] = _deep_merge(merged[k], v)
+        else:
+            merged[k] = v
+    return merged
 
-        # Rendering defaults
-        self.default_resolution: List[int] = [640, 640]  # [width, height]
-        self.max_cloud_height_m: float = 2.0
-        self.include_robot: bool = True
+class ConfigDict(dict):
+    """
+    A dictionary that allows seamless dot-notation access.
+    Lets me write `logos.config.prefs.vision` instead of `logos.config.prefs['vision']`.
+    """
+    def __getattr__(self, key):
+        try:
+            val = self[key]
+            if isinstance(val, dict) and not isinstance(val, ConfigDict):
+                # Auto-upgrade nested dicts to ConfigDicts on access
+                self[key] = ConfigDict(val)
+                return self[key]
+            return val
+        except KeyError:
+            raise AttributeError(f"ConfigDict has no attribute '{key}'")
 
-        # Ray defaults
-        self.point_hit_radius: float = 0.05
-        self.ray_infinity_distance_m: float = 50.0
+    def __setattr__(self, key, value):
+        self[key] = value
 
-        # Phantasmata configuration
-        self.mind_palace_config: str = "config/mind_palace_00.yaml"
-        self.phantasmata_dir: str = "src/logos/phantasmata"
+    def __delattr__(self, key):
+        try:
+            del self[key]
+        except KeyError:
+            raise AttributeError(f"ConfigDict has no attribute '{key}'")
 
-        # Rendering defaults
-        self.resolution: List[int] = [768, 768]  # [width, height]
-        self.camera_pos_relative: Optional[Tuple[float, float, float]] = (-1.0, 1.0, 2.0),
-        self.look_at_relative: Optional[Tuple[float, float, float]] = (1.0, 0, 0.35),
-        
 class LogosConfig:
     """
-    My central, persistent state object.
+    My central, persistent state and preferences manager.
+    
+    Attributes:
+        defaults (ConfigDict): Loaded from default_config.yaml.
+        prefs (ConfigDict): Loaded from my_config.yaml. Editable.
+        merged (ConfigDict): A dynamic, deep-merged view of defaults + prefs.
     """
     def __init__(self):
-        self.files = FileState()
-        self.memory_policy = MemoryPolicy()
-        self.system = SystemState()
-        self.vision = VisionState()
-        self.map3d = Map3dState()
+        self.defaults = ConfigDict()
+        self.prefs = ConfigDict()
 
-        # We will add more state categories here, e.g., self.nav
+    def load(self) -> None:
+        """Loads default and preference YAMLs from disk, applying size constraints."""
+        yaml = YAML()
+        
+        # Load Defaults (if present)
+        if CONFIG_DEFAULTS_PATH.exists():
+            with CONFIG_DEFAULTS_PATH.open("r") as f:
+                data = yaml.load(f) or {}
+                self.defaults = ConfigDict(_truncate_large_items(data))
+                
+        # Load Preferences
+        if CONFIG_PREFS_PATH.exists():
+            with CONFIG_PREFS_PATH.open("r") as f:
+                data = yaml.load(f) or {}
+                self.prefs = ConfigDict(_truncate_large_items(data))
+
+    @property
+    def merged(self) -> ConfigDict:
+        """
+        Read-only deep-merged view of defaults overridden by prefs.
+        This is what the API modules (and hooks) should read from!
+        """
+        return ConfigDict(_deep_merge(self.defaults, self.prefs))
 
     def to_dict(self):
-        """Converts the state object into a dictionary for serialization."""
-        output = {}
-        for key, value in self.__dict__.items():
-            if hasattr(value, '__dict__'):
-                output[key] = value.__dict__
-            else:
-                output[key] = value
-        return output
+        """Converts the active merged state to a standard dict."""
+        return dict(self.merged)
 
     def to_yaml(self) -> str:
-        return dump_llm_yaml(self.to_dict())
+        """Returns the LLM-friendly YAML string of the merged config."""
+        return dump_yaml(self.to_dict())
 
     def save(self, path: Union[Path, str, None] = None) -> None:
-        target = Path(path) if path is not None else CONFIG_PATH
+        """
+        Saves ONLY my custom preferences (self.prefs) back to disk.
+        I can call this after mutating logos.config.prefs to make my changes persistent.
+        """
+        target = Path(path) if path is not None else CONFIG_PREFS_PATH
         with target.open("w") as f:
-            f.write(self.to_yaml())
+            f.write(dump_yaml(dict(self.prefs)))
 
     def __str__(self) -> str:
-        return f"# logos.config\n{self.to_yaml()}"
+        """
+        Provides a clear, separated view of defaults and preferences 
+        when I print(logos.config).
+        """
+        output = "# logos.config\n"
+        output += "## DEFAULTS (read-only base):\n"
+        output += dump_yaml(dict(self.defaults)) + "\n"
+        output += "## PREFS (my overrides, saved to disk):\n"
+        output += dump_yaml(dict(self.prefs))
+        return output
 
     def __repr__(self) -> str:
-        return f"LogosConfig({self.to_dict()})"
+        return f"LogosConfig(prefs_keys={list(self.prefs.keys())})"
+
+def load_state_from_yaml(state: LogosConfig) -> None:
+    """Helper entry point called by __init__.py"""
+    state.load()

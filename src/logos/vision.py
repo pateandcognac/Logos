@@ -33,7 +33,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple, Union
 import fnmatch
 import os
 from .core import api_call, Verbosity, check_for_interrupt
-from .utils import make_time_id, dump_llm_yaml
+from .utils import make_time_id, dump_yaml
 from .ros import get_pose
 
 # ROS imports — gated so the module can be introspected without a live node
@@ -323,7 +323,7 @@ class CaptureResult:
             
             if filtered_meta:
                 # Format using the LLM-optimized YAML dumper
-                yaml_str = dump_llm_yaml(filtered_meta)
+                yaml_str = dump_yaml(filtered_meta)
                 content = f"\n{yaml_str}"
 
         print(f'<file path="{self.path}">{content}</file>')
@@ -1026,7 +1026,7 @@ def _get_manager(source: str) -> Union[_WebcamManager, _AstraManager]:
 
 # ─── Pan/Tilt Position Helper ────────────────────────────────────────
 
-def _get_pan_tilt_degs() -> Optional[Tuple[float, float]]:
+def get_pan_tilt_degs() -> Optional[Tuple[float, float]]:
     """Read current pan/tilt degrees. Returns None if module not available."""
     try:
         from . import pantilt
@@ -1039,7 +1039,7 @@ def _get_pan_tilt_degs() -> Optional[Tuple[float, float]]:
 
 @api_call(default_verbosity=Verbosity.BRIEF)
 def capture(
-    source: str = "pan_tilt",
+    source: Optional[str] = None,
     resolution: Optional[Tuple[int, int]] = None,
     view: bool = False,
     save: bool = False,
@@ -1098,6 +1098,23 @@ def capture(
     """
     check_for_interrupt()
 
+    # 1. Resolve source from Config if not explicitly provided
+    if source is None:
+        source = vision_cfg.get('default_source', 'pan_tilt')
+
+    if source not in SOURCES:
+        raise ValueError(f"Unknown source '{source}'. Choose from: {SOURCES}")
+
+    # 2. Resolve resolution from Config if not explicitly provided
+    if resolution is None:
+        # Check if config has an override for this specific source
+        res_cfg = vision_cfg.get('resolutions', {})
+        res_list = res_cfg.get(source)
+        if res_list and len(res_list) == 2:
+            resolution = tuple(res_list)
+        else:
+            resolution = DEFAULT_RESOLUTION[source]
+
     if source not in SOURCES:
         raise ValueError(f"Unknown source '{source}'. Choose from: {SOURCES}")
 
@@ -1112,7 +1129,7 @@ def capture(
         if frame is None:
             return None
 
-        pt_degs = _get_pan_tilt_degs() if source == "pan_tilt" else None
+        pt_degs = get_pan_tilt_degs() if source == "pan_tilt" else None
 
         result = CaptureResult(
             image=frame,

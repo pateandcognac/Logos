@@ -3,7 +3,7 @@
 """
 Core functionality for the Logos API, including verbosity management, cooperative interrupt handling, and dynamic help generation.
 """
-
+import textwrap
 import contextlib
 from enum import Enum
 import inspect
@@ -23,6 +23,9 @@ __logos_verbosity_level__ = None
 
 # Modules under the `logos` namespace that should be hidden from logos.help()
 _HIDDEN_MODULES = {"_llm_helper"}
+
+# Sentinel used to request a full doc dump from logos.help()
+_ALL_SENTINEL = object()
 
 
 class Verbosity(Enum):
@@ -156,6 +159,7 @@ def help(
     import importlib
     import logos
 
+    dump_all = obj is getattr(logos, "everything", None) or obj is _ALL_SENTINEL
     output: List[str] = []
 
     # --- HELPER FUNCTIONS FOR FORMATTING ---
@@ -235,7 +239,133 @@ def help(
         lines.append("") # Spacer
         return lines
 
-    # --- EXECUTION MODES ---
+
+    def _indent(text: str, spaces: int) -> str:
+        pad = " " * spaces
+        return "\n".join(pad + line if line else line for line in text.splitlines())
+
+    def _safe_doc(o: object) -> str:
+        # inspect.getdoc() cleans indentation and ignores non-string __doc__
+        return inspect.getdoc(o) or ""
+
+    def _render_doc_block(title: str, doc: str, indent_spaces: int = 0) -> List[str]:
+        if not doc.strip():
+            return [(" " * indent_spaces) + f"{title}: (no docstring)"]
+        lines = [(" " * indent_spaces) + title + ":"]
+        lines.append(_indent(doc, indent_spaces + 4))
+        return lines
+
+    def _render_function_dump(qualname: str, func: object, indent_spaces: int = 0) -> List[str]:
+        sig = _get_sig(func)
+        lines = [(" " * indent_spaces) + f"{qualname}{sig}"]
+        doc = _safe_doc(func)
+        if doc:
+            lines.extend(_render_doc_block("Docstring", doc, indent_spaces + 2))
+        else:
+            lines.append((" " * (indent_spaces + 2)) + "Docstring: (none)")
+        return lines
+
+    def _render_class_dump(qualname: str, cls: object, indent_spaces: int = 0) -> List[str]:
+        lines = [(" " * indent_spaces) + f"class {qualname}:"]
+        class_doc = _safe_doc(cls)
+        if class_doc:
+            lines.extend(_render_doc_block("Docstring", class_doc, indent_spaces + 2))
+        else:
+            lines.append((" " * (indent_spaces + 2)) + "Docstring: (none)")
+
+        # Public routines (methods, classmethods, staticmethods)
+        members = inspect.getmembers(cls)
+        routines = []
+        for name, val in members:
+            if name.startswith("_"):
+                continue
+            # Include callables (functions/descriptor-wrapped methods). isroutine catches functions + builtins.
+            if inspect.isroutine(val):
+                routines.append((name, val))
+
+        if routines:
+            lines.append((" " * (indent_spaces + 2)) + "Methods:")
+            for name, val in routines:
+                lines.extend(_render_function_dump(f"{qualname}.{name}", val, indent_spaces + 4))
+        else:
+            lines.append((" " * (indent_spaces + 2)) + "Methods: (none)")
+
+        return lines
+
+    def _render_module_dump(mod_name: str, mod: object) -> List[str]:
+        lines = [f"### Module: logos.{mod_name}"]
+        mod_doc = _safe_doc(mod)
+        if mod_doc:
+            lines.extend(_render_doc_block("Docstring", mod_doc, 0))
+        else:
+            lines.append("Docstring: (none)")
+
+        public_names = getattr(mod, "__all__", None)
+        members = inspect.getmembers(mod)
+
+        constants = []
+        classes = []
+        functions = []
+
+        for name, val in members:
+            if public_names is not None:
+                if name not in public_names:
+                    continue
+            else:
+                if name.startswith("_"):
+                    continue
+                # Keep your existing “skip imported stuff” filter
+                if inspect.getmodule(val) is not None and inspect.getmodule(val).__name__ != mod.__name__:
+                    continue
+
+            if inspect.isclass(val):
+                classes.append((name, val))
+            elif inspect.isroutine(val):
+                functions.append((name, val))
+            elif name.isupper():
+                constants.append((name, val))
+
+        if constants:
+            lines.append("Constants:")
+            for n, v in constants:
+                lines.append(f"    {n} = {v!r}")
+
+        if classes:
+            lines.append("Classes:")
+            for n, c in classes:
+                lines.extend(_render_class_dump(n, c, indent_spaces=4))
+
+        if functions:
+            lines.append("Functions:")
+            for n, f in functions:
+                lines.extend(_render_function_dump(n, f, indent_spaces=4))
+
+        lines.append("")
+        return lines
+
+
+# --- EXECUTION MODES ---
+
+    # MODE 0: Comprehensive dump (full docstrings for everything)
+    if dump_all:
+        output.append("# Logos API Full Dump (docstrings + signatures)")
+        output.append("Everything inspectable without showing raw source.\n")
+
+        for _importer, modname, _ispkg in pkgutil.iter_modules(logos.__path__):
+            if modname.startswith("_") or modname in _HIDDEN_MODULES:
+                continue
+            try:
+                mod = importlib.import_module(f".{modname}", "logos")
+                output.extend(_render_module_dump(modname, mod))
+            except Exception as exc:
+                output.append(f"### Module: logos.{modname} (Failed to load: {exc})\n")
+
+        text = "\n".join(output)
+        if print_output:
+            print(text)
+        return text
+
+
 
     # MODE 1: Search Query
     if search:
