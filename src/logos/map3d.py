@@ -486,14 +486,58 @@ class Map3d:
         # self._phantasmata_dir: str = "src/logos/phantasmata"
         # self._mind_palace_path: str = "config/mind_palace_00.yaml"
 
-        # Try to read paths from logos.config.merged.map3d
+        # Try to read paths and FOV from logos.config.merged.map3d
+        map3d_config: Dict[str, Any] = {}
+        default_fov_horz_deg = 63.0
+        default_fov_axis = "horizontal"
+
         try:
             import logos
-            map3d_config = logos.config.merged.get('map3d', {})
-            if 'phantasmata_dir' in map3d_config:
-                self._phantasmata_dir = map3d_config['phantasmata_dir']
-            if 'chora_config' in map3d_config:
-                self._mind_palace_path = f"config/{map3d_config['chora_config']}" 
+            map3d_config = logos.config.merged.get("map3d", {})
+
+            if "phantasmata_dir" in map3d_config:
+                self._phantasmata_dir = map3d_config["phantasmata_dir"]
+            if "chora_config" in map3d_config:
+                self._mind_palace_path = f"config/{map3d_config['chora_config']}"
+
+            # --- FOV: new style ---
+            cfg_fov_deg = map3d_config.get("fov_deg")
+            cfg_fov_axis = map3d_config.get("fov_axis")
+
+            # --- FOV: legacy styles ---
+            cfg_fov_h = map3d_config.get("fov_horz_deg")
+            cfg_fov_v = map3d_config.get("fov_vert_deg")
+
+            chosen_fov_deg = None
+            chosen_axis = None
+
+            # Priority 1: explicit new-style scalar + axis
+            if cfg_fov_deg is not None:
+                chosen_fov_deg = float(cfg_fov_deg)
+                if cfg_fov_axis is not None:
+                    chosen_axis = str(cfg_fov_axis).lower()
+                else:
+                    chosen_axis = "horizontal"
+
+            # Priority 2: legacy split (pick one)
+            elif cfg_fov_h is not None or cfg_fov_v is not None:
+                if cfg_fov_h is not None:
+                    chosen_fov_deg = float(cfg_fov_h)
+                    chosen_axis = "horizontal"
+                    if cfg_fov_v is not None:
+                        print(
+                            "[map3d] WARN: Both fov_horz_deg and fov_vert_deg are set in config; "
+                            "map3d now uses a single FOV. Using fov_horz_deg and ignoring fov_vert_deg."
+                        )
+                else:
+                    chosen_fov_deg = float(cfg_fov_v)
+                    chosen_axis = "vertical"
+
+            if chosen_fov_deg is not None:
+                default_fov_deg = chosen_fov_deg
+            if chosen_axis is not None:
+                default_fov_axis = chosen_axis
+
         except Exception:
             pass
 
@@ -517,6 +561,8 @@ class Map3d:
             "point_hit_radius": 0.05,        # meters
             "ray_infinity_distance_m": 50.0,
             "render_point_size": 3.0,
+            "fov_deg": float(default_fov_horz_deg),
+            "fov_axis": "horizontal",              
 
             # Point cloud display
             "cloud_density": 1.0,             # 0.0-1.0, fraction of points to keep
@@ -2049,6 +2095,48 @@ class Map3d:
         look_world = cam_world + forward * float(look_distance_m)
         return cam_world, look_world
 
+    def _resolve_render_fov(self, fov_deg: Optional[float], fov_axis: Optional[str]) -> Tuple[float, str]:
+        fov = float(self.settings["fov_deg"]) if fov_deg is None else float(fov_deg)
+        axis = (self.settings.get("fov_axis", "horizontal") if fov_axis is None else str(fov_axis)).lower()
+
+        if not (1.0 <= fov <= 179.0):
+            raise ValueError("fov_deg must be in [1, 179] degrees.")
+        if axis not in ("horizontal", "vertical"):
+            raise ValueError("fov_axis must be 'horizontal' or 'vertical'.")
+        return fov, axis
+
+    def _set_camera_projection(
+        self,
+        camera: Any,
+        width: int,
+        height: int,
+        fov_deg: float,
+        fov_axis: str,
+    ) -> None:
+        """
+        Configure projection with distinct horizontal and vertical FOV when possible.
+
+        Open3D 0.13 supports intrinsic-based projection; this path allows separate
+        horizontal/vertical FOV. If unavailable, we fall back to vertical FOV mode.
+        """
+        near_plane_m = 0.05
+        far_plane_m = max(100.0, float(self.settings["ray_infinity_distance_m"]) * 2.0)
+        aspect = float(width) / max(1.0, float(height))
+
+        fov_type = (
+            rendering.Camera.FovType.Horizontal
+            if fov_axis == "horizontal"
+            else rendering.Camera.FovType.Vertical
+        )
+
+        camera.set_projection(
+            float(fov_deg),
+            float(aspect),
+            float(near_plane_m),
+            float(far_plane_m),
+            fov_type,
+        )
+
     # ---------------- Render thread (Filament thread-affinity) --------
 
     def _render_worker(self) -> None:
@@ -2157,8 +2245,10 @@ class Map3d:
         height: int,
         include_robot: bool,
         effective_point_size: float,
+        fov_deg: float,
+        fov_axis: str,
         map_snapshot: Optional[MapSnapshot],
-        cloud_alpha: float = 1.0, 
+        cloud_alpha: float = 1.0,
     ) -> Tuple[np.ndarray, SceneSnapshot]:
         renderer = self._get_renderer(width, height)
         scene = renderer.scene
@@ -2271,7 +2361,14 @@ class Map3d:
         all_raycast_objects = objs_live + phantasma_objects
         objs_frozen = self._freeze_objects(all_raycast_objects)
 
-        # Camera
+        # Camera projection (single FOV + axis)
+        self._set_camera_projection(
+            camera=scene.camera,
+            width=width,
+            height=height,
+            fov_deg=float(fov_deg),
+            fov_axis=str(fov_axis),
+        )
         scene.camera.look_at(look_at_world_pos, camera_world_pos, [0.0, 0.0, 1.0])
         try:
             scene.scene.enable_sun_light(False)
@@ -2602,6 +2699,8 @@ class Map3d:
         look_distance_m: float = 2.0,
         max_cloud_height_m: Optional[float] = None,
         resolution: Tuple[int, int] = (768, 768),  # (height, width)
+        fov_deg: Optional[float] = None,
+        fov_axis: Optional[str] = None,  # "horizontal" or "vertical"
         include_robot: bool = True,
         view: bool = True,
         save: bool = True,
@@ -2646,6 +2745,10 @@ class Map3d:
             rpy_deg: (roll, pitch, yaw) tuple in degrees to specify camera
                 orientation instead of a look_at point.
             resolution: (height, width) tuple for the output image.
+            fov_horz_deg: Horizontal field-of-view in degrees. If omitted,
+                uses `self.settings["fov_horz_deg"]`.
+            fov_vert_deg: Vertical field-of-view in degrees. If omitted,
+                uses `self.settings["fov_vert_deg"]`.
             include_robot: If True, includes a 3D model of myself in the scene.
             save: If True, saves the rendered image to disk.
             hud: An optional list of `HudElement` objects to overlay text on the
@@ -2685,6 +2788,11 @@ class Map3d:
         height = int(resolution[0])
         if width <= 0 or height <= 0:
             raise ValueError("resolution must be positive (height, width).")
+        
+        effective_fov_deg, effective_fov_axis = self._resolve_render_fov(
+            fov_deg=fov_deg,
+            fov_axis=fov_axis,
+        )
 
         self._clear_render_warnings()
         self._resolve_world_frame()
@@ -2773,8 +2881,10 @@ class Map3d:
                 height=height,
                 include_robot=include_robot,
                 effective_point_size=effective_point_size,
+                fov_deg=float(effective_fov_deg),
+                fov_axis=str(effective_fov_axis),
                 map_snapshot=map_snapshot,
-                cloud_alpha=effective_cloud_alpha,  # NEW
+                cloud_alpha=effective_cloud_alpha,
             )
         )
 
@@ -2822,6 +2932,8 @@ class Map3d:
                 "render_id": snapshot.render_id,
                 "camera_world_pos": snapshot.camera_world_pos.tolist(),
                 "look_at_world_pos": snapshot.look_at_world_pos.tolist(),
+                "fov_deg": float(effective_fov_deg),
+                "fov_axis": str(effective_fov_axis),
                 "view_matrix": snapshot.view_matrix.tolist(),
                 "projection_matrix": snapshot.projection_matrix.tolist(),
                 "ray_infinity_distance_m": snapshot.ray_infinity_distance_m,

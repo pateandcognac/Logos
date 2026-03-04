@@ -37,7 +37,8 @@ map3d:
   chora_config: "mind_palace_00.yaml"
   map_frame: [map, odom, rgd_optical_frame] 
   resolution: [1000, 1000]
-  # fov_deg: 60.0       
+  fov_deg: 63.0
+  fov_axis: horizontal
   camera_pos_relative: (-1.0, 1.0, 2.0)
   look_at_relative: (1.0, 0.0, 0.0)
   include_robot: true
