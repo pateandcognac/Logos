@@ -32,12 +32,12 @@ instances:
 
   # ---- Debug Overlays (off by default) ----
 
-  # obstacle_plane:
-  #   object: occupied_plane
-  #   description: "Transparent red plane showing occupied map cells"
-  #   params:
-  #     z: 0.70
-  #     occupied_color: [1.0, 0.0, 0.0]
-  #     occupied_threshold: 50
-  #   render_visible: false           # Enable when debugging nav
-  #   raycast_visible: false
+  #obstacle_plane:
+  #  object: occupied_plane
+  #  description: "Transparent red plane showing occupied map cells"
+  #  params:
+  #    z: 0.70
+  #    occupied_color: [1.0, 0.0, 0.0]
+  #    occupied_threshold: 50
+  #  render_visible: false           # Enable when debugging nav
+  #  raycast_visible: false

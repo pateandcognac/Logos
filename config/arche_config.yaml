@@ -1,6 +1,6 @@
 - name: hook_status
   description: "A live view of my configured hooks."
-  ttl: 99 # Run every loop and stay pinned
+  active: true
   code: |-
     import time
     from logos.core import verbosity, check_for_interrupt, help, Verbosity
@@ -11,14 +11,14 @@
 
 - name: api_summary
   description: A high-level overview of my available API modules.
-  ttl: -99
+  active: true
   code: |-
     import logos
     logos.help()
 
 - name: file_tree
   description: Shows the layout of my workspace, as configured by logos.config.files
-  ttl: 99
+  active: true
   code: |-
     # Read configuration from the merged config object
     max_depth = logos.config.merged.get('files', {}).get('max_depth', 5)
@@ -32,7 +32,7 @@
     ))
 
 - name: Logos_photo
-  description: A photograph Mark took of me, idlin' in my cozy charging nook
-  ttl: -99
+  description: A photograph Mark took of me, idling in my cozy charging nook. Overlaid with my self_model.py code as an experiment in ViT compression.
+  active: true
   code: |-
-    print('<file path="images/Logos_512x384.jpg"></file>')
+    print('<file path="images/Logos_with_self_model.py_overlay.png"></file>')

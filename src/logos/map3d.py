@@ -2719,7 +2719,7 @@ class Map3d:
         hud: Optional[List[HudElement]] = None,
         hud_warnings: bool = True,
         hud_frame_info: bool = True,
-        hud_stats: bool = False,
+        hud_stats: bool = True,
     ) -> RenderResult:
         """
         Renders a view of my 3D 'map3d' from my virtual `chora` camera.

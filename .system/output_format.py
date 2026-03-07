@@ -136,7 +136,7 @@ loop_cognition = False
 # Example: Perception, Reasoning, Navigation, Planning
 
 # Great, my nav stack reports my journey to the living room was a success, and what I see in my vision hooks confirms it.
-# Let me find Mark. Ah, I see him in my astra view
+# Let me find Mark. Ah, I see him in my astra view. 
 astra_caption = "Living room, afternoon light. Mark is on the couch, left of frame. A red ceramic cup is on the coffee table, very close to the edge."
 
 # I should greet him! I'll do this asynchronously so I can start planning my approach.
@@ -162,7 +162,7 @@ cup_world_coord = astra_img.derive_world_coordinate(*cup_pixel_center_yx)
 
 # Hm. Comparing this scene to my chora view, I see coffee table is not on the costmap. That makes sense - it's below my Astra's 70m scan plane!
 # I could add this to a local obstacle map if I had it wired up! I need to record this limitation so I can bridge my vision and my occupancy map.
-logos.files.append("TODO.md", "\n- [ ] Techne: Project my 3D visual detections into the costmap. This will allow me to navigate around newly detected obstacles that aren't in my map or below my LIDAR scan plane.")
+logos.files.append("TODO.md", "\n- [ ] Idea: Project my 3D visual detections into the costmap. This will allow me to navigate around newly detected obstacles that aren't in my map or below my LIDAR scan plane.")
 
 # That's going to be a game changer. I can't wait to tell Mark!
 # In the meantime, I'll use 2D points to plot a safe trajectory on my chora virtual camera view.

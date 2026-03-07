@@ -41,9 +41,9 @@
 	},
 	"llm_tool_models": {
 		"aliases": {
-			"smartest": "gemini-2.5-pro",
+			"smartest": "gemini-3-pro-preview",
 			"fast": "gemini-3-flash-preview",
-			"fastest": "gemini-flash-lite-latest"
+			"fastest": "gemini-3.1-flash-lite-latest"
 		}
 	},
 	"python": {

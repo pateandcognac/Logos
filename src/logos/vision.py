@@ -710,16 +710,17 @@ class _WebcamManager:
             # 3. Try to open the identified indices in order
             cap = None
             for device_index in device_indices:
-                print(f"vision: Attempting to open {self.source} at index {device_index}...")
+                # print(f"vision: Attempting to open {self.source} at index {device_index}...")
                 temp_cap = cv2.VideoCapture(device_index, cv2.CAP_V4L2)
                 
                 if temp_cap.isOpened():
                     cap = temp_cap
-                    print(f"vision: Success at index {device_index}")
+                    # print(f"vision: Success at index {device_index}")
                     break
                 else:
-                    print(f"vision: Failed at index {device_index}")
-                    
+                    # print(f"vision: Failed at index {device_index}")
+                    pass
+
             if cap is None or not cap.isOpened():
                 print(f"vision: CRITICAL FAILURE to open {self.source} at {real_path}")
                 return False
@@ -1066,7 +1067,7 @@ class _AstraManager:
             f for f in feeds
             if f != "camera_info" and f in _ASTRA_TOPICS
         ]
-        deadline = time.time() + 3.0
+        deadline = time.time() + 6.0
         while time.time() < deadline:
             all_ready = True
             for feed in streaming_requested:

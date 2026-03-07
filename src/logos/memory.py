@@ -17,7 +17,7 @@ from .core import api_call, Verbosity
 from .utils import make_time_id
 from typing import List, Optional, Dict, Any
 
-__all__ = ["summarize_io_buffer", "recall", "replace_cell_content"]
+__all__ = ["summarize_io_buffer", "recall", "replace_cell_content", "BUFFER_FILE"]
 
 
 # This assumes the python_worker_node's CWD is the workspace root.

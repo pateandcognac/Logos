@@ -389,8 +389,9 @@ def look_at_coord(x: float, y: float, z: float) -> Tuple[float, float]:
     # Calculate spherical coordinates (yaw/pitch) from the Cartesian point.
     # In ROS standard frames: X is forward, Y is left, Z is up.
     
-    # Yaw (pan) = atan2(y, x)
-    pan_rad = math.atan2(local_y, local_x)
+    # Yaw (pan) = atan2(y, x). 
+    # ROS Y is left (+), but our Pan is right (+). So we negate Y.
+    pan_rad = math.atan2(-local_y, local_x)
     
     # Pitch (tilt) = atan2(z, x)
     # Note: math.hypot(x, y) gives the ground distance. 

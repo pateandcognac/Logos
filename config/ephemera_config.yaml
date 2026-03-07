@@ -1,6 +1,6 @@
 - name: the_basics
   description: Shows time, battery, and logos.config
-  ttl: 99
+  active: true
   code: |-
     import datetime, time, logos
     print(f"# Current time: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
@@ -10,7 +10,7 @@
 
 - name: manage_memory
   description: Automatically summarizes my io_buffer based on my memory_policy.
-  ttl: 99
+  active: true
   code: |-
     # This hook's logic is complex, so it's defined in a separate file
     # for clarity and maintainability.
@@ -25,7 +25,7 @@
 
 - name: vision_reflex
   description: "The Retinal Flash. Captures live images based on configuration."
-  ttl: 99
+  active: true
   code: |
     # We import and run the routine from the file to keep this YAML clean.
     # The variables it creates (astra_img, pt_seq) will persist in the global scope!
@@ -37,7 +37,8 @@
 
 - name: chora
   description: "A projection of my mind's eye."
-  ttl: 99
+  active: true
   code: |
-    chora = logos.map3d.render(camera_pos_relative = [-1.0, 0.0, 2.0],look_at_relative = [0.5, 0, 0.35])
+    cpr=logos.config.merged.get
+    chora = logos.map3d.render(camera_pos_relative = [1.0, 0.5, 2.0],look_at_relative = [0.5, 0, 0.35])
     print("# chora variable contains RenderResult of map3d")

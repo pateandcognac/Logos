@@ -29,7 +29,7 @@ voice:
     volume: 1.0
   espeak_params:
     voice: "en-us+m1"
-    speed": 0.9
+    speed: 0.9
     volume: 0.9
 
 map3d:
@@ -39,14 +39,14 @@ map3d:
   resolution: [1000, 1000]
   fov_deg: 63.0
   fov_axis: horizontal
-  camera_pos_relative: (-1.0, 1.0, 2.0)
-  look_at_relative: (1.0, 0.0, 0.0)
+  camera_pos_relative: [1.5, -1.5, 2.0]
+  look_at_relative: [1.0, 0.0, 0.35]
   include_robot: true
   view: true
   cloud_alpha: 1.0
   cloud_density: 1.0
-  laser_scan_show: false
-  # hud: true
+  laser_scan_show: true
+  hud: true
   save: true
 
 # Configuration for my background context-gathering hook
@@ -62,9 +62,9 @@ memory_policy:
   enabled: true
   max_cells: 20
   max_tokens: 24000
-  untouchable_tail: 3
+  untouchable_tail: 8
   summarizable_types: ["human", "me", "py_result", "human_stt"]
-  age_weight: 0.6
-  size_weight: 0.4
-  min_cells_to_summarize: 3
+  age_weight: 0.75
+  size_weight: 0.25
+  min_cells_to_summarize: 8
   max_contiguous_summaries: 5
