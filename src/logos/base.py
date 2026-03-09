@@ -211,7 +211,7 @@ def get_buttons() -> List[str]:
 @api_call(default_verbosity=Verbosity.BRIEF)
 def velocity(
     linear_x: float,
-    angular_z: float,
+    angular_z_deg: float,
     duration: float,
     topic: str = "raw",
 ) -> None:
@@ -220,9 +220,9 @@ def velocity(
 
     Args:
         linear_x: Forward/backward speed in meters per second (m/s). 
-                  Positive is forward, negative is backward. (Max ~0.5)
-        angular_z: Rotational speed in degrees per second (deg/s). 
-                   Positive is counter-clockwise (left), negative is clockwise (right). (Max ~3.0)
+                  Positive is forward, negative is backward. (Max ~0.70)
+        angular_z_deg: Rotational speed in degrees per second (deg/s). 
+                   Positive is counter-clockwise (left), negative is clockwise (right). (Max ~110)
         duration: How long to apply this velocity, in seconds.
         topic:    [raw|muxed] Default: *raw*
 
@@ -238,7 +238,7 @@ def velocity(
 
         Example:
             logos.base.velocity(0.2, 0.0, 2.0)   # Move forward 0.2 m/s for 2 seconds
-            logos.base.velocity(0.0, 1.5, 1.0)   # Spin left 1.5 deg/s for 1 second
+            logos.base.velocity(0.0, 5.0, 3.0)   # Spin left 5 deg/s for 3 seconds
     """
     global _cmd_vel_pub, _cmd_vel_topic
 
@@ -269,7 +269,7 @@ def velocity(
     # ---- everything below here can stay the same as your current code ----
     cmd = Twist()
     cmd.linear.x = linear_x
-    cmd.angular.z = math.radians(angular_z)
+    cmd.angular.z = math.radians(angular_z_deg)
 
     rate = rospy.Rate(10)
     end_time = time.time() + duration

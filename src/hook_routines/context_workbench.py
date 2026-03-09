@@ -5,8 +5,10 @@ files_to_open = workbench.get('files', [])
 vars_to_inspect = workbench.get('vars', [])
 
 # todo: what if... instead of files / vars
-# execute a one-liner?
-# like `print(var=)` or `print(logos.files.show(path: str, max_chars: int = 2000, pattern: Optional[str] = None))`
+# execute a one-liner? not strictly a one-liner, but small, uncomplicated snippet of code
+# like `print(f"{var=}")` or `logos.files.show(path: str, max_chars: int = 2000, pattern: Optional[str] = None)`
+# this would be a good way to bring content in and out of context window.
+# each snippet/one-liner should have a short name to referenced by (for easy removal when done)
 
 if files_to_open or vars_to_inspect:
     print("=== 📄 Context Workbench 🛠️ ===")

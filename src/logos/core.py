@@ -225,16 +225,19 @@ def help(
             lines.append("Constants:")
             for n, v in constants:
                 lines.append(f"    {n} = {v!r}")
+            lines.append("")  # <--- Add spacer after constants
         
         if classes:
             lines.append("Classes:")
             for n, c in classes:
                 lines.extend(_render_class(n, c, "    "))
+            lines.append("")  # <--- Add spacer after classes
                 
         if functions:
             lines.append("Functions:")
             for n, f in functions:
                 lines.append(_render_function(n, f, "    "))
+            
                 
         lines.append("") # Spacer
         return lines
@@ -286,6 +289,8 @@ def help(
         if routines:
             lines.append((" " * (indent_spaces + 2)) + "Methods:")
             for name, val in routines:
+                # Add a tiny visual break before every method to make them distinct
+                lines.append("") 
                 lines.extend(_render_function_dump(f"{qualname}.{name}", val, indent_spaces + 4))
         else:
             lines.append((" " * (indent_spaces + 2)) + "Methods: (none)")
@@ -329,16 +334,20 @@ def help(
             lines.append("Constants:")
             for n, v in constants:
                 lines.append(f"    {n} = {v!r}")
+            lines.append("") 
 
         if classes:
             lines.append("Classes:")
             for n, c in classes:
                 lines.extend(_render_class_dump(n, c, indent_spaces=4))
+                lines.append("")
+            lines.append("")
 
         if functions:
             lines.append("Functions:")
             for n, f in functions:
                 lines.extend(_render_function_dump(n, f, indent_spaces=4))
+                lines.append("") 
 
         lines.append("")
         return lines

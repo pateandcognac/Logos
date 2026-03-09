@@ -1,4 +1,4 @@
-# config/mind_palace_00.yaml
+# hypomnemata/mind_palace_00.yaml
 #
 # Each key is a unique instance name. The AI refers to instances by this name.
 # Instances can be persistent (defined here) or transient (created at runtime
@@ -25,7 +25,7 @@ instances:
     object: waypoints
     description: "My navigation waypoints with emoji/image markers"
     params:
-      waypoints_file: config/waypoints.yaml
+      waypoints_file: hypomnemata/waypoints.yaml
       default_render_mode: billboard  # billboard | theta | floor
       show_floor_arrow: true
       emoji_set: openmoji             # Directory of emoji PNGs
@@ -45,7 +45,7 @@ instances:
 
   # ---- Physical objects (likenesses I create) ----
 
-  marks_coffee_table:
+  coffee_table:
     object: coffee_table
     description: "Oak coffee table in front of the couch, below lidar height"
     pose:

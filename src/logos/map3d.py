@@ -119,7 +119,6 @@ try:
     _HAS_VISION_HUD = True
 except ImportError:
     _HAS_VISION_HUD = False
-    # Fallback definitions below if vision.py not available
 
 try:
     import ros_numpy
@@ -131,28 +130,113 @@ except Exception:
 
 # --------------------------- Data Structures ---------------------------
 
+from dataclasses import dataclass, field
+from typing import Tuple, Optional, Dict, Any, List
+import numpy as np
+
 @dataclass
 class RaycastHit:
-    """Result of raycasting a pixel against a scene snapshot."""
-    hit: str  # "astra_cloud" | "floor" | "robot" | "object:<name>" | "infinity"
+    """
+    The result of projecting a 2D pixel from my virtual vision back into the 3D world.
+
+    Attributes:
+        hit (str): What the ray collided with. Possible values:
+            - "astra_cloud": Hit a live depth point from my physical Astra camera.
+            - "floor": Hit the 2D ROS map plane.
+            - "robot": Hit my own 3D self-model.
+            - "object:<name>": Hit a specific phantasma instance (e.g., "object:target_waypoint").
+            - "infinity": The ray cast into the void and hit nothing.
+        world_point (Tuple[float, float, float]): The absolute [X, Y, Z] map coordinates of the collision.
+        distance_m (float): Distance from the virtual camera to the hit point in meters.
+        floor_state (Optional[str]): If the ray hit the "floor", what is the semantic state of the ROS map at that location?
+            - "map_open": Safe, known free space.
+            - "map_occupied": A known static obstacle (wall, furniture).
+            - "unmapped": Unknown territory.
+        meta (Dict[str, Any]): Additional contextual data about the hit.
+
+    Note to self:
+        `world_point` is the gold mine here! If I `render()` a scene, pick a safe pixel `(y, x)`, 
+        and `raycast()` it, `world_point` gives me the exact map coordinates I need to pass 
+        to `logos.nav.go_to_abs(x, y)` to drive there!
+    """
+    hit: str
     world_point: Tuple[float, float, float]
     distance_m: float
-    floor_state: Optional[str] = None  # "map_open" | "map_occupied" | "unmapped"
+    floor_state: Optional[str] = None
     meta: Dict[str, Any] = field(default_factory=dict)
-
 
 @dataclass
 class SceneObject:
-    """An object that can be rendered and/or raycasted."""
+    """
+    A distinct 3D entity residing in my mind palace (Chora).
+
+    These are the building blocks of my phantasmata—the geometric representations
+    of my thoughts, memories, and virtual overlays.
+
+    Attributes:
+        name (str): The unique identifier for this specific object instance.
+        kind (str): The geometry type. Either "mesh" or "pointcloud".
+        geometry (Any): The underlying Open3D geometry object (`o3d.geometry.TriangleMesh` or `o3d.geometry.PointCloud`).
+        render_visible (bool): If True, this object appears in my 2D `render()` images.
+        raycast_visible (bool): If True, this object can be physically clicked/collided with by `raycast()`.
+        costmap_affects (bool): (Placeholder) If True, this virtual object is injected into my physical navigation costmap as an obstacle.
+        shader (str): Open3D rendering shader. "defaultLit" responds to virtual lights, "defaultUnlit" glows uniformly (excellent for UI elements/waypoints).
+        point_size (float): Display size of points (only applies if kind is "pointcloud").
+
+    Note to self:
+        When I write a `build()` function for a new phantasma module, I am constructing 
+        and returning one or more of these `SceneObject`s.
+    """
     name: str
-    kind: str  # "mesh" or "pointcloud"
-    geometry: Any  # o3d.geometry.TriangleMesh or o3d.geometry.PointCloud
+    kind: str
+    geometry: Any
     render_visible: bool = True
     raycast_visible: bool = True
-    costmap_affects: bool = False  # placeholder for future
-    shader: str = "defaultLit"  # "defaultLit" or "defaultUnlit"
-    point_size: float = 3.0  # only used for pointcloud rendering
+    costmap_affects: bool = False
+    shader: str = "defaultLit"
+    point_size: float = 3.0
 
+
+@dataclass
+class SceneSnapshot:
+    """
+    A frozen, self-contained mathematical snapshot of my mind palace at the exact moment of a render.
+
+    I rarely need to interact with the raw matrices in this object directly. It is automatically
+    stored inside the `RenderResult.meta` dictionary when I call `logos.map3d.render()`, and I
+    simply pass it along to `logos.map3d.raycast()` so the raycaster knows exactly where the
+    virtual camera was and what objects existed at that specific moment in time.
+
+    Attributes:
+        render_id (str): Unique ID matching the associated `RenderResult`.
+        timestamp (float): time.time() when the snapshot was frozen.
+        resolution (Tuple[int, int]): The (height, width) of the rendered image.
+        camera_world_pos (np.ndarray): Absolute [X, Y, Z] of the virtual camera.
+        look_at_world_pos (np.ndarray): Absolute [X, Y, Z] the virtual camera was targeting.
+        view_matrix (np.ndarray): 4x4 Open3D view transform matrix.
+        projection_matrix (np.ndarray): 4x4 Open3D camera projection matrix.
+        ray_infinity_distance_m (float): Max distance a ray will travel before giving up (default 50.0m).
+        astra_points_map (Optional[np.ndarray]): The frozen point cloud data.
+        robot_mesh (Optional[MeshSnapshot]): Frozen state of my physical self-model.
+        objects (List[ObjectSnapshot]): Frozen states of all phantasmata instances.
+        map_snapshot (Optional[MapSnapshot]): Frozen semantic map data.
+    """
+    render_id: str
+    timestamp: float
+    resolution: Tuple[int, int]
+    camera_world_pos: np.ndarray
+    look_at_world_pos: np.ndarray
+    view_matrix: np.ndarray
+    projection_matrix: np.ndarray
+    ray_infinity_distance_m: float = 50.0
+
+    # Ray targets:
+    astra_points_map: Optional[np.ndarray] = None
+    robot_mesh: Optional[Any] = None       # Replaced MeshSnapshot with Any just to avoid undefined type errors if it's imported elsewhere
+    objects: List[Any] = field(default_factory=list) # Same for ObjectSnapshot
+
+    # Map semantics:
+    map_snapshot: Optional[Any] = None     # Same for MapSnapshot
 
 @dataclass
 class MapSnapshot:
@@ -198,26 +282,6 @@ class ObjectSnapshot:
     mesh: Optional[MeshSnapshot] = None
 
 
-@dataclass
-class SceneSnapshot:
-    """Self-contained snapshot of what was rendered, sufficient for later raycasts."""
-    render_id: str
-    timestamp: float
-    resolution: Tuple[int, int]  # (height, width)
-    camera_world_pos: np.ndarray  # shape (3,)
-    look_at_world_pos: np.ndarray  # shape (3,)
-    view_matrix: np.ndarray  # 4x4
-    projection_matrix: np.ndarray  # 4x4
-    ray_infinity_distance_m: float = 50.0
-
-    # Ray targets:
-    astra_points_map: Optional[np.ndarray] = None  # (N, 3) float32 in world frame
-    robot_mesh: Optional[MeshSnapshot] = None
-    objects: List[ObjectSnapshot] = field(default_factory=list)
-
-    # Map semantics:
-    map_snapshot: Optional[MapSnapshot] = None
-
 
 @dataclass
 class RenderResult:
@@ -258,7 +322,7 @@ class RenderResult:
             self.save()
         print(f'<file path="{self.path}">Chora\n</file>')
 
-
+"""
 # HUD system: prefer imports from vision.py; fallback definitions here
 # if vision.py is not available (for standalone testing)
 if not _HAS_VISION_HUD:
@@ -276,6 +340,8 @@ if not _HAS_VISION_HUD:
     HUD_FONT_SMALL = 6          # cv2.FONT_HERSHEY_COMPLEX_SMALL
     HUD_FONT_MONO = 7           # cv2.FONT_HERSHEY_SCRIPT_SIMPLEX (not mono)
 
+"""
+'''
     @dataclass
     class HudElement:
         """
@@ -298,8 +364,8 @@ if not _HAS_VISION_HUD:
         font: int = 0  # cv2.FONT_HERSHEY_SIMPLEX
         margin_px: int = 8  # padding from image edge and between stacked elements
         priority: int = 0  # lower = closer to anchor edge
-
-
+'''
+        
 # --------------------------- Math Helpers ---------------------------
 
 def _quat_to_rot_matrix(qx: float, qy: float, qz: float, qw: float) -> np.ndarray:
@@ -498,41 +564,22 @@ class Map3d:
             if "phantasmata_dir" in map3d_config:
                 self._phantasmata_dir = map3d_config["phantasmata_dir"]
             if "chora_config" in map3d_config:
-                self._mind_palace_path = f"config/{map3d_config['chora_config']}"
+                self._mind_palace_path = f"{map3d_config['chora_config']}"
 
-            # --- FOV: new style ---
+            # --- FOV ---
             cfg_fov_deg = map3d_config.get("fov_deg")
             cfg_fov_axis = map3d_config.get("fov_axis")
-
-            # --- FOV: legacy styles ---
-            cfg_fov_h = map3d_config.get("fov_horz_deg")
-            cfg_fov_v = map3d_config.get("fov_vert_deg")
 
             chosen_fov_deg = None
             chosen_axis = None
 
-            # Priority 1: explicit new-style scalar + axis
             if cfg_fov_deg is not None:
                 chosen_fov_deg = float(cfg_fov_deg)
                 if cfg_fov_axis is not None:
                     chosen_axis = str(cfg_fov_axis).lower()
                 else:
                     chosen_axis = "horizontal"
-
-            # Priority 2: legacy split (pick one)
-            elif cfg_fov_h is not None or cfg_fov_v is not None:
-                if cfg_fov_h is not None:
-                    chosen_fov_deg = float(cfg_fov_h)
-                    chosen_axis = "horizontal"
-                    if cfg_fov_v is not None:
-                        print(
-                            "[map3d] WARN: Both fov_horz_deg and fov_vert_deg are set in config; "
-                            "map3d now uses a single FOV. Using fov_horz_deg and ignoring fov_vert_deg."
-                        )
-                else:
-                    chosen_fov_deg = float(cfg_fov_v)
-                    chosen_axis = "vertical"
-
+            
             if chosen_fov_deg is not None:
                 default_fov_deg = chosen_fov_deg
             if chosen_axis is not None:
@@ -577,7 +624,7 @@ class Map3d:
             # world-space meters, we emulate that by recoloring points whose
             # projected pixel v lies near the image center. This keeps the mental
             # model aligned with what /scan really is.
-            "laser_scan_show": False,
+            "laser_scan_show": True,
             "laser_scan_center_band_px": 1,       # +/- around center row
             "laser_scan_color": [1.0, 0.0, 0.0],  # RGB red in [0,1]
         }
@@ -2690,9 +2737,9 @@ class Map3d:
     @api_call(default_verbosity=Verbosity.ACK)
     def render(
         self,
-        camera_pos_relative: Optional[Tuple[float, float, float]] = (-0.75, -1.0, 2.0),
+        camera_pos_relative: Optional[Tuple[float, float, float]] = None,
         camera_pos_world: Optional[Tuple[float, float, float]] = None,
-        look_at_relative: Optional[Tuple[float, float, float]] = (0.5, 0, 0.5),
+        look_at_relative: Optional[Tuple[float, float, float]] = None,
         look_at_world: Optional[Tuple[float, float, float]] = None,
         rpy_deg: Optional[Tuple[float, float, float]] = None,
         rot_matrix_3x3: Optional[Union[np.ndarray, List[List[float]]]] = None,
@@ -2719,7 +2766,7 @@ class Map3d:
         hud: Optional[List[HudElement]] = None,
         hud_warnings: bool = True,
         hud_frame_info: bool = True,
-        hud_stats: bool = True,
+        hud_stats: bool = False,
     ) -> RenderResult:
         """
         Renders a view of my 3D 'map3d' from my virtual `chora` camera.
@@ -2733,22 +2780,18 @@ class Map3d:
 
         Args:
             camera_pos_relative: (x, y, z) tuple for the camera's position
-                relative to my `base_footprint` in meters. Defaults to a
-                "shoulder camera" view [0.0, 0.0, 0.7].
+                relative to my `base_footprint` in meters.
             camera_pos_world: (x, y, z) tuple for the camera's absolute
                 position in the map frame. Overrides `camera_pos_relative`.
             look_at_relative: (x, y, z) tuple for the point the camera
-                should look at, relative to my `base_footprint`. Defaults
-                to 1 meter in front of me [1.0, 0, 0.0].
+                should look at, relative to my `base_footprint`.
             look_at_world: (x, y, z) tuple for the absolute map coordinate
                 the camera should look at. Overrides all other targeting args.
             rpy_deg: (roll, pitch, yaw) tuple in degrees to specify camera
                 orientation instead of a look_at point.
             resolution: (height, width) tuple for the output image.
-            fov_horz_deg: Horizontal field-of-view in degrees. If omitted,
-                uses `self.settings["fov_horz_deg"]`.
-            fov_vert_deg: Vertical field-of-view in degrees. If omitted,
-                uses `self.settings["fov_vert_deg"]`.
+            fov_deg: Field-of-view in degrees.
+            fov_axis: "horizontal" or "vertical". Defaults to horizontal.
             include_robot: If True, includes a 3D model of myself in the scene.
             save: If True, saves the rendered image to disk.
             hud: An optional list of `HudElement` objects to overlay text on the
@@ -3167,12 +3210,12 @@ __all__ = [
     "RaycastHit",
     "SceneObject",
     "SceneSnapshot",
-    "HudElement",
-    "HUD_ANCHORS",
-    "HUD_FONT_SIMPLEX",
-    "HUD_FONT_PLAIN",
-    "HUD_FONT_DUPLEX",
-    "HUD_FONT_SMALL",
+    # "HudElement",
+    # "HUD_ANCHORS",
+    # "HUD_FONT_SIMPLEX",
+    # "HUD_FONT_PLAIN",
+    # "HUD_FONT_DUPLEX",
+    # "HUD_FONT_SMALL",
     # Core class and singleton
     "Map3d",
     "get_map3d",

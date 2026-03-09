@@ -1,17 +1,16 @@
 # Logos/src/logos/utils.py
 
 """
-Internal (hidden) and other helper functions.
+Internal and other helper functions.
 
-Includes LLM-friendly YAML formatting, base36 encoding, and the photo ID
-system used by the vision module for artifact filenames.
+Includes LLM-friendly YAML formatting, base36 encoding, list to tuple, and the temporal ID
+system used for artifact filenames.
 """
 
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any, Optional, List, Tuple, Dict, Union
 import io
 import re
-
 from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from ruamel.yaml.scalarstring import LiteralScalarString, SingleQuotedScalarString, PlainScalarString
@@ -21,7 +20,7 @@ from ruamel.yaml.scalarstring import LiteralScalarString, SingleQuotedScalarStri
 
 _ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyz"
 
-# Epoch for photo IDs: Feb 8, 1977
+# Epoch for photo IDs: Feb 8, 1977 --- Mark's B'day
 _ID_EPOCH = datetime(1977, 2, 8, tzinfo=timezone.utc)
 
 # Module-level state for per-second sequencing
@@ -218,6 +217,25 @@ def _prepare_for_llm_yaml(
     # Let ruamel handle int, float, None, etc.
     return obj
 
+def get_center(box_2d: List[float]) -> Tuple[float, float]:
+    """
+    Calculates the [y, x] center point of a normalized 0-1000 bounding box.
+    
+    Args:
+        box_2d: A list of 4 floats [y_min, x_min, y_max, x_max].
+                If a list of 2 floats [y, x] is passed, it returns them as-is.
+    
+    Returns:
+        A tuple of (center_y, center_x) in 0-1000 coordinates.
+    """
+    if len(box_2d) == 2:
+        return (box_2d[0], box_2d[1])
+    
+    y_min, x_min, y_max, x_max = box_2d
+    center_y = (y_min + y_max) / 2.0
+    center_x = (x_min + x_max) / 2.0
+    return (center_y, center_x)
+
 
 def dump_yaml(
     data: Any,
@@ -234,3 +252,29 @@ def dump_yaml(
     buf = io.StringIO()
     _yaml_llm.dump(prepared, buf)
     return buf.getvalue()
+
+
+def to_3tuple(
+    value: Optional[Union[List[float], Tuple[float, float, float]]]
+) -> Optional[Tuple[float, float, float]]:
+    """List to 3 tuple of floats."""
+    if value is None:
+        return None
+
+    if len(value) != 3:
+        raise ValueError(f"Expected 3 values, got {len(value)}: {value}")
+
+    return float(value[0]), float(value[1]), float(value[2])
+
+
+def to_2tuple_int(
+    value: Optional[Union[List[int], Tuple[int, int]]]
+) -> Optional[Tuple[int, int]]:
+    """List to 2 tuple of ints."""
+    if value is None:
+        return None
+
+    if len(value) != 2:
+        raise ValueError(f"Expected 2 values, got {len(value)}: {value}")
+
+    return int(value[0]), int(value[1])

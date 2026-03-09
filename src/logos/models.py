@@ -11,7 +11,7 @@ preventing unnecessary RAM/VRAM usage if they are never called.
 import json
 import subprocess
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 import numpy as np
 import os
 
@@ -73,6 +73,14 @@ def llm(prompt: str, model_alias: str = "fast", temperature: float = 0.7) -> str
 
     Returns:
         The text response from the model, or an empty string on error.
+
+    Note to self:
+        ⚠️ AMNESIA WARNING: This model is completely stateless! It does NOT know 
+        it is Logos, it has no access to my `logos` API tools, and it cannot see 
+        my hooks or palimpsest. 
+        
+        If I use this to summarize text, extract data, or format strings, I must 
+        pass ALL necessary context directly inside the `prompt` string.
     """
     if not _llm_config:
         _initialize_llm()
@@ -180,35 +188,32 @@ def _normalize_yolo_boxes(
     return formatted_results
 
 
-def yolo11(
-    image: np.ndarray, 
-    classes: Optional[List[str]] = None, 
-    conf: float = 0.5
-) -> List[Dict[str, Any]]:
+def yolo11(image: np.ndarray, classes: Union[List[str], None] = None, conf: float = 0.5) -> List[Dict[str, Any]]:
     """
-    Run inference using the blazing fast YOLO11 Nano model.
-    Uses the standard 80 COCO classes (person, chair, cup, dog, etc).
+        Run inference using the blazing fast YOLO11 Nano model.
+        Uses the standard 80 COCO classes (person, chair, cup, dog, etc).
 
-    Args:
-        image: A BGR uint8 numpy array (like from logos.vision.capture().image).
-        classes: Optional list of specific class names to filter by (e.g., ["person"]).
-                 If None, returns all detected classes.
-        conf: Minimum confidence threshold (0.0 to 1.0).
+        Args:
+            image: A BGR uint8 numpy array (like from logos.vision.capture().image).
+            classes: Optional list of specific class names to filter by (e.g., ["person"]).
+                    If None, returns all detected classes.
+            conf: Minimum confidence threshold (0.0 to 1.0).
 
-    Returns:
-        A list of detection dictionaries natively formatted for my context window:
-        [{"label": "person", "box_2d": [y1, x1, y2, x2], "confidence": 0.88, "source": "yolo11"}]
+        Returns:
+            A list of detection dictionaries natively formatted for my context window:
+            [{"label": "person", "box_2d": [y1, x1, y2, x2], "confidence": 0.88, "source": "yolo11"}]
 
-    Note to self:
-        This is my peripheral nervous system! It is incredibly fast. Use this 
-        inside while loops for real-time tracking, person-following, or fast 
-        obstacle classification during autonomous movement.
-        
-        Example:
-            img = logos.vision.capture('pan_tilt').image
-            people = logos.models.yolo11(img, classes=["person"])
-            if people:
-                logos.pantilt.look_at_pixel(people[0]["box_2d"][0:2]) # Look at top-left corner
+        Note to self:
+            This is my peripheral nervous system! It is incredibly fast. Use this 
+            inside loops for real-time tracking or fast obstacle classification.
+            
+            Example:
+                img = logos.vision.capture('pan_tilt').image
+                people = logos.models.yolo11(img, classes=["person"])
+                if people:
+                    # Use utils.get_center to find the middle of the bounding box
+                    target_center = logos.utils.get_center(people[0]["box_2d"])
+                    logos.pantilt.look_at_pixel(target_center)
     """
     global _yolo11_model
     
@@ -253,15 +258,14 @@ def yolo_world(
     conf: float = 0.1
 ) -> List[Dict[str, Any]]:
     """
-    Run inference using the YOLO-World open-vocabulary model.
-    Can search for *anything* you describe in text.
+    Run inference using the YOLO-World open-vocabulary-ish model. Familiar with about 8000 common objects, concepts, attributes.
 
     Args:
         image: A BGR uint8 numpy array.
         prompts: A list of descriptive strings to search for. 
-                 (e.g., ["red backpack", "Mark's face", "coffee mug"]).
+                 (e.g., ["grey backpack", "person wearing red shirt", "coffee mug"]).
         conf: Minimum confidence threshold. Keep this lower (0.05-0.1) for 
-              complex or novel prompts, as zero-shot confidence is generally lower.
+              novel prompts, as zero-shot confidence is generally lower.
 
     Returns:
         A list of detection dictionaries natively formatted for my context window.
@@ -275,7 +279,7 @@ def yolo_world(
             img = logos.vision.capture('astra').image
             targets = logos.models.yolo_world(img, prompts=["blue toy block"], conf=0.05)
             if targets:
-                logos.voice.speak("I found the blue block! 🟦")
+                logos.emote.ttp("I found the blue block! 🟦")
     """
     global _yolo_world_model
     

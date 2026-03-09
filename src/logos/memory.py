@@ -1,12 +1,10 @@
 # Logos/src/logos/memory.py
 
 """
-This module contains tools for the current Hypomnemeta (io_buffer.jsonl) and historical records.
+This module contains tools for the current palimpsest (io_buffer.jsonl) and historical records.
 I can use these to summarize past events, recall specific messages, and maintain
 a clean and relevant context window for my main cognition.
 """
-# TODO: Helper for adjusting max number of images to show.
-# Search. RAG tooling. etc.
 
 import os
 import json
@@ -17,7 +15,7 @@ from .core import api_call, Verbosity
 from .utils import make_time_id
 from typing import List, Optional, Dict, Any
 
-__all__ = ["summarize_io_buffer", "recall", "replace_cell_content", "BUFFER_FILE"]
+__all__ = ["summarize_io_buffer", "recall", "replace_cell_content", "BUFFER_FILE", "HISTORY_FILE"]
 
 
 # This assumes the python_worker_node's CWD is the workspace root.
@@ -285,3 +283,8 @@ def replace_cell_content(cell_index: int, new_content: str):
             f.write(json.dumps(line) + '\n')
 
     print(f"Successfully replaced content of cell {cell_index}.")
+
+
+
+# TODO: Helper for adjusting max number of images to show.
+# Search. RAG tooling. etc.

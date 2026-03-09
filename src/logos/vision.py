@@ -191,7 +191,7 @@ class CaptureResult:
         photo_id:       Optional[str] — set when saved to disk.
         path:           Optional[str] — file path, set when saved.
         pose:           Optional[dict] — robot pose from TF at capture time.
-                        Keys: 'x', 'y', 'theta' (map frame, or odom fallback).
+                        Keys: 'x', 'y', 'deg' (map frame, or odom fallback).
         pan_tilt_degs:  Optional[Tuple[float, float]] — (pan, tilt) in degrees.
                         Only populated for source='pan_tilt'.
 
@@ -347,7 +347,7 @@ class CaptureResult:
             Useful for "zooming in" on a detection. I can capture at high res
             and then crop to isolate a region of interest:
 
-                result = logos.vision.capture('pan_tilt', resolution=(1944 2592))
+                result = logos.vision.capture('pan_tilt', resolution=(1944, 2592))
                 detections = [{"box_2d": [300, 400, 600, 700], "label": "thing"}]
                 zoomed = result.crop(detections[0]["box_2d"])
         """
@@ -391,9 +391,6 @@ class CaptureResult:
         if self.path is not None:
             meta_path = Path(self.path).with_suffix(".yaml")
             _write_sidecar(meta_path, self.meta)
-        # We no longer need to call self.save() here automatically.
-        # This makes the behavior more predictable: add_meta just adds data.
-        # The first call to save() or view() will persist it.
 
 
     def derive_world_coordinate(
@@ -402,7 +399,7 @@ class CaptureResult:
         search_radius: int = 3
     ) -> Optional[Tuple[float, float, float]]:
         """
-        Projects a 2D location into real-world 3D coordinates (map frame).
+        Projects a normalized 2D location from Astra image into real-world 3D coordinates (map frame).
 
         Args:
             *args: This can be:
@@ -412,13 +409,16 @@ class CaptureResult:
             search_radius: Pixels to search outward if the initial point is NaN.
 
         Note to self:
+            Uses our 0-1000 normalized system.
+            For boxes, the center point is calculated.
             I've made this function very flexible. I can pass it a YOLO detection 
             dictionary directly, a box list, or raw coordinates.
+            Does *not* work  for pan-tilt images.
             
             Examples:
                 # Passing a list (Good for splatting or direct box passing)
                 res.derive_world_coordinate(my_box)
-                res.derive_world_coordinate(*my_point) # Now works!
+                res.derive_world_coordinate(*my_point)
                 
                 # Passing raw numbers
                 res.derive_world_coordinate(500, 500)
@@ -468,7 +468,7 @@ class CaptureResult:
 
     def overlay_coordinate_grid(self, rows: int = 3, cols: int = 4) -> None:
         """
-        Burn a grid of sampled 3D coordinates directly into the image.
+        Burn a grid of sampled 3D coordinates directly into an Astra image.
 
         This leverages the ViT's ability to "read" dense data visually, 
         effectively compressing spatial information into the image tokens rather
@@ -1229,7 +1229,7 @@ def capture(
 
         Astra with depth for navigation:
             scene = logos.vision.capture('astra')
-            point_3d = scene.pixel_to_3d(y=450, x=300)
+            point_3d = scene.derive_world_coordinate(y=450, x=300)
 
         Lightweight Astra (no depth):
             scene = logos.vision.capture('astra', astra_feeds=('rgb',))

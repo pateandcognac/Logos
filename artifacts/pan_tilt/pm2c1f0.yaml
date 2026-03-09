@@ -1,0 +1,13 @@
+photo_id: pm2c1f0
+source: pan_tilt
+timestamp: 1772922867.2958682
+resolution:
+- 960
+- 1280
+pose:
+  x: -0.004731603008016297
+  y: -0.020677754639490398
+  theta: -1.0439674251815523
+pan_tilt_degs:
+- 0.0
+- 0.0

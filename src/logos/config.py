@@ -13,7 +13,7 @@ When API hooks or functions need a configuration value, they should read from
 updated by my preferences.
 
 Note to self: 
-To change my behavior on the fly, I modify `logos.config.prefs` and save:
+To change my behavior on the fly, I modify `logos.config.prefs` and optionally save:
     logos.config.prefs.setdefault('vision', ConfigDict())
     logos.config.prefs.vision.resolution = [1920, 1080]
     logos.config.save()

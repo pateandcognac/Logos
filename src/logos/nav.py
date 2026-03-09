@@ -10,7 +10,7 @@ and the `turtlebot_move` action server for odometry-based relative movements.
 
 import math
 import time
-from typing import Optional
+from typing import Optional, List
 
 from .core import api_call, Verbosity, check_for_interrupt
 from . import ros
@@ -27,7 +27,7 @@ try:
 except ImportError:
     _HAS_ROS = False
 
-__all__ = ["go_to_abs", "move_relative", "turn_then_drive", "approach_coordinate", "cancel_all", "NavTask"]
+__all__ = ["go_to_abs", "move_relative", "turn_then_drive", "approach_coordinate", "approach_detection", "cancel_all", "NavTask"]
 
 
 class NavTask:
@@ -124,14 +124,14 @@ class NavTask:
 
 
 @api_call(default_verbosity=Verbosity.BRIEF)
-def go_to_abs(x: float, y: float, theta_deg: Optional[float] = None, wait: bool = True) -> NavTask:
+def go_to_abs(x: float, y: float, deg: Optional[float] = None, wait: bool = False) -> NavTask:
     """
     Navigate to an absolute (x, y) coordinate on the ROS map using move_base.
 
     Args:
         x: Map X coordinate in meters.
         y: Map Y coordinate in meters.
-        theta_deg: Final facing direction in degrees. If None, I will automatically 
+        deg: Final facing direction in degrees. If None, I will automatically 
                    calculate the angle to face my direction of travel!
         wait: If True, blocks until the goal is reached. If False, returns a 
               NavTask immediately for asynchronous monitoring.
@@ -151,7 +151,7 @@ def go_to_abs(x: float, y: float, theta_deg: Optional[float] = None, wait: bool 
             task = logos.nav.go_to_abs(2.5, -1.0, wait=False)
             while task.is_active():
                 if task.progress() > 0.5:
-                    logos.voice.speak("Halfway there! 🏃", wait=False)
+                    logos.emote.ttp("Halfway there! 🏃", wait=False)
                     break # Break the loop, but the task keeps running in background!
             task.wait() # Now wait for the rest of the trip
     """
@@ -169,11 +169,11 @@ def go_to_abs(x: float, y: float, theta_deg: Optional[float] = None, wait: bool 
     start_y = pose['y'] if pose else 0.0
 
     # Auto-calculate orientation if none provided
-    if theta_deg is None:
+    if deg is None:
         # math.atan2(dy, dx) gives the angle of the vector
         yaw_rad = math.atan2(y - start_y, x - start_x)
     else:
-        yaw_rad = math.radians(theta_deg)
+        yaw_rad = math.radians(deg)
 
     # Convert Euler yaw to Quaternion
     quat = tf.transformations.quaternion_from_euler(0, 0, yaw_rad)
@@ -199,50 +199,53 @@ def go_to_abs(x: float, y: float, theta_deg: Optional[float] = None, wait: bool 
 
 
 @api_call(default_verbosity=Verbosity.BRIEF)
-def move_relative(forward: float, left: float, wait: bool = True) -> NavTask:
+def move_relative(forward_m: float = 0.0, left_m: float = 0.0, turn_deg: float = 0.0, wait: bool = False) -> NavTask:
     """
-    Move relative to my CURRENT position/orientation using the map navigation stack.
+    Move relative to my CURRENT position and orientation using the map navigation stack.
 
-    This calculates a destination coordinate based on my current pose and uses
-    `go_to_abs` to get there safely.
+    This calculates a global map coordinate based on my current pose and uses
+    `go_to_abs` to plan a safe, obstacle-avoiding path to get there.
 
     Args:
-        forward: Meters to move forward (positive) or backward (negative).
-        left: Meters to move left (positive) or right (negative).
+        forward_m: Meters to move forward (positive) or backward (negative).
+        left_m: Meters to my left (positive) or right (negative).
+        turn_deg: Degrees to turn relative to my current facing (positive is left).
         wait: If True, blocks until I arrive.
 
     Note to self:
-        Unlike `turn_then_drive` (which is blind), this uses `move_base`.
-        It allows me to say "move 1m forward" while still respecting the map
-        and avoiding obstacles.
+        I am a differential drive robot — I cannot strafe! If I command a movement
+        purely to my `left_m`, my navigation stack (`move_base`) will try to find a 
+        global path to that coordinate. This often results in a ridiculous, circuitous 
+        dance where I drive forward, loop around, and oscillate just to move 1 foot 
+        to the left!
 
-        Example:
-            logos.nav.move_relative(1.0, 0.0)   # Move 1m forward safely
-            logos.nav.move_relative(0.0, -0.5)  # Strafe/nav 0.5m to my right
-    
-    # Rework this to take simple (x,y) movement, e.g., (0.5, 0.25) means sets a nav goal 0.5m forward and 0.25m to my left.
-    # theta is optional and defaults to current heading.
+        Use this function ONLY when I need obstacle avoidance to reach a nearby relative 
+        location. If I just need to inch closer to a table or perform a simple geometric 
+        maneuver in open space, I should absolutely use `logos.nav.turn_then_drive()` instead!
+
+    Example:
+        # Safely navigate to a spot 1m ahead and end up facing 90 degrees left
+        logos.nav.move_relative(forward_m=1.0, turn_deg=90.0)
     """
     pose = ros.get_pose()
     if not pose:
         print("nav: Cannot move relative, current pose unknown.")
+        # Returning a dummy/failed NavTask (adjust signature to match your actual NavTask init)
         return NavTask(None, 0, 0, 0, 0)
 
     # Current state
-    x, y, theta_deg = pose['x'], pose['y'], pose['theta']
-    theta_rad = math.radians(theta_deg)
+    x, y, deg = pose['x'], pose['y'], pose['theta']
+    theta_rad = math.radians(deg)
     
-    # Calculate global offsets
-    # Global dx = forward*cos(theta) - left*sin(theta)
-    # Global dy = forward*sin(theta) + left*cos(theta)
-    dx = (forward * math.cos(theta_rad)) - (left * math.sin(theta_rad))
-    dy = (forward * math.sin(theta_rad)) + (left * math.cos(theta_rad))
+    # Calculate global map offsets based on my local orientation
+    dx = (forward_m * math.cos(theta_rad)) - (left_m * math.sin(theta_rad))
+    dy = (forward_m * math.sin(theta_rad)) + (left_m * math.cos(theta_rad))
     
     target_x = x + dx
     target_y = y + dy
+    target_theta = deg + turn_deg
     
-    # Preserve current orientation for the arrival
-    return go_to_abs(target_x, target_y, theta_deg=theta_deg, wait=wait)
+    return go_to_abs(target_x, target_y, deg=target_theta, wait=wait)
 
 
 @api_call(default_verbosity=Verbosity.BRIEF)
@@ -312,48 +315,67 @@ def cancel_all() -> None:
     tb_client = ros.get_action_client('turtlebot_move', TurtlebotMoveAction, wait_time=0.1)
     if tb_client: tb_client.cancel_all_goals()
 
-@api_call(default_verbosity=Verbosity.BRIEF)
-def approach_coordinate(
-    x: float, 
-    y: float, 
-    standoff: float = 1.0, 
-    wait: bool = True
-) -> NavTask:
+
+@api_call(default_verbosity=Verbosity.ACK)
+def approach_detection(box_3d: List[float], standoff: float = 1.0, source_frame: str = 'camera_depth_optical_frame', wait: bool = True) -> NavTask:
     """
-    Navigate to a spot near a coordinate, facing it upon arrival.
+    Navigate to a spot `standoff` meters away from the nearest face of a box_3d I detected from my Astra.
+    
+    This bridges the gap between my native visual 3D detections (in camera optical frame) 
+    and the physical map. It calculates the object's radius on the floor plane to ensure 
+    I stop at the appropriate distance from the surface, not the center.
 
     Args:
-        x, y: The target map coordinates to approach.
-        standoff: How many meters away from the target I should stop.
-        wait: If True, blocks until I arrive.
+        box_3d: The 9-value 3D bounding box list I emit natively:
+                [cx, cy, cz, sx, sy, sz, r, p, y]
+                (Center X, Y, Z; Size X, Y, Z; Roll, Pitch, Yaw).
+                Convention: Camera Optical Frame (X-Right, Y-Down, Z-Forward).
+        standoff: How many meters from the *surface* of the object to stop.
+        source_frame: The TF frame the detection was made in. Defaults to Astra depth.
+        wait: If True, blocks until arrival.
+
+    Returns:
+        A NavTask object.
 
     Note to self:
-        This is much safer than `go_to_abs` for objects or people! If I detect 
-        Mark at (2.0, 0.0), I can `approach_coordinate(2.0, 0.0, standoff=1.0)` 
-        and I will stop at (1.0, 0.0) facing him.
+        I use this when I want to inspect something I've seen. 
+        Since my native `box_3d` is in the camera frame, this function handles the 
+        messy TF transforms to get it onto the map.
+        
+        Crucially, it adjusts the goal so I don't ram into large objects! 
+        If I see a couch that is 1 meter deep, and request a 1.0m standoff, 
+        this function calculates the geometry and stops me 1.5m from the center 
+        (1.0m standoff + 0.5m object radius).
+        
+        Example:
+            # "I see a chair over there, let me get a closer look."
+            # [My native detection triggers] -> box = [...]
+            logos.nav.approach_detection(box, standoff=0.8)
     """
-    pose = ros.get_pose()
-    if not pose:
-        print("nav: Cannot approach, current pose unknown.")
-        return NavTask(None, x, y, 0, 0)
+    # 1. Unpack the box (We only need center and size for this)
+    # Optical Frame: X=Right, Y=Down, Z=Forward
+    cx, cy, cz, sx, sy, sz, *_ = box_3d
 
-    # 1. Calculate vector from target to me
-    dx = pose['x'] - x
-    dy = pose['y'] - y
-    dist = math.hypot(dx, dy)
+    # 2. Transform Center to Map Frame
+    # We use the current time (0.0) as we are acting on a live perception.
+    map_coords = logos.ros.transform_point_to_map(cx, cy, cz, source_frame, 0.0)
+    
+    if not map_coords:
+        print(f"Error: Could not transform detection from {source_frame} to map.")
+        return logos.nav.NavTask(status="ABORTED")
 
-    if dist < 0.1:
-        print("nav: Already at target coordinate.")
-        return NavTask(None, x, y, pose['x'], pose['y'])
+    mx, my, mz = map_coords
 
-    # 2. Calculate point 'standoff' meters away from target along that vector
-    ratio = standoff / dist
-    goal_x = x + (dx * ratio)
-    goal_y = y + (dy * ratio)
+    # 3. Calculate "Floor Radius"
+    # In Optical Frame, the object's footprint on the floor is defined by X (width) and Z (depth).
+    # We want to stop `standoff` away from the face. 
+    # Conservative approach: treat the object depth as the max of its optical X/Z dimensions 
+    # halved. This prevents clipping corners of rotated objects.
+    object_radius = max(sx, sz) / 2.0
+    
+    # 4. Total Standoff = Requested Standoff + Distance from Center to Face
+    effective_standoff = standoff + object_radius
 
-    # 3. Calculate orientation to face the target
-    # Angle from goal_pos to target_pos
-    angle_to_target = math.degrees(math.atan2(y - goal_y, x - goal_x))
-
-    return go_to_abs(goal_x, goal_y, theta_deg=angle_to_target, wait=wait)
-
+    # 5. Execute Approach
+    # approach_coordinate automatically faces the target (mx, my) upon arrival.
+    return logos.nav.approach_coordinate(mx, my, standoff=effective_standoff, wait=wait)

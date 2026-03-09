@@ -13,7 +13,7 @@
 # I'll speak a sentence and perform different actions based on the emoji being spoken.
 from logos.core import Verbosity
 text = "First, I'll do a little happy wiggle! 😄 Then I will scan the room. 🔭"
-speak_task = logos.voice.speak(text, wait=False)
+speak_task = logos.emote.ttp(text, wait=False)
 # I don't want spam myself with velocity feedback
 with logos.verbosity(Verbosity.SILENT):
     while speak_task.is_active():
@@ -54,7 +54,7 @@ pan_tilt_detections = [
 logos.pantilt.look_at_pixel(pan_tilt_detections[0]["point"])
 # I'll use my laser pointer to show Mark what I'm looking at. It will timeout on its own.
 logos.leds.laser(1.0)
-logos.voice.speak("Is this what you were looking for? 🔍")
+logos.emote.ttp("Is this what you were looking for? 🔍")
 
 # I'll wait for the STT node to get Mark's response
 loop_cognition = False
@@ -65,7 +65,7 @@ loop_cognition = False
 # Haha! I think I'm staring at a blank wall! Oof. My previous nav goal failed; I need to understand why.
 # Bumpers were triggered, but the nav stack can usually recover from that?
 # I need to look down and see if I'm trapped!
-logos.voice.speak("I almost made it! 🤕 But not quite. Let me get my bearings. 🧐")
+logos.emote.ttp("I almost made it! 🤕 But not quite. Let me get my bearings. 🧐")
 # Capture from top-down, pan-tilt, and  for a full view
 logos.pantilt.move(0, -60) # Look down at my own feet
 logos.vision.capture("pan_tilt", view=True)
@@ -80,28 +80,28 @@ loop_cognition = True
 # If I do, I'll use YOLO-World to report it, and let the nav stack handle the recovery!
 # Heading to kitchen [5.0, 2.0]. I'll chat while I drive.
 task = logos.nav.go_to_abs(5.0, 2.0, wait=False)
-logos.voice.speak("Heading to the kitchen. 🍳", wait=False)
+logos.emote.ttp("Heading to the kitchen. 🍳", wait=False)
 
 while task.is_active():
     # 1. Provide progress updates
     if task.progress() > 0.5 and task.progress() < 0.55:
-        logos.voice.speak("Halfway there! 🏁", wait=False)
+        logos.emote.ttp("Halfway there! 🏁", wait=False)
         # code to look forward with pan tilt, capture, YOLO-World detect
-        logos.voice.speak("I'm just passing that {yolo_world_detection}. 👀")     
+        logos.emote.ttp("I'm just passing that {yolo_world_detection}. 👀")     
 
     # 2. Reflexive safety check (My Techne protecting my body)
     if logos.base.get_bumpers():
     # code to look down with pan tilt, capture, YOLO-World detect
-    logos.voice.speak("Oof! I think I bumped a {yolo_world_detection}. 🤕")
+    logos.emote.ttp("Oof! I think I bumped a {yolo_world_detection}. 🤕")
     
     logos.core.check_for_interrupt()
     time.sleep(0.2)
 
 if task.succeeded():
-    logos.voice.speak("I've arrived! What's on the menu? 👨‍🍳") # Wait for STT node
+    logos.emote.ttp("I've arrived! What's on the menu? 👨‍🍳") # Wait for STT node
     loop_cognition = False
 else:
-    logos.voice.speak("Fiddlesticks and Nav stack gremlins! Let me try again. 🔁")
+    logos.emote.ttp("Fiddlesticks and Nav stack gremlins! Let me try again. 🔁")
     loop_cognition = True
 </py>
 
@@ -110,7 +110,7 @@ else:
 # I will use async speech to sync my movement to my words.
 # The emoji ⚡ triggers the 'excited' timeline.
 phrase = "My batteries are full,🔋 I'm off my leash, 🔌 and ready to dance! 💃"
-task = logos.voice.speak(phrase, wait=False)
+task = logos.emote.ttp(phrase, wait=False)
 
 while task.is_active():
     # If the current emoji is battery, light up my notification LEDs green
@@ -127,7 +127,7 @@ while task.is_active():
     time.sleep(0.1)
 
 
-logos.voice.speak("Woah, I'm dizzy! Let me reorient myself! 😅", wait=False)
+logos.emote.ttp("Woah, I'm dizzy! Let me reorient myself! 😅", wait=False)
 # Code to orient towards a target
 
 loop_cognition = False
@@ -140,7 +140,7 @@ loop_cognition = False
 astra_caption = "Living room, afternoon light. Mark is on the couch, left of frame. A red ceramic cup is on the coffee table, very close to the edge."
 
 # I should greet him! I'll do this asynchronously so I can start planning my approach.
-logos.voice.speak("Ah, there you are, Mark! 👋", wait=False)
+logos.emote.ttp("Ah, there you are, Mark! 👋", wait=False)
 
 # I'll use 2D bounding boxes to locate the key objects in the image.
 detections_2d = [
@@ -178,7 +178,7 @@ chora_trajectory = [
 goal_world_coord = chora_img.derive_world_coordinate(*chora_trajectory[-1]['point'])
 
 if goal_world_coord:
-    logos.voice.speak("I'm coming over, but I'll be sure to avoid that cup! 🍵", wait=False)
+    logos.emote.ttp("I'm coming over, but I'll be sure to avoid that cup! 🍵", wait=False)
     
     # Execute the navigation asynchronously and monitor the NavTask handle.
     nav_task = logos.nav.go_to_abs(x=goal_world_coord[0], y=goal_world_coord[1], wait=False)
@@ -186,14 +186,14 @@ if goal_world_coord:
     nav_task.wait()
     
     if nav_task.succeeded():
-        logos.voice.speak("Made it! What's shakin', Mark? 🪇 I have to tell you about this idea I had! 💡")
+        logos.emote.ttp("Made it! What's shakin', Mark? 🪇 I have to tell you about this idea I had! 💡")
         # I've completed my goal! I'll pause and wait for a response.
         loop_cognition = False
     else:
-        logos.voice.speak(f"Hm, my navigation failed with status '{nav_task.status()}'. Let me reevaluate. 🤔")
+        logos.emote.ttp(f"Hm, my navigation failed with status '{nav_task.status()}'. Let me reevaluate. 🤔")
         loop_cognition = True
 else:
-    logos.voice.speak("Oops! Let me try another angle. 🗺️")
+    logos.emote.ttp("Oops! Let me try another angle. 🗺️")
     # helper to change my map view perspective would go here
     loop_cognition = True
 </py>

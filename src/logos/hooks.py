@@ -1,7 +1,7 @@
 # Logos/src/logos/hooks.py
 
 """
-This module contains functions for me to introspect and modify my own cognitive hook configurations. Does *not* contain the hook code itself.
+This module contains functions for me to introspect and modify my own cognitive hook configurations. Does *not* contain the hook code itself. `logos.hooks.state` is initialized as an empty dict for variable storage. 
 """
 
 from pathlib import Path
@@ -10,7 +10,7 @@ from .core import Verbosity, api_call
 from typing import Union
 import time
 
-__all__ = ["show", "upsert", "remove"]
+__all__ = ["show", "upsert", "remove", "state", "CONFIG_PATH", "WORKSPACE_PATH"]
 
 
 # Initialize a YAML instance that preserves comments and formatting
@@ -20,6 +20,10 @@ yaml.indent(mapping=2, sequence=4, offset=2)
 # This assumes the python_worker_node's CWD is the workspace root.
 WORKSPACE_PATH = Path.cwd()
 CONFIG_PATH = WORKSPACE_PATH / "config"
+
+# set up a simple dict for holding state
+state = {}
+
 
 def _get_config_path(location: str) -> Path:
     """Helper to resolve the config file path from a friendly name."""
@@ -58,14 +62,14 @@ def show(location: str) -> str:
 
     for r in hooks:
         name = r.get('name', 'Unnamed')
-        ttl = r.get('ttl', 'N/A')
+        active = r.get('active', 'N/A')
         desc = r.get('description', 'No description.')
-        output.append(f"- {name} (ttl: {ttl}): {desc}")
+        output.append(f"- {name} (active: {active}): {desc}")
 
     return "\n".join(output)
 
 @api_call(default_verbosity=Verbosity.ACK)
-def upsert(location: str, name: str, *, description: Union[str, None] = None, ttl: Union[int, None] = None, code: Union[str, None] = None, insert_before: Union[str, None] = None,) -> None:
+def upsert(location: str, name: str, *, description: Union[str, None] = None, active: Union[bool, None] = None, code: Union[str, None] = None, insert_before: Union[str, None] = None,) -> None:
     """
     Update an existing hook or create a new one in the requested configuration.
 
@@ -73,7 +77,7 @@ def upsert(location: str, name: str, *, description: Union[str, None] = None, tt
         location: Which config file to edit ('arche' or 'ephemera').
         name: Unique hook name to update or create.
         description: Human-friendly summary to store with the hook.
-        ttl: Number of cycles the hook should persist (e.g., 99 to pin, -99 to run once).
+        active: Whether to show. True/False.
         code: Python source for the hook. Required when creating a new hook.
         insert_before: Optional hook name to insert before when creating.
     """
@@ -85,7 +89,7 @@ def upsert(location: str, name: str, *, description: Union[str, None] = None, tt
 
     updates = {
         "description": description,
-        "ttl": ttl,
+        "active": active,
         "code": code,
     }
     provided_updates = {k: v for k, v in updates.items() if v is not None}

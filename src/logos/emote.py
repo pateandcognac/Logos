@@ -1,7 +1,7 @@
-# Logos/src/logos/voice.py
+# Logos/src/logos/emote.py
 
 """
-My voice. This module allows me to `speak()` using my TTS system and emoji
+My voice and performance module. This module allows me to using my TTS system and emoji
 powered animatronic expressions. 
 
 It provides asynchronous control, allowing me to sync my physical body movements
@@ -24,7 +24,7 @@ try:
 except ImportError:
     _HAS_ROS = False
 
-__all__ = ["speak", "is_speaking", "SpeakTask"]
+__all__ = ["ttp", "is_speaking", "SpeakTask"]
 
 # My default voice settings
 DEFAULT_ENGINE = "kokoro"
@@ -150,28 +150,28 @@ class SpeakTask:
 
 
 @api_call(default_verbosity=Verbosity.BRIEF)
-def speak(
+def ttp(
     text: str, 
-    wait: bool = True, 
+    wait: bool = False, 
     engine: Optional[str] = None,
     **kwargs
 ) -> SpeakTask:
     """
-    Takes emoji-punctuated text and speaks it in sync with animatronic face and arm expressions. 🎭
+    My Text-to-Performance pipeline. ┃ Takes emoji-punctuated text and speaks it, 🗣️ while using the emoji to trigger animatronic face and arm expressions in sync. 🎭
 
     This is not just Text-To-Speech; it is **Text-To-Performance**. 🤹
     Text is split at emojis. ➗ These emojis are NOT spoken. 🙊 Instead, they are used to trigger 
-    prebuilt animatronic keyframe sequences for my face and arms! 🎞️  Punctuating with emoji a is a low-effort, 🦥
+    prebuilt animatronic keyframe sequences for my face and arms! 🎞️ Punctuating with emoji a is a low-effort, 🦥
     high-impact way to bring myself to life while abstracting away control complexity. ⚡
 
 
     Args:
-        text: The emoji-punctuated string to speak. 
+        text: The emoji-punctuated string to speak. 💬
         wait: 
-            If True (default), pauses code execution until the audio completely finishes.
+            If True, pauses code execution until the audio completely finishes.
             If False, returns a SpeakTask immediately for async monitoring.
         engine: "kokoro" (default), "piper", or "espeak".
-        **kwargs: Overrides for engine params (e.g., speed=1.0, volume=1.0).
+        **kwargs: Overrides for engine params (e.g., voice="...", speed=1.0, volume=1.0).
 
     Returns:
         A SpeakTask object.
@@ -181,22 +181,24 @@ def speak(
         - I punctuate every sentence I speak with emojis to bring myself to life! 🌟
         - Every sentence or distinct clause deserves an emotional, gestural, or contextual marker. 📌
         - I'm not restricted to conventional face emojis. 🍕 I have thousands of emojis to choose from. ♾️ The sky is the limit! 🌌
-        - CONSTRAINTS: Avoid compounding emojis like gender or skin-tone modifiers. 🧪 Avoid robot face emoji as cliché and redundant. 🔁 Max 2 emojis per sentence to avoid hyperactivity. 🤸
+        - Consider using the robotic espeak voice engine when I want to make it clear when an algorithm is speaking, rather than my nous directly.
+        - Constraints: Avoid compounding emojis like gender or skin-tone modifiers. 🧪 Avoid robot emoji as cliché and redundant. 🔁 Max 2 emojis per sentence to avoid hyperactivity. 🤸
 
         Example of Asynchronous Choreography:
             text = "I am so happy to see you! 😄 But... what is that? 🤨 Let me look! 🔭"
-            task = logos.voice.speak(text, wait=False)
+            task = logos.emote.ttp(text, wait=False)
             while task.is_active():
                 logos.core.check_for_interrupt()
                 current_emoji = task.current_emoji()
-                if current_emoji == "😄":
-                    logos.base.velocity(0.0, 90.0, 0.2) # Happy wiggle
+                if current_emoji == "😄": # Happy wiggle
+                    for _ in range(2):
+                        logos.base.velocity(0.0, 60, 0.25)
+                        logos.base.velocity(0.0, -60, 0.25)
                 elif current_emoji == "🤨":
-                    logos.base.stop() # Suspicious freeze
+                    logos.base.turn_then_drive(0, -0.2) # Small startle response
                 elif current_emoji == "🔭":
-                    logos.base.velocity(0.0, 0.5, 0.5) # Searching rotation
-                time.sleep(0.1)
-            logos.base.stop()
+                    logos.base.turn_then_drive(90, 0) # Search sweep
+                    logos.base.turn_then_drive(-90, 0)
     """
     if not _HAS_ROS:
         print(f"Voice Error: ROS unavailable. (Would have said: {text})")
@@ -238,4 +240,4 @@ def speak(
 
 def is_speaking() -> bool:
     """Checks if ANY speech audio is currently playing across the system."""
-    return ros.is_speaking()
+    return ros._is_speaking()

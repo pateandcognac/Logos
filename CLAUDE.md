@@ -32,7 +32,7 @@ The robot's one universal tool. Always available in its Python runtime without i
 | `map3d.py` | Virtual 3D scene ("Chora") — render from ROS map + Astra point cloud + phantasmata, then raycast to world coords |
 | `nav.py` | Autonomous navigation via `move_base` (absolute) and `turtlebot_actions` (relative) |
 | `memory.py` | io_buffer summarization and recall |
-| `leds.py`, `voice.py`, `shell.py`, `files.py`, `ros.py`, `base.py` | Hardware I/O, filesystem, ROS utilities |
+| `leds.py`, `emote.py`, `shell.py`, `files.py`, `ros.py`, `base.py` | Hardware I/O, filesystem, ROS utilities |
 
 ### The `@api_call` Decorator
 
@@ -40,15 +40,11 @@ Functions with side effects (movement, IO, state changes) are decorated with `@a
 
 ### Cognitive Hooks (`config/arche_config.yaml`, `config/ephemera_config.yaml`)
 
-Hooks are Python snippets that execute before each Logos cognition cycle to populate its context. They live in YAML with a TTL:
-- `ttl = 99` / `-99` = pinned (permanent / cached)
-- `ttl > 0` = dynamic, decrements each cycle
-- `ttl < 0` = cached (runs once, output reused)
-- `ttl = 0` = expired/inactive
+Hooks are Python snippets that execute before each Logos cognition cycle to populate its context. They live in YAML with name, description, active, and code keys.
 
 Complex hook logic lives in `src/hook_routines/` and is imported from the YAML code string.
 
-### Mind Palace / Phantasmata (`src/logos/phantasmata/`, `config/mind_palace_00.yaml`)
+### Mind Palace / Phantasmata (`src/logos/phantasmata/`, `hypomnemata/mind_palace_00.yaml`)
 
 Phantasmata are Python modules that define 3D geometry and/or HUD overlays rendered into the Chora view. Each module implements:
 - `SCHEMA: dict` — parameter schema
@@ -57,7 +53,7 @@ Phantasmata are Python modules that define 3D geometry and/or HUD overlays rende
 
 `PhantasmaContext` (from `phantasma_convention.py`) gives build functions access to the robot pose, TF buffer, and the live Python REPL namespace.
 
-Instances are configured in `config/mind_palace_00.yaml` and managed via `logos.map3d.place/update_instance/set_visible/reload_mind_palace`.
+Instances are configured in `hypomnemata/mind_palace_00.yaml` and managed via `logos.map3d.place/update_instance/set_visible/reload_mind_palace`.
 
 ### State and Memory (`state/`)
 

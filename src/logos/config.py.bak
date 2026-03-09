@@ -130,7 +130,7 @@ class Map3dState:
         self.ray_infinity_distance_m: float = 50.0
 
         # Phantasmata configuration
-        self.mind_palace_config: str = "config/mind_palace_00.yaml"
+        self.mind_palace_config: str = "hypomnemata/mind_palace_00.yaml"
         self.phantasmata_dir: str = "src/logos/phantasmata"
 
         # Rendering defaults

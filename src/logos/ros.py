@@ -55,7 +55,26 @@ def transform_point_to_map(
     timestamp: float
 ) -> Optional[Tuple[float, float, float]]:
     """
-    Transforms a 3D coordinate from a source frame to the 'map' frame.
+    Transforms a 3D coordinate from a specific source frame into the absolute 'map' frame. (e.g. my box_3d detection from an Astra image.)
+    
+    Unlike map-to-frame (which usually queries the latest time), this function 
+    requires a specific timestamp. This is crucial when projecting historical 
+    detections from moving frames to ensure the coordinate is mapped to where I
+    was *actually* looking at the exact moment the image was captured, not where
+    the camera is pointed right now.
+
+    Args:
+        x, y, z: Coordinates in the source frame (meters).
+        source_frame: The TF frame of the input coordinates (e.g., 'astra_depth_optical_frame').
+        timestamp: The ROS timestamp (usually derived from a CaptureResult.timestamp).
+
+    Returns:
+        (x, y, z) in the absolute map frame, or None if the TF tree cannot resolve the transform.
+
+    Note to self:
+        I will often use this in tandem with `logos.vision` or `logos.map3d` when 
+        I need to anchor a transient visual detection to a permanent physical location 
+        in my Chora or navigation goals.
     """
     buf = get_tf_buffer()
     
@@ -171,7 +190,7 @@ def init_subscribers():
             queue_size=1
         )
 
-def is_speaking() -> bool:
+def _is_speaking() -> bool:
     """Returns True if I am currently outputting speech audio."""
     # Ensure listener is active
     init_subscribers()
@@ -182,7 +201,7 @@ def is_speaking() -> bool:
 
 def get_pose() -> Optional[Dict[str, float]]:
     """
-    Get the robot's current pose from TF.
+    Get the robot's current pose from TF. Returns x, y, deg.
 
     Tries map -> base_link first, falls back to odom -> base_link.
     Returns None if neither transform is available (no crash, no hang).
@@ -229,9 +248,9 @@ def get_pose() -> Optional[Dict[str, float]]:
         theta = math.atan2(siny_cosp, cosy_cosp)
 
         # in degrees for Logos and human facing stuff
-        theta = math.degrees(theta)
+        theta_deg = math.degrees(theta)
 
-        return {"x": t.x, "y": t.y, "theta": theta}
+        return {"x": t.x, "y": t.y, "deg": theta_deg}
 
     except Exception:
         return None
