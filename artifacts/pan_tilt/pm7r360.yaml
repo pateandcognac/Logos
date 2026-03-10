@@ -1,0 +1,13 @@
+photo_id: pm7r360
+source: pan_tilt
+timestamp: 1773175650.9480135
+resolution:
+- 960
+- 1280
+pose:
+  x: -0.0038431204897533475
+  y: -0.009510842361948957
+  deg: 0.07624460987508803
+pan_tilt_degs:
+- 0.0
+- 0.0

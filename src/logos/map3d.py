@@ -2745,7 +2745,7 @@ class Map3d:
         rot_matrix_3x3: Optional[Union[np.ndarray, List[List[float]]]] = None,
         look_distance_m: float = 2.0,
         max_cloud_height_m: Optional[float] = None,
-        resolution: Tuple[int, int] = (768, 768),  # (height, width)
+        resolution: Tuple[int, int] = (1000, 1000),  # (height, width)
         fov_deg: Optional[float] = None,
         fov_axis: Optional[str] = None,  # "horizontal" or "vertical"
         include_robot: bool = True,
@@ -2826,6 +2826,13 @@ class Map3d:
             would be the foundation of a true 3D semantic world model.
         """
         check_for_interrupt()
+
+        if resolution: resolution = tuple(resolution)
+        if camera_pos_relative: camera_pos_relative = tuple(camera_pos_relative)
+        if look_at_relative: look_at_relative = tuple(look_at_relative)
+        if camera_pos_world: camera_pos_world = tuple(camera_pos_world)
+        if look_at_world: look_at_world = tuple(look_at_world)
+
 
         width = int(resolution[1])
         height = int(resolution[0])

@@ -844,7 +844,7 @@ def append(path: str, content: str):
         f.write(content)
 
 
-def show(path: str, max_chars: int = 2000, pattern: Optional[str] = None) -> str:
+def show(path: str, max_chars: int = 32767, pattern: Optional[str] = None) -> str:
     """
     Print and return a possibly filtered, truncated view of a file.
 

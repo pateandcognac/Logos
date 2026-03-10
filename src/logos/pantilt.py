@@ -45,7 +45,7 @@ _COUNTS_PER_DEG = (_SERVO_MAX - _SERVO_MIN) / _FULL_RANGE_DEG  # 2.5
 
 # Home positions in servo counts (0° in degree space)
 _HOME_PAN_COUNTS = 400
-_HOME_TILT_COUNTS = 400
+_HOME_TILT_COUNTS = 425
 
 # Physical servo limits for the tilt axis (narrower than full range)
 _TILT_SERVO_MIN = 225
@@ -179,9 +179,9 @@ def move(
         The clamped (pan, tilt) degrees actually commanded.
 
     Note to self:
-        Interpolation makes my movements look more natural and prevents
-        hardware-straining 'snaps'. I use Quadratic Out easing to 
-        decelerate smoothly into the target.
+        Interpolation solves the problem of the small servos sometimes getting stuck,
+        makes my movements look more natural, and prevents hardware-straining 'snaps',
+        and reduces camera shake by easing in quadratically.
     """
     _ensure_subscribers()
     target_pan, target_tilt = _clamp_deg(pan_deg, tilt_deg)
@@ -354,7 +354,7 @@ def look_at_pixel(
 
     return move(new_pan, new_tilt, duration=0.4, verbosity=Verbosity.SILENT)
 
-
+'''
 @api_call(default_verbosity=Verbosity.BRIEF)
 def look_at_coord(x: float, y: float, z: float) -> Tuple[float, float]:
     """
@@ -378,7 +378,8 @@ def look_at_coord(x: float, y: float, z: float) -> Tuple[float, float]:
     # is mounted slightly above the servo axis, but aiming from the link is usually
     # close enough for jazz.
     target_frame = "pan_tilt_link"
-    
+    # TODO: create a pan-tilt link!?
+     
     local_pt = ros.transform_map_to_frame(x, y, z, target_frame)
     if local_pt is None:
         print(f"pantilt: Could not transform target ({x}, {y}, {z}) to {target_frame}.")
@@ -403,3 +404,4 @@ def look_at_coord(x: float, y: float, z: float) -> Tuple[float, float]:
     tilt_deg = math.degrees(tilt_rad)
     
     return move(pan_deg, tilt_deg, duration=1.0, verbosity=Verbosity.SILENT)
+'''

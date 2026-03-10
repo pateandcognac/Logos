@@ -1,0 +1,13 @@
+photo_id: pm7pal0
+source: pan_tilt
+timestamp: 1773173325.2342935
+resolution:
+- 960
+- 1280
+pose:
+  x: -0.04820516571884621
+  y: -0.01963505816521074
+  deg: 2.4200000000000017
+pan_tilt_degs:
+- 0.0
+- 0.0

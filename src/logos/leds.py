@@ -20,7 +20,7 @@ from .core import api_call, Verbosity
 from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 
-__all__ = ["set", "fill", "off", "laser"]
+__all__ = ["set", "fill", "off", "laser", "STRIPS"]
 
 
 # ─── Strip Configuration ─────────────────────────────────────────────
@@ -131,7 +131,7 @@ def _pack_led(index: int, color_int: int) -> int:
 @api_call(default_verbosity=Verbosity.ACK)
 def set(strip: str, colors: Sequence[ColorValue]) -> None:
     """
-    Set individual LED colors on a strip.
+    Set individual LED colors on a strip ('face', 'notification', or 'pan_tilt').
 
     Args:
         strip: Which strip to address: 'face', 'notification', or 'pan_tilt'.
@@ -169,7 +169,7 @@ def set(strip: str, colors: Sequence[ColorValue]) -> None:
 @api_call(default_verbosity=Verbosity.ACK)
 def fill(strip: str, color: ColorValue) -> None:
     """
-    Set all LEDs on a strip to the same color.
+    Set all LEDs on a strip ('face', 'notification', or 'pan_tilt') to the same color (hex int, RGB tuple, or named string).
 
     Args:
         strip: Which strip: 'face', 'notification', or 'pan_tilt'.
@@ -210,7 +210,7 @@ def off(strip: Optional[str] = None) -> None:
 @api_call(default_verbosity=Verbosity.ACK)
 def laser(brightness: float) -> None:
     """
-    Set the laser pointer brightness.
+    Set the laser pointer brightness 0.0 to 1.0
 
     Args:
         brightness: Float from 0.0 (off) to 1.0 (full power).

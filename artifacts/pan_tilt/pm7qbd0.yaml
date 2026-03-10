@@ -1,0 +1,13 @@
+photo_id: pm7qbd0
+source: pan_tilt
+timestamp: 1773174649.3089378
+resolution:
+- 960
+- 1280
+pose:
+  x: -0.04841816660929778
+  y: -0.019644946552774312
+  deg: 2.2799999999999985
+pan_tilt_degs:
+- 19.6
+- 7.6

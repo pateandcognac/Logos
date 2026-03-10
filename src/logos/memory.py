@@ -124,7 +124,7 @@ def summarize_io_buffer(cell_indices: List[int], guidance: str = None):
     for task in summarization_tasks:
         example_output_tasks.append({
             "task_id": task['task_id'],
-            "content": f"Your concise, first-person summary of messages: {', '.join(task['msg_ids'])}."
+            "content": f"Your first-person summary of messages: {', '.join(task['msg_ids'])}."
         })
     example_output_json = json.dumps({"summaries": example_output_tasks}, indent=2)
 
@@ -132,7 +132,7 @@ def summarize_io_buffer(cell_indices: List[int], guidance: str = None):
 
     # 4. Call the LLM and parse the response
     from .models import llm # Local import to avoid circular dependency issues at startup
-    response_str = llm(full_prompt, model_alias='fast', temperature=0.7)
+    response_str = llm(full_prompt, model_alias='fast', temperature=1.0)
 
     if not response_str:
         print("summarize_io_buffer: Received no response from LLM.")
@@ -208,7 +208,7 @@ def summarize_io_buffer(cell_indices: List[int], guidance: str = None):
         for summary in new_summaries_for_log:
             f.write(json.dumps(summary) + '\n')
             
-    print(f"Successfully created {len(new_summaries_for_log)} summaries and updated io_buffer.")
+    print(f"Successfully created {len(new_summaries_for_log)} summaries and updated `io_buffer.jsonl`")
     
 
 

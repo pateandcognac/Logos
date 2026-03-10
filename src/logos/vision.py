@@ -1400,7 +1400,7 @@ def _get_debug_pub(source: str):
     if source not in _debug_pubs and _HAS_ROS:
         topic = f"/logos/debug_vision/{source}"
         from sensor_msgs.msg import Image as ROSImage
-        _debug_pubs[source] = rospy.Publisher(topic, ROSImage, queue_size=1)
+        _debug_pubs[source] = rospy.Publisher(topic, ROSImage, queue_size=2, latch=True)
     return _debug_pubs.get(source)
 
 @api_call(default_verbosity=Verbosity.SILENT)

@@ -1,23 +1,24 @@
-- name: hook_status
-  description: "A live view of my configured hooks."
+- name: hook_configs
+  description: A summary of my active cognitive hooks.
   active: true
-  code: |-
+  code: |
     import time
     from logos.core import verbosity, check_for_interrupt, help, Verbosity
-    print("# Arche Hooks")
+    print("\n--- Cognitive Hook Status ---")
+    print("ARCHE:")
     print(logos.hooks.show('arche'))
-    print("\n# Ephemera Hooks")
+    print("EPHEMERA:")
     print(logos.hooks.show('ephemera'))
 
-- name: api_summary
-  description: A high-level overview of my available API modules.
+- name: api_dump
+  description: My core API reference (signatures and one-liners).
   active: true
-  code: |-
-    import logos
-    logos.help()
+  code: |
+    print("--- Logos API Reference ---")
+    logos.help(print_output=True)
 
 - name: file_tree
-  description: Shows the layout of my workspace, as configured by logos.config.files
+  description: Shows the layout of my workspace, as configured by logos.config.merged.files
   active: true
   code: |-
     # Read configuration from the merged config object
@@ -25,6 +26,7 @@
     show_ext = logos.config.merged.get('files', {}).get('show_extensions', [])
     inline_masks = logos.config.merged.get('files', {}).get('inline_meta_masks', [])
 
+    print("\n--- Workspace File Tree ---")
     print(logos.files.tree(
         max_depth=max_depth,
         show_extensions=show_ext,
@@ -36,3 +38,10 @@
   active: true
   code: |-
     print('<file path="images/Logos_with_self_model.py_overlay.png"></file>')
+
+- name: proprioception_sweep
+  description: 360-degree-ish visual sweep of the floor immediately surrounding me. Updates gated by pose and time.
+  active: true
+  code: |
+    import hook_routines.proprioception as p
+    p.run()

@@ -104,7 +104,7 @@ class SpeakTask:
             
         # Action server is done (synthesis finished). Is audio still playing?
         self._synthesis_done = True
-        return self._get_playhead() is not None or ros.is_speaking()
+        return self._get_playhead() is not None or ros._is_speaking()
 
     def current_text(self) -> str:
         """Returns the specific text snippet being spoken right now."""
@@ -142,7 +142,7 @@ class SpeakTask:
             rate.sleep()
             
         # Ensure the global speaking flag has cleared
-        while ros.is_speaking():
+        while ros._is_speaking():
             check_for_interrupt()
             rate.sleep()
 

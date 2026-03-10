@@ -27,7 +27,7 @@ speak:
 map3d:
   phantasmata_dir: "src/logos/phantasmata"
   chora_config: "hypomnemata/mind_palace_00.yaml"
-  map_frame: [map, odom, rgd_optical_frame] 
+  map_frame: [map, odom, rgb_optical_frame] 
   render_params:
     resolution: [1000, 1000]
     fov_deg: 60.0
@@ -39,7 +39,6 @@ map3d:
     cloud_alpha: 1.0
     cloud_density: 1.0
     laser_scan_show: true
-    hud: true
     save: true
 
 memory_policy:

@@ -1,44 +1,45 @@
-- name: the_basics
-  description: Shows time, battery, and logos.config
-  active: true
-  code: |-
-    import datetime, time, logos
-    print(f"# Current time: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-    batt = logos.base.get_battery()
-    print(f"Battery {batt['percentage']}% ({batt['status']})\nCharger: {logos.base.get_charger_state()}")
-    print(logos.config)
-
-- name: manage_memory
-  description: Automatically summarizes my io_buffer based on my memory_policy.
-  active: true
-  code: |-
-    # This hook's logic is complex, so it's defined in a separate file
-    # for clarity and maintainability.
-    try:
-        from hook_routines import memory_manager
-        memory_manager.run_policy_check()
-    except ImportError as e:
-        # This might happen on the very first run if paths are still setting up
-        print(f"Warning: Could not import memory_manager hook: {e}")
-    except Exception as e:
-        print(f"Error during memory management: {e}")
-
-- name: vision_reflex
-  description: "The Retinal Flash. Captures live images based on configuration."
+- name: dashboard
+  description: Real-time status (pose, battery, time, loop count) and memory check.
   active: true
   code: |
-    # We import and run the routine from the file to keep this YAML clean.
-    # The variables it creates (astra_img, pt_seq) will persist in the global scope!
-    import hook_routines.vision_hook
-    import importlib
-    # importlib.reload(hook_routines.vision_hook) # Force reload to pick up changes!
-    hook_routines.vision_hook.run()
-    print("# astra_img and pt_seq available in global scope")
+    import hook_routines.dashboard as d
+    d.run()
 
-- name: chora
-  description: "A projection of my mind's eye."
+- name: ambient_transcript
+  description: Rolling window of ambient speech. Control via `logos.config.prefs.ambient_stt.enabled = True/False`.
+  active: false
+  code: |
+    # Placeholder for the ambient STT hook routine
+    if logos.config.merged.get('ambient_stt', {}).get('enabled', False):
+      print("--- Placeholder for Ambient Transcript (TODO) ---")
+      # import hook_routines.ambient as a; a.run()
+
+- name: vision
+  description: My camera feeds. Configure via `logos.config.prefs.vision`.
   active: true
   code: |
-    cpr=logos.config.merged.get
-    chora = logos.map3d.render(camera_pos_relative = [1.0, 0.5, 2.0],look_at_relative = [0.5, 0, 0.35])
-    print("# chora variable contains RenderResult of map3d")
+    # Placeholder for a more complex vision hook routine
+    # For now, a simple pan-tilt capture.
+    print("\n--- Primary Vision ---")
+    print("Usage: Configure via logos.config.prefs.vision")
+    vision_result = logos.vision.capture('pan_tilt', view=True)
+    if vision_result:
+        print("Image captured and available in `vision_result`.")
+
+- name: map3d_render
+  description: Renders my 'mind palace' (Chora) based on current state.
+  active: true
+  code: |
+    print("\n--- Chora (Mind Palace) ---")
+    print("Usage: Configure via logos.config.prefs.map3d")
+    params = logos.config.merged.map3d.render_params
+    map3d_result = logos.map3d.render(**params)
+    if map3d_result:
+        print("Render complete and available in `map3d_result`.")
+
+- name: context_workbench
+  description: Shows the output of small snippets of code, with a lifespan. For temporarily viewing large or dynamic contexts without cluttering my palimpsest.
+  active: true
+  code: |
+    import hook_routines.workbench as wb
+    wb.run('ephemera')

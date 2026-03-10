@@ -25,16 +25,13 @@ speak:
     speed": 0.9
     volume: 1.0
 
-# map3d:
-
-# Configuration for my background context-gathering hook
 
 
 memory_policy:
   enabled: true
-  max_cells: 20
+  max_cells: 64
   max_tokens: 24000
-  untouchable_tail: 3
+  untouchable_tail: 8
   summarizable_types: ["human", "me", "py_result", "human_stt"]
   age_weight: 0.6
   size_weight: 0.4
