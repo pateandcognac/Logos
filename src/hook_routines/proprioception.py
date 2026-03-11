@@ -5,49 +5,50 @@ import time
 import logos
 from logos.core import verbosity, Verbosity
 
-# Configurable thresholds (could eventually be pulled from logos.config.merged)
+# Configurable thresholds
 TIME_THRESH_SEC = 60 * 60  # 60 minutes
 DIST_THRESH_M = 0.2        # 20 cm
 ANGLE_THRESH_DEG = 30.0    # 30 degrees
 
 def run():
-    # 1. Fetch persistent state and current pose
     state = logos.hooks.state.setdefault('proprioception_sweep', {})
     current_time = time.time()
-    current_pose = logos.ros.get_pose() # returns dict: {'x': float, 'y': float, 'deg': float} or None
+    current_pose = logos.ros.get_pose()
 
     last_time = state.get('last_time', 0)
     last_pose = state.get('last_pose')
-
-    # 2. Gating Logic
+    
+    # --- 1. GATING LOGIC ---
     should_run = False
     
-    # Condition A: Time has expired
     if current_time - last_time > TIME_THRESH_SEC:
         should_run = True
-        
-    # Condition B: Pose has changed significantly
     elif current_pose and last_pose:
+        # Compare current pose strictly against the pose AT LAST CAPTURE
         dx = current_pose['x'] - last_pose['x']
         dy = current_pose['y'] - last_pose['y']
         dist = math.hypot(dx, dy)
         
-        # Handle 360-degree wraparound for angle math
         diff = abs((current_pose['deg'] - last_pose['deg']) % 360)
         angle_diff = diff if diff <= 180 else 360 - diff
         
         if dist > DIST_THRESH_M or angle_diff > ANGLE_THRESH_DEG:
             should_run = True
-            
-    # Condition C: First run with a valid pose
     elif current_pose and not last_pose:
         should_run = True
+    elif not state.get('cached_composite'):
+        # Safety fallback if we somehow don't have a cached image
+        should_run = True
 
-    # If nothing triggered, exit silently to preserve the context cache!
+    # --- 2. CACHE HIT (Preserve the KV Cache!) ---
     if not should_run:
+        # Print the exactly identical strings from the last run
+        print(state['cached_header'])
+        # The CaptureResult object is frozen, so .view() will output identical metadata/tags
+        state['cached_composite'].view(meta_keys=['pose', 'camera_pos_relative', 'pan', 'tilt'])
         return
 
-    # 3. Execution
+    # --- 3. CACHE MISS (Run the sweep) ---
     with verbosity(Verbosity.SILENT):
         snap_top = logos.vision.capture('top_down', save=False, view=False)
         if snap_top:
@@ -75,12 +76,12 @@ def run():
                     tilt=f"{tilt:.1f}",
                 )
                 if 'pose' in res.meta:
-                    del res.meta['pose'] # Only show global pose on Top-Down
+                    del res.meta['pose'] 
                 pan_tilt_snaps.append(res)
 
         logos.pantilt.move(start_pan, start_tilt, steps=5, duration=0.2)
 
-    # 4. Stitch, Display, and Update State
+    # --- 4. STITCH AND SAVE STATE ---
     if snap_top and len(pan_tilt_snaps) == 3:
         items = [snap_top] + pan_tilt_snaps
         labels = [
@@ -97,16 +98,30 @@ def run():
             target_res=(960, 1280)
         )
         
-        # Update State Variables
+        # Save to disk so the <file> tag persists safely
+        quad_view.save()
+        
+        # Construct the static header string
+        time_str = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(current_time))
+        header_lines = [
+            "--- Proprioception Sweep ---",
+            f"Captured at: {time_str}"
+        ]
+        if current_pose:
+            header_lines.append(f"Pose: x={current_pose['x']:.2f}, y={current_pose['y']:.2f}, deg={current_pose['deg']:.1f}")
+        header_lines.append(f"Refreshes every {TIME_THRESH_SEC//60} min, or when pose changes > {DIST_THRESH_M}m / {ANGLE_THRESH_DEG}deg")
+        header_str = "\n".join(header_lines)
+
+        # Update persistent state
         state['last_time'] = current_time
         state['last_pose'] = current_pose
+        state['cached_header'] = header_str
+        state['cached_composite'] = quad_view
         
-        # Print Grounding Header
-        time_str = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(current_time))
+        # Print for the current loop
+        print(header_str)
+        quad_view.view(meta_keys=['pose', 'camera_pos_relative', 'pan', 'tilt'])
+    else:
+        # Fallback if a camera fails
         print("--- Proprioception Sweep ---")
-        print(f"Captured at: {time_str}")
-        if current_pose:
-            print(f"Pose: x={current_pose['x']:.2f}, y={current_pose['y']:.2f}, deg={current_pose['deg']:.1f}")
-        print(f"Refreshes every {TIME_THRESH_SEC//60} min, or movement > {DIST_THRESH_M}m / {ANGLE_THRESH_DEG}deg")
-        
-        quad_view.view()
+        print("Status: Failed to acquire camera feeds.")

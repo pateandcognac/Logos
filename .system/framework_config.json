@@ -4,23 +4,20 @@
 		"footer_name": "ephemera",
 		"show_header_stats": false,
 		"show_footer_stats": false,
-		"io_buffer_name": "palmlimpsest",
+		"io_buffer_name": "palimpsest",
 		"show_io_buffer_stats": true,
 		"show_io_cell_stats": false,
-		"show_hook_ttl": true,
-		"token_estimation_divisor": 5,
-		"remove_header_at_eol": false,
-		"remove_footer_at_eol": false
+		"token_estimation_divisor": 5
 	},
 	"main_model": {
 		"_model": "gemini-robotics-er-1.5-preview",
-		"model": "gemini-3-flash-preview",
-		"_model": "gemini-2.5-flash",
+		"__model": "gemini-3.1-flash-lite-preview",
+		"model": "gemini-2.5-flash",
 
 		"temperature": 1.0,
 		"thinking_config": {
 			"include_thoughts": true,
-			"thinking_budget": 128
+			"thinking_budget": 256
 		},
 		"retry_config": {
 			"max_retries": 8,

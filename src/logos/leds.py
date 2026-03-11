@@ -46,6 +46,8 @@ _NAMED_COLORS: Dict[str, int] = {
     "orange":  0xFF8000,
     "purple":  0x8000FF,
     "warm":    0xFFB060,
+    "indigo":  0x560591,
+    "lime":    0xBFFF00,
 }
 
 

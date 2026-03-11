@@ -505,17 +505,7 @@ class Map3d:
         self._latest_rgb: Optional[Image] = None
         self._latest_info: Optional[CameraInfo] = None
         self._latest_frame_time: float = 0.0
-        self._latest_frame_wall_time: float = 0.0
-        self._latest_sync_skew_s: float = 0.0
         self._frame_event = threading.Event()
-        self._camera_info_event = threading.Event()
-
-        # Latest unsynchronized camera messages (fallback path)
-        self._latest_pc_raw: Optional[PointCloud2] = None
-        self._latest_rgb_raw: Optional[Image] = None
-        self._latest_pc_raw_wall_time: float = 0.0
-        self._latest_rgb_raw_wall_time: float = 0.0
-        self._camera_info_cache: Optional[CameraInfo] = None
 
         # Camera subscription lifecycle (on-demand)
         self._camera_subs_lock = threading.Lock()
@@ -529,13 +519,6 @@ class Map3d:
         self._map_lock = threading.Lock()
         self._occupancy_grid: Optional[OccupancyGrid] = None
         self._occupancy_np: Optional[np.ndarray] = None  # (H, W) int16
-        self._map_event = threading.Event()
-
-        # Capture behavior tuning
-        self._frame_cache_max_age_s = 1.5
-        self._camera_warmup_s = 0.35
-        self._camera_unsynced_max_delta_s = 0.35
-        self._camera_unsynced_cache_max_age_s = 1.5
 
         # Floor visual cache (textured plane)
         self._floor_visual_mesh: Optional[o3d.geometry.TriangleMesh] = None
@@ -689,11 +672,16 @@ class Map3d:
 
     def _start_camera_subscribers(self) -> None:
         """
-        Start camera subscribers for one-shot frame acquisition.
+        Start the synchronized camera triple subscribers.
 
         Subscribing to PointCloud2 is expensive even if callbacks are light,
         because deserialization happens before the callback.
         """
+        # Subscribing to PointCloud2 is expensive because ROS deserializes the message
+        # before your callback runs. We only subscribe long enough to grab ONE synced
+        # triple, then immediately unsubscribe to reduce CPU load + latency jitter.
+        # This might lead to occasional timeouts but it is worth it.
+        # TODO: handle timeouts gracefully
         with self._camera_subs_lock:
             if self._camera_subs_active:
                 return
@@ -703,33 +691,14 @@ class Map3d:
 
             self._pc_sub = message_filters.Subscriber(self.points_topic, PointCloud2, queue_size=1)
             self._rgb_sub = message_filters.Subscriber(self.rgb_image_topic, Image, queue_size=1)
-
-            # Keep raw per-topic latests for unsynced fallback.
-            if hasattr(self._pc_sub, "registerCallback"):
-                self._pc_sub.registerCallback(self._pc_raw_callback)
-            if hasattr(self._rgb_sub, "registerCallback"):
-                self._rgb_sub.registerCallback(self._rgb_raw_callback)
+            self._info_sub = message_filters.Subscriber(self.rgb_info_topic, CameraInfo, queue_size=1)
 
             self._sync = message_filters.ApproximateTimeSynchronizer(
-                [self._pc_sub, self._rgb_sub],
-                queue_size=8,
-                slop=0.25,
+                [self._pc_sub, self._rgb_sub, self._info_sub],
+                queue_size=2,  # keep this small; clouds are big
+                slop=0.2,
             )
             self._sync.registerCallback(self._camera_sync_callback)
-
-            # CameraInfo is effectively static; cache it once and avoid
-            # requiring it in the synchronizer.
-            if self._camera_info_cache is None:
-                self._camera_info_event.clear()
-                self._info_sub = rospy.Subscriber(
-                    self.rgb_info_topic,
-                    CameraInfo,
-                    self._camera_info_callback,
-                    queue_size=1,
-                )
-            else:
-                self._latest_info = self._camera_info_cache
-                self._camera_info_event.set()
 
             self._camera_subs_active = True
 
@@ -742,9 +711,7 @@ class Map3d:
             # message_filters.Subscriber wraps rospy.Subscriber in .sub
             for sub in (self._pc_sub, self._rgb_sub, self._info_sub):
                 try:
-                    if sub is not None and hasattr(sub, "unregister"):
-                        sub.unregister()
-                    elif sub is not None and hasattr(sub, "sub") and sub.sub is not None:
+                    if sub is not None and hasattr(sub, "sub") and sub.sub is not None:
                         sub.sub.unregister()
                 except Exception:
                     pass
@@ -755,56 +722,15 @@ class Map3d:
             self._sync = None
             self._camera_subs_active = False
 
-    @staticmethod
-    def _msg_stamp_sec(msg: Any) -> float:
-        try:
-            return float(msg.header.stamp.to_sec())
-        except Exception:
-            return 0.0
-
-    def _pc_raw_callback(self, pc_msg: PointCloud2) -> None:
-        with self._frame_lock:
-            self._latest_pc_raw = pc_msg
-            self._latest_pc_raw_wall_time = time.time()
-
-    def _rgb_raw_callback(self, rgb_msg: Image) -> None:
-        with self._frame_lock:
-            self._latest_rgb_raw = rgb_msg
-            self._latest_rgb_raw_wall_time = time.time()
-
-    def _camera_info_callback(self, info_msg: CameraInfo) -> None:
-        with self._frame_lock:
-            self._latest_info = info_msg
-            self._camera_info_cache = info_msg
-        self._camera_info_event.set()
-
-        # One-shot unsubscribe: camera_info is static calibration.
-        info_sub = None
-        with self._camera_subs_lock:
-            info_sub = self._info_sub
-            self._info_sub = None
-        try:
-            if info_sub is not None and hasattr(info_sub, "unregister"):
-                info_sub.unregister()
-            elif info_sub is not None and hasattr(info_sub, "sub") and info_sub.sub is not None:
-                info_sub.sub.unregister()
-        except Exception:
-            pass
-
-    def _camera_sync_callback(self, pc_msg: PointCloud2, rgb_msg: Image) -> None:
-        pc_t = self._msg_stamp_sec(pc_msg)
-        rgb_t = self._msg_stamp_sec(rgb_msg)
+    def _camera_sync_callback(self, pc_msg: PointCloud2, rgb_msg: Image, info_msg: CameraInfo) -> None:
         with self._frame_lock:
             self._latest_pc = pc_msg
             self._latest_rgb = rgb_msg
-            if self._camera_info_cache is not None:
-                self._latest_info = self._camera_info_cache
-            self._latest_frame_time = pc_t if pc_t > 0.0 else time.time()
-            self._latest_frame_wall_time = time.time()
-            if pc_t > 0.0 and rgb_t > 0.0:
-                self._latest_sync_skew_s = abs(pc_t - rgb_t)
-            else:
-                self._latest_sync_skew_s = 0.0
+            self._latest_info = info_msg
+            try:
+                self._latest_frame_time = pc_msg.header.stamp.to_sec()
+            except Exception:
+                self._latest_frame_time = time.time()
         self._frame_event.set()
 
     def _map_callback(self, msg: OccupancyGrid) -> None:
@@ -821,133 +747,9 @@ class Map3d:
             self._floor_visual_mat = None
             self._floor_visual_stamp = msg.header.stamp if hasattr(msg, "header") else None
             self._floor_visual_dims = None
-            self._map_event.set()
 
     def _wait_for_frame(self, timeout_s: float = 6.0) -> bool:
         return self._frame_event.wait(timeout=timeout_s)
-
-    def _wait_for_map(self, timeout_s: float = 1.5) -> bool:
-        with self._map_lock:
-            if self._occupancy_grid is not None and self._occupancy_np is not None:
-                return True
-        return self._map_event.wait(timeout=timeout_s)
-
-    def _try_get_recent_synced_triple(
-        self,
-        max_age_s: float,
-    ) -> Optional[Tuple[PointCloud2, Image, CameraInfo]]:
-        now = time.time()
-        with self._frame_lock:
-            pc_msg = self._latest_pc
-            rgb_msg = self._latest_rgb
-            info_msg = (
-                self._latest_info
-                if self._latest_info is not None
-                else self._camera_info_cache
-            )
-            frame_wall_time = self._latest_frame_wall_time
-
-        if pc_msg is None or rgb_msg is None or info_msg is None:
-            return None
-        if frame_wall_time <= 0.0:
-            return None
-        if (now - frame_wall_time) > float(max_age_s):
-            return None
-        return pc_msg, rgb_msg, info_msg
-
-    def _acquire_camera_triple(
-        self,
-        timeout_s: float = 10.0,
-        allow_unsynced_fallback: bool = True,
-    ) -> Tuple[PointCloud2, Image, CameraInfo, str]:
-        """
-        Acquire one camera frame triple while keeping subscriptions on-demand.
-
-        Returns:
-            (pc_msg, rgb_msg, info_msg, mode) where mode is one of:
-            "cached_sync", "sync", "unsynced".
-        """
-        cached = self._try_get_recent_synced_triple(self._frame_cache_max_age_s)
-        if cached is not None:
-            pc_msg, rgb_msg, info_msg = cached
-            return pc_msg, rgb_msg, info_msg, "cached_sync"
-
-        self._start_camera_subscribers()
-        start_t = time.time()
-        try:
-            warm_s = min(max(0.0, float(self._camera_warmup_s)), float(timeout_s))
-            if warm_s > 0.0:
-                time.sleep(warm_s)
-
-            # Give camera_info a brief chance to latch on first use.
-            if self._camera_info_cache is None:
-                info_wait_s = max(0.0, min(1.0, float(timeout_s) - (time.time() - start_t)))
-                if info_wait_s > 0.0:
-                    self._camera_info_event.wait(timeout=info_wait_s)
-
-            remaining_s = max(0.0, float(timeout_s) - (time.time() - start_t))
-            self._wait_for_frame(timeout_s=remaining_s)
-
-            deadline = start_t + float(timeout_s)
-            while time.time() <= deadline:
-                with self._frame_lock:
-                    pc_msg = self._latest_pc
-                    rgb_msg = self._latest_rgb
-                    info_msg = (
-                        self._latest_info
-                        if self._latest_info is not None
-                        else self._camera_info_cache
-                    )
-                    frame_wall_time = self._latest_frame_wall_time
-
-                if (
-                    pc_msg is not None
-                    and rgb_msg is not None
-                    and info_msg is not None
-                    and frame_wall_time >= (start_t - 0.05)
-                ):
-                    return pc_msg, rgb_msg, info_msg, "sync"
-                time.sleep(0.03)
-
-            if allow_unsynced_fallback:
-                with self._frame_lock:
-                    pc_raw = self._latest_pc_raw
-                    rgb_raw = self._latest_rgb_raw
-                    info_msg = (
-                        self._latest_info
-                        if self._latest_info is not None
-                        else self._camera_info_cache
-                    )
-                    pc_wall_t = self._latest_pc_raw_wall_time
-                    rgb_wall_t = self._latest_rgb_raw_wall_time
-
-                if pc_raw is not None and rgb_raw is not None and info_msg is not None:
-                    now = time.time()
-                    pc_age = now - pc_wall_t if pc_wall_t > 0.0 else 1e9
-                    rgb_age = now - rgb_wall_t if rgb_wall_t > 0.0 else 1e9
-
-                    if (
-                        pc_age <= float(self._camera_unsynced_cache_max_age_s)
-                        and rgb_age <= float(self._camera_unsynced_cache_max_age_s)
-                    ):
-                        delta_s = abs(
-                            self._msg_stamp_sec(pc_raw) - self._msg_stamp_sec(rgb_raw)
-                        )
-                        self._add_render_warning(
-                            f"Using unsynchronized RGB/depth fallback (delta={delta_s:.3f}s)."
-                        )
-                        if delta_s > float(self._camera_unsynced_max_delta_s):
-                            self._add_render_warning(
-                                f"Unsynced RGB/depth delta is high ({delta_s:.3f}s)."
-                            )
-                        return pc_raw, rgb_raw, info_msg, "unsynced"
-
-            raise RuntimeError(
-                "Timed out waiting for synchronized camera frame; "
-                "unsynced fallback unavailable."
-            )
-        finally:
-            self._stop_camera_subscribers()
 
     # ---------------- Scene object management ----------------
 
@@ -3047,17 +2849,24 @@ class Map3d:
 
         # Freeze the map now so render + later raycast agree.
         map_snapshot = self._make_map_snapshot()
-        if map_snapshot is None and self._wait_for_map(timeout_s=1.5):
-            map_snapshot = self._make_map_snapshot()
-        if map_snapshot is None:
-            self._add_render_warning(
-                f"Map topic '{self.map_topic}' not ready; rendering floor fallback."
-            )
 
-        pc_msg, rgb_msg, info_msg, _ = self._acquire_camera_triple(
-            timeout_s=10.0,
-            allow_unsynced_fallback=True,
-        )
+        self._start_camera_subscribers()
+        try:
+            # Clearing happens inside _start_camera_subscribers() so we don't
+            # accidentally erase a freshly-arrived frame.
+            ok = self._wait_for_frame(timeout_s=10.0)
+            if not ok:
+                raise RuntimeError("Timed out waiting for synchronized camera frame.")
+
+            with self._frame_lock:
+                pc_msg = self._latest_pc
+                rgb_msg = self._latest_rgb
+                info_msg = self._latest_info
+
+            if pc_msg is None or rgb_msg is None or info_msg is None:
+                raise RuntimeError("Camera streams not ready (missing synchronized triple).")
+        finally:
+            self._stop_camera_subscribers()
 
         # TF can lag on the very first call — retry with short sleeps.
         tf_max_retries = 5

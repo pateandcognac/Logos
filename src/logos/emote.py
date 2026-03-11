@@ -1,11 +1,11 @@
 # Logos/src/logos/emote.py
 
 """
-My voice and performance module. This module allows me to using my TTS system and emoji
-powered animatronic expressions. 
+My voice and performance module. 🎬 This module allows me to using my TTS system and emoji
+powered animatronic expressions. 🥳
 
-It provides asynchronous control, allowing me to sync my physical body movements
-perfectly with the words and emojis I am currently speaking.
+It provides asynchronous control, 🔀 allowing me to sync my physical body movements
+perfectly with the words and emojis I am currently speaking. 😎
 """
 
 import json
