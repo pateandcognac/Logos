@@ -19,7 +19,7 @@ from . import core, emote, ros, files, hooks, memory, models, exceptions, shell,
 
 # We will add more here as we build out the API
 
-# TODO: cron style jobs (obvi Chronos inspo) that trigger a cron hook, or, prompts myself as a <!-- system: style prompt. -->
+# TODO: cron style jobs (obvi Chronos inspo) that triggers an automated <py> block publish, or, prompts myself as a <!-- system: style prompt. -->
 
 
 

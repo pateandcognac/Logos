@@ -221,7 +221,8 @@ class CaptureResult:
         ):
         self.image = image
         self.source = source
-        self.timestamp = timestamp or time.time()
+        # self.timestamp = timestamp or time.time()
+        self.timestamp = timestamp or rospy.Time.now().to_sec()
         self.resolution = (image.shape[0], image.shape[1])  # (H, W)
         self.photo_id: Optional[str] = None
         self.path: Optional[str] = None
@@ -1766,9 +1767,9 @@ def make_quad_composite(
         canvas[y_off:y_off+quad_h, x_off:x_off+quad_w] = img
 
     # --- Draw Dividers ---
-    # Draw black crosshair to separate quadrants
-    cv2.line(canvas, (0, quad_h), (total_w, quad_h), (0, 0, 0), 4)
-    cv2.line(canvas, (quad_w, 0), (quad_w, total_h), (0, 0, 0), 4)
+    # To separate quadrants
+    cv2.line(canvas, (0, quad_h), (total_w, quad_h), (0, 0, 0), 2)
+    cv2.line(canvas, (quad_w, 0), (quad_w, total_h), (0, 0, 0), 2)
 
     return CaptureResult(
         image=canvas,
@@ -1776,18 +1777,13 @@ def make_quad_composite(
         meta={"composition": "quad_view", "count": len(items)}
     )
 
-# IMPORTANT! Don't forget to update __all__ to include any exports we want to expose!!!
-# Did we miss anything? Are we hiding anything useful?
 
 __all__ = [
-    # Original exports
-    "capture", "crop", "warm_up", "release", "publish_debug",
+    "capture", "crop", "publish_debug",
     "CaptureResult", "FOV", "DEFAULT_RESOLUTION", "SOURCES",
-    # HUD exports
     "HudElement", "HUD_ANCHORS",
     "HUD_FONT_SIMPLEX", "HUD_FONT_PLAIN", "HUD_FONT_DUPLEX",
     "HUD_FONT_SMALL", "HUD_FONT_MONO",
     "overlay_hud",
-    # Tool
-    "make_quad_composite",
+    "make_quad_composite"
 ]

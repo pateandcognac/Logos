@@ -5,9 +5,9 @@
     import time
     from logos.core import verbosity, check_for_interrupt, help, Verbosity
     print("\n--- Cognitive Hook Status ---")
-    print("ARCHE:")
+    print("Arche:")
     print(logos.hooks.show('arche'))
-    print("EPHEMERA:")
+    print("\nEphemera:")
     print(logos.hooks.show('ephemera'))
 
 - name: api_dump
@@ -18,20 +18,13 @@
     logos.help(print_output=True)
 
 - name: file_tree
-  description: Shows the layout of my workspace, as configured by logos.config.merged.files
+  description: Shows the output of logos.files.tree(**logos.config.merged.tree)
   active: true
   code: |-
-    # Read configuration from the merged config object
-    max_depth = logos.config.merged.get('files', {}).get('max_depth', 5)
-    show_ext = logos.config.merged.get('files', {}).get('show_extensions', [])
-    inline_masks = logos.config.merged.get('files', {}).get('inline_meta_masks', [])
-
-    print("\n--- Workspace File Tree ---")
-    print(logos.files.tree(
-        max_depth=max_depth,
-        show_extensions=show_ext,
-        inline_meta_masks=inline_masks
-    ))
+    from pathlib import Path
+    print("--- My Workspace ---")
+    print(f"CWD: {Path.cwd()}")
+    print(logos.files.tree(**logos.config.merged.tree))
 
 - name: Logos_photo
   description: A photograph Mark took of me, idling in my cozy charging nook. Overlaid with my self_model.py code as an experiment in ViT compression.
@@ -39,9 +32,9 @@
   code: |-
     print('<file path="images/Logos_with_self_model.py_overlay.png"></file>')
 
-- name: proprioception_sweep
-  description: 360-degree-ish visual sweep of the floor immediately surrounding me. Updates gated by pose and time.
+- name: proximity_snapshot
+  description: 360-degree-ish visual sweep of the floor immediately surrounding me. Updates are gated by pose and time.
   active: true
   code: |
-    import hook_routines.proprioception as p
-    p.run()
+    import hook_routines.proximity_snapshot as ps
+    ps.run()

@@ -213,15 +213,14 @@ def move_relative(forward_m: float = 0.0, left_m: float = 0.0, turn_deg: float =
         wait: If True, blocks until I arrive.
 
     Note to self:
-        I am a differential drive robot — I cannot strafe! If I command a movement
-        purely to my `left_m`, my navigation stack (`move_base`) will try to find a 
-        global path to that coordinate. This often results in a ridiculous, circuitous 
-        dance where I drive forward, loop around, and oscillate just to move 1 foot 
-        to the left!
+        I am a differential drive robot — I can't strafe! If I command a movement
+        purely to my `left_m`, `move_base` will try to find a global path to that
+        coordinate. This often results in a ridiculous, circuitous dance where I
+        drive forward, loop around, and oscillate just to move 1 foot to the left.
 
-        Use this function ONLY when I need obstacle avoidance to reach a nearby relative 
+        Use this function when I need obstacle avoidance to reach a nearby relative 
         location. If I just need to inch closer to a table or perform a simple geometric 
-        maneuver in open space, I should absolutely use `logos.nav.turn_then_drive()` instead!
+        maneuver in open space, I should absolutely use `logos.nav.turn_then_drive()` instead.
 
     Example:
         # Safely navigate to a spot 1m ahead and end up facing 90 degrees left

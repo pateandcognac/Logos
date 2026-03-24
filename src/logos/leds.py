@@ -8,7 +8,6 @@ by Arduinos that listen on ROS topics. This module provides a clean
 interface over the raw Int32MultiArray / UInt8 protocol.
 
 Hardware layout:
-    - 'face':         12 LEDs on /face/rgbled
     - 'notification':  16 LEDs on /notification/rgbled
     - 'pan_tilt':       5 LEDs on /pan_tilt/rgbled
     - laser:           PWM 0-255 on /pan_tilt/laser
@@ -26,9 +25,9 @@ __all__ = ["set", "fill", "off", "laser", "STRIPS"]
 # ─── Strip Configuration ─────────────────────────────────────────────
 
 STRIPS: Dict[str, dict] = {
-    "face":         {"topic": "/face/rgbled",         "count": 12},
     "notification": {"topic": "/notification/rgbled",  "count": 16},
     "pan_tilt":     {"topic": "/pan_tilt/rgbled",      "count": 5},
+    # "face":         {"topic": "/face/rgbled",         "count": 12},
 }
 
 _LASER_TOPIC = "/pan_tilt/laser"
@@ -128,15 +127,15 @@ def _pack_led(index: int, color_int: int) -> int:
     return (index << 24) | (color_int & 0xFFFFFF)
 
 
-# ─── Public API ───────────────────────────────────────────────────────
+# ─── Public API ────
 
 @api_call(default_verbosity=Verbosity.ACK)
 def set(strip: str, colors: Sequence[ColorValue]) -> None:
     """
-    Set individual LED colors on a strip ('face', 'notification', or 'pan_tilt').
+    Set individual LED colors on a strip ('notification' or 'pan_tilt').
 
     Args:
-        strip: Which strip to address: 'face', 'notification', or 'pan_tilt'.
+        strip: Which strip to address: 'notification', or 'pan_tilt'.
         colors: A sequence of color values, one per LED. Length must match
             the strip's LED count, or be shorter (remaining LEDs unchanged).
             Each element can be a hex int, RGB tuple, or named color string.
@@ -146,11 +145,11 @@ def set(strip: str, colors: Sequence[ColorValue]) -> None:
         For solid colors, `fill()` is simpler.
 
         Example:
-            # Set first 3 face LEDs to different colors
-            logos.leds.set('face', ['red', 'green', 'blue'])
+            # Set first 3 pan_tilt LEDs to different colors
+            logos.leds.set('pan_tilt', ['red', 'green', 'blue'])
 
-            # Full face strip with RGB tuples
-            logos.leds.set('face', [(255,0,0)] * 4 + [(0,255,0)] * 4 + [(0,0,255)] * 4)
+            # notification strip with RGB tuples
+            logos.leds.set('notification', [(255,0,0)] * 5 + [(0,255,0)] * 5 + [(0,0,255)] * 5)
     """
     pub = _get_strip_pub(strip)
     led_count = STRIPS[strip]["count"]

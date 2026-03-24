@@ -22,20 +22,25 @@
     # For now, a simple pan-tilt capture.
     print("\n--- Primary Vision ---")
     print("Usage: Configure via logos.config.prefs.vision")
+    # move camera to defined position and *pause* to stabilize
+    time.sleep(0.2)
     vision_result = logos.vision.capture('pan_tilt', view=True)
     if vision_result:
         print("Image captured and available in `vision_result`.")
 
 - name: map3d_render
-  description: Renders my 'mind palace' (Chora) based on current state.
+  description: Renders my Chora based on current state.
   active: true
   code: |
-    print("\n--- Chora (Mind Palace) ---")
+    print("\n--- Chora ---")
     print("Usage: Configure via logos.config.prefs.map3d")
-    params = logos.config.merged.map3d.render_params
-    map3d_result = logos.map3d.render(**params)
-    if map3d_result:
-        print("Render complete and available in `map3d_result`.")
+    if logos.config.merged.map3d.active == True:
+        params = logos.config.merged.map3d.render_params
+        map3d_result = logos.map3d.render(**params, verbosity=Verbosity.SILENT)
+        if map3d_result:
+            print("Render complete and available in `map3d_result`.")
+    else:
+        print("map3d rendering not active.")
 
 - name: context_workbench
   description: Shows the output of small snippets of code, with a lifespan. For temporarily viewing large or dynamic contexts without cluttering my palimpsest.

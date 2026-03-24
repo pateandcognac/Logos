@@ -41,6 +41,7 @@ _cmd_vel_topic: Optional[str] = None
 _TOPIC_MAP = {
     "raw": "/raw_cmd_vel",
     "muxed": "/cmd_vel_mux/input/logos",
+    "safety": "/cmd_vel_mux/input/safety_controller"
 }
 
 # Semantic mappings for Kobuki bitmasks
@@ -124,15 +125,15 @@ def get_cliffs() -> List[str]:
 
 def get_wheel_drops() -> List[str]:
     """
-    Check if my drive wheels have dropped (meaning I am suspended in the air).
+    Check if my drive wheels have dropped, meaning I have been lifted, tipped, or am on a precipice.
 
     Returns:
         A list of strings indicating dropped wheels: 'left', 'right'.
         Returns an empty list [] if my wheels are carrying weight.
 
     Note to self:
-        If this triggers, I have likely been picked up by a human, or I am 
-        high-centered on an obstacle and my wheels are spinning in the air.
+        If this triggers, I have likely been picked up by a human, wobbled
+        over a threshold, or am partially hanging off a cliff!
     """
     _ensure_ros()
     with _state_lock:
@@ -141,12 +142,12 @@ def get_wheel_drops() -> List[str]:
 
 def get_battery() -> Dict[str, Union[float, str]]:
     """
-    Read my current battery voltage, percentage, and semantic status.
+    Read my current battery `percent`, `voltage`, and semantic `status`.
 
     Returns:
         A dictionary:
         - 'voltage' (float): Current battery voltage (e.g., 16.2).
-        - 'percentage' (float): Estimated charge percentage (0.0 to 100.0).
+        - 'percent' (float): Estimated charge percentage (0.0 to 100.0).
         - 'status' (str): Semantic assessment ('healthy', 'low', 'critical').
 
     Note to self:
@@ -162,7 +163,7 @@ def get_battery() -> Dict[str, Union[float, str]]:
             # Check if _latest_state is available now
             if _latest_state is not None:
                 voltage = _latest_state.battery * 0.1
-                # Simple linear estimation between 13.5V (0%) and 16.5V (100%)
+                # Simple linear estimation between 13.5V (0%) and 15.9 (100%)
                 percent = max(0.0, min(100.0, ((voltage - 13.5) / (16.5 - 13.5)) * 100.0))
                 if percent > 30.0: status = "healthy"
                 elif percent > 15.0: status = "low"
@@ -216,7 +217,7 @@ def velocity(
     topic: str = "raw",
 ) -> None:
     """
-    Send raw velocity commands to a 'raw' (default) velocity topic or 'muxed' and smoothed topic for a specific duration.
+    Send raw velocity commands to a 'raw' (default) velocity topic or 'muxed' and *smoothed* topic for a specific duration.
 
     Args:
         linear_x: Forward/backward speed in meters per second (m/s). 

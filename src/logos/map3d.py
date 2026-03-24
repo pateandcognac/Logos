@@ -146,7 +146,7 @@ class RaycastHit:
             - "robot": Hit my own 3D self-model.
             - "object:<name>": Hit a specific phantasma instance (e.g., "object:target_waypoint").
             - "infinity": The ray cast into the void and hit nothing.
-        world_point (Tuple[float, float, float]): The absolute [X, Y, Z] map coordinates of the collision.
+        point (Tuple[float, float, float]): The absolute [X, Y, Z] map coordinates of the collision.
         distance_m (float): Distance from the virtual camera to the hit point in meters.
         floor_state (Optional[str]): If the ray hit the "floor", what is the semantic state of the ROS map at that location?
             - "map_open": Safe, known free space.
@@ -155,12 +155,12 @@ class RaycastHit:
         meta (Dict[str, Any]): Additional contextual data about the hit.
 
     Note to self:
-        `world_point` is the gold mine here! If I `render()` a scene, pick a safe pixel `(y, x)`, 
-        and `raycast()` it, `world_point` gives me the exact map coordinates I need to pass 
+        `point` is the gold mine here! If I `render()` a scene, pick a safe pixel `(y, x)`, 
+        and `raycast()` it, `point` gives me the exact map coordinates I need to pass 
         to `logos.nav.go_to_abs(x, y)` to drive there!
     """
     hit: str
-    world_point: Tuple[float, float, float]
+    point: Tuple[float, float, float]
     distance_m: float
     floor_state: Optional[str] = None
     meta: Dict[str, Any] = field(default_factory=dict)
@@ -320,7 +320,7 @@ class RenderResult:
     def view(self) -> None:
         if self.path is None:
             self.save()
-        print(f'<file path="{self.path}">Chora\n</file>')
+        print(f'<file path="{self.path}"></file>')
 
 """
 # HUD system: prefer imports from vision.py; fallback definitions here
@@ -823,10 +823,10 @@ class Map3d:
             self._floor_visual_dims = None
             self._map_event.set()
 
-    def _wait_for_frame(self, timeout_s: float = 6.0) -> bool:
+    def _wait_for_frame(self, timeout_s: float = 10.0) -> bool:
         return self._frame_event.wait(timeout=timeout_s)
 
-    def _wait_for_map(self, timeout_s: float = 1.5) -> bool:
+    def _wait_for_map(self, timeout_s: float = 3.5) -> bool:
         with self._map_lock:
             if self._occupancy_grid is not None and self._occupancy_np is not None:
                 return True
@@ -3291,7 +3291,7 @@ class Map3d:
             floor_state = meta.get("floor_state")
             return RaycastHit(
                 hit=hit_name,
-                world_point=(float(pt[0]), float(pt[1]), float(pt[2])),
+                point=(float(pt[0]), float(pt[1]), float(pt[2])),
                 distance_m=float(dist),
                 floor_state=floor_state,
                 meta={
@@ -3304,7 +3304,7 @@ class Map3d:
         pt = ray_origin + ray_dir * dist
         return RaycastHit(
             hit="infinity",
-            world_point=(float(pt[0]), float(pt[1]), float(pt[2])),
+            point=(float(pt[0]), float(pt[1]), float(pt[2])),
             distance_m=dist,
             floor_state=None,
             meta={

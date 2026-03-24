@@ -7,7 +7,7 @@ def add(name: str, code: str, ltl: int = 1):
     Helper function for Logos to put a snippet on the context workbench.
     
     Usage in a <py> block:
-        import hook_routines.context_workbench as workbench
+        import hook_routines.workbench as workbench
         workbench.add("check_docs", "print(logos.files.show('docs.md'))", ltl=2)
     """
     # Initialize workbench state if it doesn't exist

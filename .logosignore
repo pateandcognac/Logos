@@ -12,3 +12,5 @@ _llm_helper.py
 *.ts
 *.pt
 .gitignore
+.claude
+CLAUDE.md

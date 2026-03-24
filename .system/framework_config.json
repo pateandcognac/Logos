@@ -12,12 +12,12 @@
 	"main_model": {
 		"_model": "gemini-robotics-er-1.5-preview",
 		"__model": "gemini-3.1-flash-lite-preview",
-		"model": "gemini-2.5-flash",
-
+		"model": "gemini-3-flash-preview",
+		"___model": "gemini-2.5-flash",
 		"temperature": 1.0,
 		"thinking_config": {
-			"include_thoughts": true,
-			"thinking_budget": 256
+			"include_thoughts": false,
+			"thinking_budget": 0
 		},
 		"retry_config": {
 			"max_retries": 8,
@@ -40,7 +40,7 @@
 		"aliases": {
 			"smartest": "gemini-3-pro-preview",
 			"fast": "gemini-3-flash-preview",
-			"fastest": "gemini-3.1-flash-lite-latest"
+			"fastest": "gemini-3.1-flash-lite-preview"
 		}
 	},
 	"python": {

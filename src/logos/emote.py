@@ -36,6 +36,10 @@ DEFAULT_KOKORO_PARAMS = {
 }
 
 
+
+
+
+
 class SpeakTask:
     """
     A handle for an asynchronous speaking task.
@@ -210,11 +214,11 @@ def ttp(
         return SpeakTask(None)
 
     import logos # Local import to fetch dynamic config
-    voice_cfg = logos.config.merged.get('voice', {})
+    voice_cfg = logos.config.merged.get('tts', {})
 
     # Resolve default engine
     if engine is None:
-        engine = voice_cfg.get('default_engine', 'kokoro')
+        engine = voice_cfg.get('engine', 'kokoro')
 
     # Resolve default parameters based on the chosen engine
     params_key = f"{engine}_params"

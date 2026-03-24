@@ -396,7 +396,7 @@ def _render_tree_recursive(
     Note to self:
         My format rules are simple:
             - directories end with "/"
-            - normal files are grouped into compact [files] lines
+            - normal files are grouped into compact lines prefixed with '|'
             - meta files inline their contents
             - truncation and filtering are stated explicitly
     """
@@ -464,7 +464,7 @@ def _render_tree_recursive(
 
     if normal_files:
         names = [path.name for path in normal_files]
-        lines.extend(_wrap_words(f"{child_indent}[files] ", names))
+        lines.extend(_wrap_words(f"{child_indent}| ", names))
 
     if trunc_info is not None:
         total, shown = trunc_info
@@ -778,7 +778,7 @@ def tree(
 
     if normal_files:
         names = [path.name for path in normal_files]
-        lines.extend(_wrap_words("  [files] ", names))
+        lines.extend(_wrap_words("  | ", names))
 
     if trunc_info is not None:
         total, shown = trunc_info
