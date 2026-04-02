@@ -15,7 +15,7 @@ def run():
     # print("=== LOGOS DASHBOARD ===")
     print(f"Time:  {time.strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"Loop:  {state['loop_count']}")
-    print(f"Batt:  {batt.get('percentage', '??')}% ({batt.get('voltage', '??')}V) - {batt.get('status', '??')}")
+    print(f"Batt:  {batt.get('percent', '??')}% ({batt.get('voltage', '??')}V) - {batt.get('status', '??')}")
     if pose:
         print(f"Pose:  x={pose['x']:.2f}, y={pose['y']:.2f}, deg={pose['deg']:.1f}")
     
@@ -25,5 +25,5 @@ def run():
     print(current_config)
 
     # Fire off memory policy check
-    print("Checking palimpsest against memory policy...")
+    print("Checking palimpsest against memory_manager policy...")
     mm.run_policy_check()

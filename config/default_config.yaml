@@ -44,9 +44,9 @@ map3d:
 
 memory_policy:
   enabled: true
-  max_cells: 20
-  max_tokens: 24000
-  untouchable_tail: 8
+  max_cells: 64
+  max_tokens: 24576
+  untouchable_tail: 16
   summarizable_types: ["human", "me", "py_result", "human_stt"]
   age_weight: 0.75
   size_weight: 0.25
@@ -58,3 +58,22 @@ tree:
   show_hidden: false
   show_extensions: [.py, .yaml, .md, .txt, .png, .jpg, .jsonl]
   inline_meta_masks: '.meta'
+
+vision_hook:
+  pan_tilt:
+    enabled: true
+    resolution: [960, 1280]
+    meta_keys: ['pan_tilt_degs']
+  astra:
+    enabled: false
+    resolution: [480, 640]
+    feeds: ['rgb', 'depth_registered']
+    meta_keys: ['pose']
+    overlay_grid:
+      enabled: true
+      rows: 3
+      cols: 4
+  top_down:
+    enabled: false
+    resolution: [480, 640]
+    meta_keys: []

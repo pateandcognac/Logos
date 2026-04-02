@@ -959,6 +959,7 @@ class Map3d:
         with self._objects_lock:
             self._objects.pop(name, None)
 
+    '''
     def load_phantasma(self, name: str) -> None:
         """
         Minimal legacy loader (deprecated, use place() instead).
@@ -974,6 +975,7 @@ class Map3d:
                 self.register_object(obj)
         else:
             self.register_object(built)
+    '''            
 
     # ---------------- Phantasmata Lifecycle Manager ----------------
 
@@ -2967,7 +2969,7 @@ class Map3d:
         hud_stats: bool = False,
     ) -> RenderResult:
         """
-        Renders a view of my 3D 'map3d' from my virtual `chora` camera.
+        Renders a view of myself on the known ROS map from a virtual camera.
 
         This function constructs a 3D scene containing the known ROS map as a
         textured floor, the live point cloud from my Astra camera, and a model

@@ -1,1 +1,1 @@
-# hook_routines/ contains hook code complex enough to warrant saving on its own, distinct from the main API.
+# src/hook_routines/ contains code that is broadly useful or complex enough to warrant saving on its own.

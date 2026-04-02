@@ -24,7 +24,7 @@ def run(location: str):
         usage = (f"\n=== Context Workbench ({location}) ===\n"
                 "Runs a small snippet of context emitting `code` for `ltl` loops-to-live. Enables temporary viewing of large docs, changing variables, etc. without cluttering my palimpsest.\n"
                 "Example usage:\n"
-                """import hook_routines.workbench; workbench.add(name="perusing_docs", code="logos.files.show(path='docs.md', pattern='some regex')", ltl=2)\n""")
+                """workbench.add(name="perusing_docs", code="logos.files.show(path='docs.md', pattern='some regex')", ltl=2)\n""")
         print(usage)
         return 
 

@@ -170,19 +170,19 @@ def set(strip: str, colors: Sequence[ColorValue]) -> None:
 @api_call(default_verbosity=Verbosity.ACK)
 def fill(strip: str, color: ColorValue) -> None:
     """
-    Set all LEDs on a strip ('face', 'notification', or 'pan_tilt') to the same color (hex int, RGB tuple, or named string).
+    Set all LEDs on a strip ('notification' bubble or 'pan_tilt' flash illuminator) to the same color (hex int, RGB tuple, or named string).
 
     Args:
-        strip: Which strip: 'face', 'notification', or 'pan_tilt'.
+        strip: Which strip: 'notification' or 'pan_tilt'.
         color: A single color value (hex int, RGB tuple, or named string).
 
     Note to self:
         Quick way to light up or blank a strip.
 
         Example:
-            logos.leds.fill('notification', 'warm')
-            logos.leds.fill('face', (0, 100, 255))
-            logos.leds.fill('pan_tilt', 0xFF0000)
+            logos.leds.fill('notification', 'cyan')
+            logos.leds.fill('notification', (0, 100, 255))
+            logos.leds.fill('pan_tilt', 0xFFFFFF)  # For illumination
     """
     led_count = STRIPS[strip]["count"]
     color_int = _normalize_color(color)

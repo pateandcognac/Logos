@@ -213,12 +213,7 @@ def get_pose() -> Optional[Dict[str, float]]:
         import tf2_ros
         import math
 
-        # Lazy singleton TF buffer/listener
-        if not hasattr(get_pose, "_tf_buffer"):
-            get_pose._tf_buffer = tf2_ros.Buffer()
-            get_pose._tf_listener = tf2_ros.TransformListener(get_pose._tf_buffer)
-
-        buf = get_pose._tf_buffer
+        buf = get_tf_buffer()
 
         transform = None
         for parent_frame in ("map", "odom"):

@@ -1,9 +1,7 @@
 # Logos/src/logos/base.py
 
 """
-My body. This module provides direct access to the Kobuki mobile base.
-It allows me to read my physical sensors (bumpers, cliffs, battery) and
-issue raw velocity commands to my wheels.
+This module provides access to the Kobuki mobile base. It allows me to read my physical sensors (bumpers, cliffs, battery) and issue raw velocity commands to my wheels.
 
 This is my "lower brain" interface. It bypasses the navigation map entirely.
 """
@@ -168,13 +166,13 @@ def get_battery() -> Dict[str, Union[float, str]]:
                 if percent > 30.0: status = "healthy"
                 elif percent > 15.0: status = "low"
                 else: status = "critical"
-                return {'voltage': round(voltage, 2), 'percentage': round(percent, 1), 'status': status}
+                return {'voltage': round(voltage, 2), 'percent': round(percent, 1), 'status': status}
             else:
                 # _latest_state is None, increment retry counter and wait
                 retries += 1
                 time.sleep(delay_s)
     # If we exhaust retries and _latest_state is still None, return unknown
-    return {'voltage': 0.0, 'percentage': 0.0, 'status': 'unknown'}
+    return {'voltage': 0.0, 'percent': 0.0, 'status': 'unknown'}
 
 def get_charger_state() -> str:
     """

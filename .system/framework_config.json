@@ -32,7 +32,7 @@
 			"</me>",
 			"<py_result>"
 		],
-		"max_output_tokens": 8192,
+		"max_output_tokens": 32000,
 		"_media_resolution": "MEDIA_RESOLUTION_UNSPECIFIED",
 		"media_resolution": "MEDIA_RESOLUTION_MEDIUM"
 	},

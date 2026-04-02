@@ -47,13 +47,9 @@ except ImportError:
     _HAS_ROS = False
 
 
-vision_cfg = logos_config.merged.get('vision', {})
 
 _debug_pubs: Dict[str, Any] = {}
 _bridge = None
-
-# __all__ is defined at the end of the file to include exports
-# always update  __all__!
 
 
 # ─── Constants ────────────────────────────────────────────────────────
@@ -491,10 +487,9 @@ class CaptureResult:
 
         h, w = self.image.shape[:2]
         
-        # Calculate grid spacing (inset by 1/(N+1) to center the grid)
-        # For 3x3 on 480x640, this yields points like you described.
-        y_step = h // (rows + 1)
-        x_step = w // (cols + 1)
+        # Calculate grid spacing (inset by 1/(N+0.25) to center the grid)
+        y_step = h // (rows + .25)
+        x_step = w // (cols + .25)
         
         hud_elements = []
         
@@ -1238,9 +1233,8 @@ def capture(
     check_for_interrupt()
 
     # 1. Resolve source from Config if not explicitly provided
-    if source is None:
-        # The key is 'default_source', not 'default'
-        source = vision_cfg.get('default_source', 'pan_tilt')
+    vision_cfg = logos_config.merged.get('vision', {})
+    source = source or vision_cfg.get('default_source', 'pan_tilt')
 
     # 2. Resolve resolution from Config if not explicitly provided
     if resolution is None:
@@ -1407,7 +1401,7 @@ def _get_debug_pub(source: str):
 @api_call(default_verbosity=Verbosity.SILENT)
 def publish_debug(
     image: np.ndarray, 
-    detections: List[Dict[str, Any]], 
+    detections: Optional[List[Dict[str, Any]]] = None,
     source: str = "general"
 ) -> None:
     """
@@ -1417,7 +1411,7 @@ def publish_debug(
 
     Args:
         image: The base BGR image (numpy array).
-        detections: A list of Logos-format detection dicts:
+        detections: Optional list of Logos-format detection dicts:
                     [{"label": "...", "box_2d": [y1, x1, y2, x2], "source": "..."}]
         source: A string used to name the ROS topic.
 
@@ -1444,31 +1438,32 @@ def publish_debug(
         "default": (0, 165, 255)     # Orange
     }
 
-    for det in detections:
-        box = det.get("box_2d")
-        if not box or len(box) != 4: continue
-        
-        # Map 0-1000 to pixel coordinates
-        y1, x1, y2, x2 = [
-            int(box[0] * h / 1000), int(box[1] * w / 1000),
-            int(box[2] * h / 1000), int(box[3] * w / 1000)
-        ]
+    if detections:
+        for det in detections:
+            box = det.get("box_2d")
+            if not box or len(box) != 4: continue
+            
+            # Map 0-1000 to pixel coordinates
+            y1, x1, y2, x2 = [
+                int(box[0] * h / 1000), int(box[1] * w / 1000),
+                int(box[2] * h / 1000), int(box[3] * w / 1000)
+            ]
 
-        # Determine color
-        det_source = det.get("source", "default")
-        color = colors.get(det_source, colors["default"])
+            # Determine color
+            det_source = det.get("source", "default")
+            color = colors.get(det_source, colors["default"])
 
-        # Draw Box
-        cv2.rectangle(canvas, (x1, y1), (x2, y2), color, 2)
+            # Draw Box
+            cv2.rectangle(canvas, (x1, y1), (x2, y2), color, 2)
 
-        # Draw Label & Confidence
-        label = det.get("label", "unknown")
-        conf = det.get("confidence")
-        text = f"{label} {conf}" if conf else label
-        
-        # Simple text background for readability
-        cv2.putText(canvas, text, (x1, y1 - 10), 
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1, cv2.LINE_AA)
+            # Draw Label & Confidence
+            label = det.get("label", "unknown")
+            conf = det.get("confidence")
+            text = f"{label} {conf}" if conf else label
+            
+            # Simple text background for readability
+            cv2.putText(canvas, text, (x1, y1 - 10), 
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1, cv2.LINE_AA)
 
     # Publish to ROS
     try:

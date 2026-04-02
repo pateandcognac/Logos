@@ -75,28 +75,21 @@ class NavTask:
 
     def progress(self) -> float:
         """
-        Uses Euclidean distance to estimate how far along the path I am. 0.0 is start pose. 1.0 is goal. Values can rise and fall as I navigate, even beyond 0 and 1.
+        Uses Euclidean distance to estimate how far along the path I am. 0.0 is start pose. 1.0 is goal. Values can rise and fall as I navigate, even beyond 0.0 and 1.0
         
         Note to self:
             This uses straight-line (Euclidean) distance. If I have to drive through
             rooms or around a large obstacles, this number can go down before it 
             goes up, and may even pass 1.0 before reaching goal. This is usable information!
+            If 1.0 < progress < -0.25 then ttp("On my way... just gotta take a little detour first.")
         """
-        if self._total_distance <= 0.01:
-            return 1.0 # We started basically at the goal
-            
         pose = ros.get_pose()
         if not pose:
             return 0.0 # Can't calculate without pose
             
         current_distance = math.hypot(self._goal_x - pose['x'], self._goal_y - pose['y'])
-        
-        # Calculate progress (clamped between 0.0 and 1.0 just in case)
-        # Wait. Perhaps we should allow negative numbers?  This could enable behavior like:
-        # if progress < -0.25 then speak("just a sec. gotta take a little detour first.")
-
         p = 1.0 - (current_distance / self._total_distance)
-        return max(0.0, min(1.0, p))
+        return p
 
     def cancel(self) -> None:
         """Stops the robot and cancels this specific goal."""
@@ -378,3 +371,74 @@ def approach_detection(box_3d: List[float], standoff: float = 1.0, source_frame:
     # 5. Execute Approach
     # approach_coordinate automatically faces the target (mx, my) upon arrival.
     return logos.nav.approach_coordinate(mx, my, standoff=effective_standoff, wait=wait)
+
+@api_call(default_verbosity=Verbosity.BRIEF)
+def approach_coordinate(x: float, y: float, standoff: float, wait: bool = True) -> NavTask:
+    """
+    Navigate to a position a specific distance away from a target, arriving facing it.
+
+    This function calculates a goal point that is `standoff` meters away from the
+    target coordinate `(x, y)`, along the vector from my current position. It then
+    uses the `move_base` planner to navigate there, ensuring my final orientation
+    is facing the original target. This is the core primitive for all "go inspect"
+    behaviors.
+
+    Args:
+        x: The map X coordinate of the target of interest.
+        y: The map Y coordinate of the target of interest.
+        standoff: How far from the target coordinate to stop, in meters.
+        wait: If True, blocks until the goal is reached. If False, returns a
+              NavTask immediately for asynchronous monitoring.
+
+    Returns:
+        A NavTask object.
+
+    Note to self:
+        This is incredibly useful. If I want to look at the bookshelf at (3.5, 2.1)
+        but stop 1.5 meters away to get a good view, I can just call:
+        `logos.nav.approach_coordinate(3.5, 2.1, standoff=1.5)`
+
+        If I'm already closer to the target than the requested standoff distance,
+        I won't back up; I will simply turn in place to face the target.
+    """
+    if not _HAS_ROS:
+        print("nav: ROS not available.")
+        return NavTask(None, x, y, 0.0, 0.0)
+
+    # 1. Get my current position
+    pose = ros.get_pose()
+    if not pose:
+        print("nav: Cannot approach coordinate, current pose unknown.")
+        return NavTask(None, x, y, 0.0, 0.0)
+
+    robot_x, robot_y = pose['x'], pose['y']
+
+    # 2. Calculate vector and distance from me to the target
+    dx = x - robot_x
+    dy = y - robot_y
+    distance_to_target = math.hypot(dx, dy)
+
+    # 3. Handle the edge case where I'm already within the standoff distance
+    if distance_to_target <= standoff:
+        # I'm already close enough. Just turn to face the target.
+        # I can do this by telling move_base to "go" to my current location
+        # but with a new orientation.
+        print(f"nav: Already within standoff distance ({distance_to_target:.2f}m). Turning to face target.")
+        target_facing_deg = math.degrees(math.atan2(dy, dx))
+        return go_to_abs(robot_x, robot_y, deg=target_facing_deg, wait=wait)
+
+    # 4. Calculate the new goal point
+    # Find the unit vector pointing from me to the target
+    unit_dx = dx / distance_to_target
+    unit_dy = dy / distance_to_target
+
+    # The goal is `standoff` meters back along this vector from the target
+    goal_x = x - (standoff * unit_dx)
+    goal_y = y - (standoff * unit_dy)
+
+    # 5. The final orientation should be facing the original target
+    # This is the same as the angle of the vector from me to the target.
+    final_deg = math.degrees(math.atan2(dy, dx))
+
+    # 6. Use the main navigation function to execute the plan
+    return go_to_abs(goal_x, goal_y, deg=final_deg, wait=wait)

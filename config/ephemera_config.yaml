@@ -15,21 +15,19 @@
       # import hook_routines.ambient as a; a.run()
 
 - name: vision
-  description: My camera feeds. Configure via `logos.config.prefs.vision`.
+  description: My primary camera feeds. Configure via `logos.config.prefs.vision_hook`.
   active: true
   code: |
-    # Placeholder for a more complex vision hook routine
-    # For now, a simple pan-tilt capture.
-    print("\n--- Primary Vision ---")
-    print("Usage: Configure via logos.config.prefs.vision")
-    # move camera to defined position and *pause* to stabilize
-    time.sleep(0.2)
-    vision_result = logos.vision.capture('pan_tilt', view=True)
-    if vision_result:
-        print("Image captured and available in `vision_result`.")
+    import hook_routines.vision as v_hook
+    _vision_res = v_hook.run()
+    
+    # Inject variables directly into my global namespace
+    pan_tilt_result = _vision_res.get('pan_tilt')
+    astra_result = _vision_res.get('astra')
+    top_down_result = _vision_res.get('top_down')
 
 - name: map3d_render
-  description: Renders my Chora based on current state.
+  description: Renders 
   active: true
   code: |
     print("\n--- Chora ---")
