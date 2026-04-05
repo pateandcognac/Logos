@@ -6,7 +6,7 @@
     d.run()
 
 - name: ambient_transcript
-  description: Rolling window of ambient speech. Control via `logos.config.prefs.ambient_stt.enabled = True/False`.
+  description: Placeholder. Rolling window of ambient speech. Control via `logos.config.prefs.ambient_stt.enabled`.
   active: false
   code: |
     # Placeholder for the ambient STT hook routine
@@ -14,7 +14,7 @@
       print("--- Placeholder for Ambient Transcript (TODO) ---")
       # import hook_routines.ambient as a; a.run()
 
-- name: vision
+- name: vision_hook
   description: My primary camera feeds. Configure via `logos.config.prefs.vision_hook`.
   active: true
   code: |

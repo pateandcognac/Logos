@@ -161,8 +161,8 @@ def get_battery() -> Dict[str, Union[float, str]]:
             # Check if _latest_state is available now
             if _latest_state is not None:
                 voltage = _latest_state.battery * 0.1
-                # Simple linear estimation between 13.5V (0%) and 15.9 (100%)
-                percent = max(0.0, min(100.0, ((voltage - 13.5) / (16.5 - 13.5)) * 100.0))
+                # Simple linear estimation between 13.5V (0%) and 16.2 (100%)
+                percent = max(0.0, min(100.0, ((voltage - 13.5) / (16.2 - 13.5)) * 100.0))
                 if percent > 30.0: status = "healthy"
                 elif percent > 15.0: status = "low"
                 else: status = "critical"

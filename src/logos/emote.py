@@ -9,7 +9,8 @@ perfectly with the words and emojis I am currently speaking. 😎
 
 import json
 import time
-from typing import Optional, Tuple, List, Dict
+import threading
+from typing import Optional, Tuple, List, Dict, Any
 
 from .core import api_call, Verbosity, check_for_interrupt
 from . import ros
@@ -19,11 +20,12 @@ try:
     import rospy
     from logos_msgs.msg import SpeakAction, SpeakGoal
     from actionlib_msgs.msg import GoalStatus
+    from std_msgs.msg import String
     _HAS_ROS = True
 except ImportError:
     _HAS_ROS = False
 
-__all__ = ["ttp", "is_speaking", "SpeakTask"]
+__all__ = ["ttp", "is_speaking", "SpeakTask", "gesture", "get_face_state"]
 
 # My default voice settings
 DEFAULT_ENGINE = "kokoro"
@@ -34,8 +36,40 @@ DEFAULT_KOKORO_PARAMS = {
     "volume": 1.0
 }
 
+# ─── Gesture & Face State Internals ───────────────────────────────────
 
+_face_cmd_pub: Optional['rospy.Publisher'] = None
+_arm_cmd_pub: Optional['rospy.Publisher'] = None
 
+_face_state_cache: Dict[str, Any] = {}
+_face_state_lock = threading.Lock()
+_state_sub_initialized = False
+
+def _ensure_gesture_pubs():
+    """Lazily initialize gesture publishers."""
+    global _face_cmd_pub, _arm_cmd_pub
+    if not _HAS_ROS: return
+    if _face_cmd_pub is None:
+        _face_cmd_pub = rospy.Publisher("/face/emoji_command", String, queue_size=5)
+    if _arm_cmd_pub is None:
+        _arm_cmd_pub = rospy.Publisher("/arm/emoji_command", String, queue_size=5)
+
+def _face_state_cb(msg):
+    """Callback for the live face state JSON stream."""
+    global _face_state_cache
+    try:
+        data = json.loads(msg.data)
+        with _face_state_lock:
+            _face_state_cache = data
+    except Exception:
+        pass # Ignore malformed JSON so we don't crash the subscriber thread
+
+def _ensure_state_sub():
+    """Lazily initialize the face state subscriber."""
+    global _state_sub_initialized
+    if not _HAS_ROS or _state_sub_initialized: return
+    rospy.Subscriber("/face/live_state/json", String, _face_state_cb, queue_size=1)
+    _state_sub_initialized = True
 
 
 
@@ -244,3 +278,77 @@ def ttp(
 def is_speaking() -> bool:
     """Checks if ANY speech audio is currently playing across the system."""
     return ros._is_speaking()
+
+
+@api_call(default_verbosity=Verbosity.ACK)
+def gesture(emoji: str, duration: float = 3.0, channel: str = "both") -> None:
+    """
+    Perform a silent animatronic gesture using my emoji-driven keyframe system.
+
+    Args:
+        emoji: The emoji string to perform (e.g., "🤨", "😄", "🔭").
+        duration: How long to hold/perform the gesture in seconds.
+        channel: Which hardware to command: "face", "arms", or "both".
+
+    Note to self:
+        This is perfect for silent reactions, ambient background movements, 
+        or physical gestures when I don't want to speak out loud with `ttp()`.
+        
+        Example:
+            logos.emote.gesture("🤔", duration=2.0) # Look thoughtful silently
+    """
+    if not _HAS_ROS:
+        return
+        
+    _ensure_gesture_pubs()
+    
+    payload = json.dumps({"emoji": emoji, "duration": duration})
+    msg = String(data=payload)
+    
+    if channel in ["face", "both"] and _face_cmd_pub:
+        _face_cmd_pub.publish(msg)
+    if channel in ["arms", "both"] and _arm_cmd_pub:
+        _arm_cmd_pub.publish(msg)
+
+def get_face_state() -> Dict[str, Any]:
+    """
+    Retrieve the real-time state of my animatronic face.
+    
+    Returns:
+        A dictionary containing the latest face state. Returns an empty dict {} 
+        if no data has been received yet. 
+        
+        Shape of returned data:
+        {
+            "timestamp": float,
+            "duration": float,  # Frame delta (usually ~0.06s active, ~0.25s idle)
+            "left_eye": {
+                "gaze_x": float, "gaze_y": float, "scale_x": float, "scale_y": float, 
+                "lid_height": float, "lid_angle": float, "color": str  # hex "#RRGGBB"
+            },
+            "right_eye": { ... same as left_eye ... },
+            "mouth": {
+                "frequency": float, "amplitude": float, "phase": float,
+                "phase_increment": float, "color": str
+            }
+        }
+        
+        Value Ranges:
+        - gaze, scale: generally -1.0 to +1.0
+        - lid_angle: -45.0 to +45.0 (degrees)
+        - mouth amplitude: 0.0 to 1.0
+
+    Note to self:
+        I can use this to create rich, emergent feedback loops! For example, 
+        I can read `gaze_x` to gently rotate my physical `logos.base` to track 
+        where my "eyes" are wandering, or I can read the eye `color` and pass it 
+        directly to `logos.leds.fill()` to match my ambient lighting to my mood.
+        
+        Because this returns an empty dict safely, I can use `.get()` to avoid errors:
+            state = logos.emote.get_face_state()
+            left_eye = state.get("left_eye", {})
+            hex_color = left_eye.get("color", "#FFFFFF")
+    """
+    _ensure_state_sub()
+    with _face_state_lock:
+        return _face_state_cache.copy()

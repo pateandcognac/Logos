@@ -58,7 +58,7 @@ def _initialize_llm() -> None:
         _llm_config = {}
 
 
-def llm(prompt: str, model_alias: str = "fast", temperature: float = 0.7) -> str:
+def llm(prompt: str, model_alias: str = "fast", temperature: float = 1.0) -> str:
     """
     A simple wrapper to prompt my core, stateless, LLM intelligence out-of-band. 
 
@@ -69,7 +69,7 @@ def llm(prompt: str, model_alias: str = "fast", temperature: float = 0.7) -> str
     Args:
         prompt: The text prompt to send to the model.
         model_alias: choose from "smartest", "fast", or "fastest" (defaults to "fast").
-        temperature: Sampling temperature (0.0–1.0).
+        temperature: 1.0 is recommended for best reasoning!
 
     Returns:
         The text response from the model, or an empty string on error.
