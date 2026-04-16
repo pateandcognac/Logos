@@ -38,7 +38,7 @@ def main() -> None:
 
     prompt = payload.get("prompt", "")
     model_name = payload.get("model_name", "gemini-flash-latest")
-    temperature = float(payload.get("temperature", 0.7))
+    temperature = float(payload.get("temperature", 1.0))
 
     api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
     if not api_key:
@@ -52,6 +52,8 @@ def main() -> None:
             contents=[prompt],
             config=genai_types.GenerateContentConfig(
                 temperature=temperature,
+                thinking_config=types.ThinkingConfig(
+                    thinking_level="LOW",
                 safetySettings=[
                     genai_types.SafetySetting(
                         category=genai_types.HarmCategory.HARM_CATEGORY_HARASSMENT,

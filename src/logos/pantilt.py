@@ -55,7 +55,7 @@ _TILT_SERVO_MAX = 550
 
 # Degree limits derived from servo limits:
 #   deg = (home_counts - servo_counts) / counts_per_deg
-PAN_RANGE = (-80.0, 100.0)    # (left_limit, right_limit)
+PAN_RANGE = (-100.0, 80.0)    # (right_limit, left_limit) 
 TILT_RANGE = (-60.0, 70.0)    # (down_limit, up_limit)
 HOME = (0.0, 0.0)
 
@@ -74,18 +74,20 @@ FOV: Dict[str, Tuple[float, float]] = {
 def _deg_to_counts(deg: float, home_counts: int) -> int:
     """
     Convert a degree value to servo counts.
-
-    Mapping: servo_counts = home_counts - (deg * counts_per_deg)
-    The subtraction inverts direction so that positive degrees map to the
-    conventional rightward / upward direction.
+    # +deg (Left) equals higher servo counts
     """
+    return int(round(home_counts + deg * _COUNTS_PER_DEG))
+
+
+def _counts_to_deg_pan(counts: int, home_counts: int) -> float:
+    return (counts - home_counts) / _COUNTS_PER_DEG
+
+def _deg_to_counts_tilt(deg: float, home_counts: int) -> int:
+    # +deg (Up) equals lower servo counts
     return int(round(home_counts - deg * _COUNTS_PER_DEG))
 
-
-def _counts_to_deg(counts: int, home_counts: int) -> float:
-    """Convert servo counts back to degrees."""
+def _counts_to_deg_tilt(counts: int, home_counts: int) -> float:
     return (home_counts - counts) / _COUNTS_PER_DEG
-
 
 def _clamp_deg(pan_deg: float, tilt_deg: float) -> Tuple[float, float]:
     """Clamp pan and tilt to their physical limits. Returns (pan, tilt)."""
@@ -195,8 +197,8 @@ def move(
 
     # Immediate jump if no duration/steps requested
     if duration <= 0 or steps <= 1:
-        p_cnt = _deg_to_counts(target_pan, _HOME_PAN_COUNTS)
-        t_cnt = _deg_to_counts(target_tilt, _HOME_TILT_COUNTS)
+        p_cnt = _deg_to_counts_pan(target_pan, _HOME_PAN_COUNTS)
+        t_cnt = _deg_to_counts_tilt(target_tilt, _HOME_TILT_COUNTS)
         _publish_servo(p_cnt, t_cnt, repeat=3)
         return (target_pan, target_tilt)
 
@@ -215,8 +217,8 @@ def move(
         curr_pan = start_pan + (d_pan * ease_t)
         curr_tilt = start_tilt + (d_tilt * ease_t)
         
-        p_cnt = _deg_to_counts(curr_pan, _HOME_PAN_COUNTS)
-        t_cnt = _deg_to_counts(curr_tilt, _HOME_TILT_COUNTS)
+        p_cnt = _deg_to_counts_pan(curr_pan, _HOME_PAN_COUNTS)
+        t_cnt = _deg_to_counts_tilt(curr_tilt, _HOME_TILT_COUNTS)
         
         # Publish current step (no repeat needed during interpolation)
         _publish_servo(p_cnt, t_cnt, repeat=1)
@@ -224,8 +226,8 @@ def move(
         time.sleep(step_delay)
 
     # Final "Insurance" publish to ensure we are exactly at the target
-    final_p = _deg_to_counts(target_pan, _HOME_PAN_COUNTS)
-    final_t = _deg_to_counts(target_tilt, _HOME_TILT_COUNTS)
+    final_p = _deg_to_counts_pan(target_pan, _HOME_PAN_COUNTS)
+    final_t = _deg_to_counts_tilt(target_tilt, _HOME_TILT_COUNTS)
     _publish_servo(final_p, final_t, repeat=3)
     
     return (target_pan, target_tilt)
@@ -285,8 +287,8 @@ def get_position() -> Tuple[float, float]:
     """
     _ensure_subscribers()
     with _position_lock:
-        pan = _counts_to_deg(_current_pan_counts, _HOME_PAN_COUNTS)
-        tilt = _counts_to_deg(_current_tilt_counts, _HOME_TILT_COUNTS)
+        pan = _counts_to_deg_pan(_current_pan_counts, _HOME_PAN_COUNTS)
+        tilt = _counts_to_deg_tilt(_current_tilt_counts, _HOME_TILT_COUNTS)
     return (pan, tilt)
 
 
@@ -343,9 +345,9 @@ def look_at_pixel(
     fov_h, fov_v = FOV[source]
 
     # Angular offset: how far from image center in degrees
-    # Pan:  object right in image → pan right (positive)
-    # Tilt: object above in image (negative y_frac) → tilt up (positive)
-    pan_offset = x_frac * fov_h
+    # Pan:  object right in image (+x_frac) → pan right (negative)
+    # Tilt: object above in image (-y_frac) → tilt up (positive)
+    pan_offset = -x_frac * fov_h
     tilt_offset = -y_frac * fov_v
 
     current_pan, current_tilt = get_position()

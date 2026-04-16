@@ -1,9 +1,7 @@
 # Logos/src/logos/vision.py
 
 """
-My eyes. This module gives me access to all three physical cameras and
-provides a unified capture interface with lifecycle management, artifact
-storage, and spatial projection.
+My eyes. This module gives me access to all three physical cameras and provides a unified capture interface with lifecycle management, artifact storage, and spatial projection.
 
 Cameras:
     'pan_tilt'  — Steerable high-res webcam (eye-level, 110cm). My directed
@@ -187,7 +185,7 @@ class CaptureResult:
         photo_id:       Optional[str] — set when saved to disk.
         path:           Optional[str] — file path, set when saved.
         pose:           Optional[dict] — robot pose from TF at capture time.
-                        Keys: 'x', 'y', 'deg' (map frame, or odom fallback).
+                        Keys: 'x', 'y', 'theta_deg' (map frame, or odom fallback).
         pan_tilt_degs:  Optional[Tuple[float, float]] — (pan, tilt) in degrees.
                         Only populated for source='pan_tilt'.
 
@@ -498,10 +496,10 @@ class CaptureResult:
 
         for r in range(1, rows + 1):
             for c in range(1, cols + 1):
-                py, px = r * y_step, c * x_step
+                py, px = int(r * y_step), int(c * x_step)
                 
                 # Draw the sampling anchor dot
-                cv2.circle(self.image, (px, py), 3, (0, 255, 0), -1)
+                cv2.circle((self.image, px, py), 3, (0, 255, 0), -1)
 
                 # --- Sampling Logic with NaN Search ---
                 # Search a small radius if the exact pixel is invalid (NaN)

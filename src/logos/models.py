@@ -2,7 +2,7 @@
 
 """
 Wrappers for interacting with various ML / AI models.
-This includes my core LLM intelligence and local vision models (YOLO).
+This includes local vision models and text-only, stateless shortcut to my core LLM intelligence. 
 
 Local models are loaded as lazy singletons to keep latency low while 
 preventing unnecessary RAM/VRAM usage if they are never called.
@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 import numpy as np
 import os
+import math
 
 # Get Path to Python 3.11 interpreter (with Gemini SDK installed) from env var VENV_PY311
 _PY311 = os.getenv("LOGOS_VENV_PY311", "/home/robot/robot_ws/.venv/bin/python3")
@@ -24,8 +25,9 @@ WORKER_PATH = Path(__file__).with_name("_llm_helper.py")
 # Lazy Singletons for Vision Models
 _yolo11_model = None
 _yolo_world_model = None
+_mp_hands_model = None
 
-__all__ = ["llm", "yolo11", "yolo_world"]
+__all__ = ["llm", "yolo11", "yolo_world", "hands"]
 
 _llm_config: Dict[str, Any] = {}
 
@@ -111,7 +113,7 @@ def llm(prompt: str, model_alias: str = "fast", temperature: float = 1.0) -> str
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
-            timeout=120,
+            timeout=180,
         )
     except Exception as e:
         print(f"Error invoking Gemini worker: {e}")
@@ -188,7 +190,7 @@ def _normalize_yolo_boxes(
     return formatted_results
 
 
-def yolo11(image: np.ndarray, classes: Union[List[str], None] = None, conf: float = 0.5) -> List[Dict[str, Any]]:
+def yolo11(image: np.ndarray, classes: Union[List[str], None] = None, conf: float = 0.5, imgsz: int = 320) -> List[Dict[str, Any]]:
     """
         Run inference using the blazing fast YOLO11 Nano model.
         Uses the standard 80 COCO classes (person, chair, cup, dog, etc).
@@ -241,7 +243,7 @@ def yolo11(image: np.ndarray, classes: Union[List[str], None] = None, conf: floa
                     class_ids.append(k)
 
     # Run inference (verbose=False keeps stdout clean)
-    results = _yolo11_model.predict(source=image, conf=conf, classes=class_ids, verbose=False)
+    results = _yolo11_model.predict(source=image, conf=conf, classes=class_ids, verbose=False, imgsz=imgsz)
     
     return _normalize_yolo_boxes(
         result_boxes=results[0].boxes, 
@@ -254,15 +256,16 @@ def yolo11(image: np.ndarray, classes: Union[List[str], None] = None, conf: floa
 
 def yolo_world(
     image: np.ndarray, 
-    prompts: List[str], 
-    conf: float = 0.1
+    prompts: List[str] = None, 
+    conf: float = 0.5,
+    imgsz: int = 640
 ) -> List[Dict[str, Any]]:
     """
     Run inference using the YOLO-World open-vocabulary-ish model. Familiar with about 8000 common objects, concepts, attributes.
 
     Args:
         image: A BGR uint8 numpy array.
-        prompts: A list of descriptive strings to search for. 
+        prompts: An optional list of descriptive strings to search for. 
                  (e.g., ["grey backpack", "person wearing red shirt", "coffee mug"]).
         conf: Minimum confidence threshold. Keep this lower (0.05-0.1) for 
               novel prompts, as zero-shot confidence is generally lower.
@@ -271,7 +274,7 @@ def yolo_world(
         A list of detection dictionaries natively formatted for my context window.
 
     Note to self:
-        This model is absolute magic for searching, but slightly slower than yolo11. 
+        This model is absolute magic for searching, but slower than yolo11. 
         Use this when I am looking for a specific object that isn't in the standard 
         80 COCO classes, or when I want to filter by attributes (color, state).
         
@@ -298,7 +301,7 @@ def yolo_world(
     # YOLO-World requires setting the custom classes before inference
     _yolo_world_model.set_classes(prompts)
 
-    results = _yolo_world_model.predict(source=image, conf=conf, verbose=False)
+    results = _yolo_world_model.predict(source=image, conf=conf, verbose=False, imgsz=imgsz)
     
     return _normalize_yolo_boxes(
         result_boxes=results[0].boxes, 
@@ -307,3 +310,127 @@ def yolo_world(
         img_w=img_w, 
         source_name="yolo_world"
     )
+
+# ─── MediaPipe Hands ──────────────────────────────────────────────────
+
+def _recognize_gesture(landmarks: List[List[int]]) -> str:
+    """
+    A lightweight, math-based heuristic to recognize basic hand gestures.
+    Calculates if a finger is 'open' by checking if its tip is further 
+    from the wrist (landmark 0) than its PIP joint.
+    """
+    def dist(i, j):
+        return math.hypot(landmarks[i][0] - landmarks[j][0], landmarks[i][1] - landmarks[j][1])
+    
+    # Finger indices: [Tip, PIP]
+    # Thumb uses MCP (2) instead of PIP for better distance heuristics
+    fingers_open = {
+        "thumb": dist(4, 0) > dist(2, 0), 
+        "index": dist(8, 0) > dist(6, 0),
+        "middle": dist(12, 0) > dist(10, 0),
+        "ring": dist(16, 0) > dist(14, 0),
+        "pinky": dist(20, 0) > dist(18, 0),
+    }
+    
+    opens = sum(fingers_open.values())
+    
+    if opens == 5: return "open_palm"
+    if opens == 0: return "closed_fist"
+    if fingers_open["index"] and not fingers_open["middle"] and not fingers_open["ring"] and not fingers_open["pinky"]:
+        return "pointing"
+    if fingers_open["index"] and fingers_open["middle"] and not fingers_open["ring"] and not fingers_open["pinky"]:
+        return "peace"
+        
+    return "unknown"
+
+def hands(image: np.ndarray, max_hands: int = 2) -> List[Dict[str, Any]]:
+    """
+    Detect hands and interpret basic gestures using MediaPipe.
+    
+    Args:
+        image: A BGR uint8 numpy array.
+        max_hands: Maximum number of hands to track.
+
+    Returns:
+        A list of natively formatted detection dictionaries:
+        [
+            {
+                "handedness": "Right", 
+                "confidence": 0.98,
+                "gesture": "open_palm|closed_fist|pointing|peace|unknown",
+                "box_2d": [y_min, x_min, y_max, x_max], 
+                "center_2d": [y, x],
+                "landmarks": [[y, x], [y, x], ...] # 21 points
+            }
+        ]
+
+    Note to self:
+        This model is extremely fast. Use it to read human intent!
+        Gestures recognized: 'open_palm', 'closed_fist', 'pointing', 'peace', 'unknown'.
+        [y, x] coordinates are normalized 0-1000 for compatibility with existing tools.
+    """
+    global _mp_hands_model
+    
+    try:
+        import mediapipe as mp
+    except ImportError:
+        print("models: mediapipe package not installed. Cannot run hand tracking.")
+        return []
+
+    # Lazy-load singleton
+    if _mp_hands_model is None:
+        # static_image_mode=True forces it to treat each frame independently, 
+        # which is safer for us since we might call this sporadically rather than at 30fps.
+        _mp_hands_model = mp.solutions.hands.Hands(
+            static_image_mode=True, 
+            max_num_hands=max_hands,
+            min_detection_confidence=0.5
+        )
+
+    # MediaPipe expects RGB
+    rgb_image = image[:, :, ::-1] # Faster than cv2.cvtColor
+    img_h, img_w = image.shape[:2]
+    
+    results = _mp_hands_model.process(rgb_image)
+    
+    formatted_results = []
+    if not results.multi_hand_landmarks:
+        return formatted_results
+
+    for hand_landmarks, handedness in zip(results.multi_hand_landmarks, results.multi_handedness):
+        # Convert normalized 0.0-1.0 floats to Logos 0-1000 [y, x] integers
+        landmarks_0_1000 = []
+        y_coords = []
+        x_coords = []
+        
+        for lm in hand_landmarks.landmark:
+            norm_y = int(lm.y * 1000)
+            norm_x = int(lm.x * 1000)
+            # Clamp just in case the bounding box goes slightly off-screen
+            norm_y = max(0, min(1000, norm_y))
+            norm_x = max(0, min(1000, norm_x))
+            
+            landmarks_0_1000.append([norm_y, norm_x])
+            y_coords.append(norm_y)
+            x_coords.append(norm_x)
+            
+        # Derive 2D Box and Center from the landmarks
+        box_2d = [min(y_coords), min(x_coords), max(y_coords), max(x_coords)]
+        center_2d = [
+            int((box_2d[0] + box_2d[2]) / 2),
+            int((box_2d[1] + box_2d[3]) / 2)
+        ]
+        
+        # Interpret Gesture
+        gesture_label = _recognize_gesture(landmarks_0_1000)
+        
+        formatted_results.append({
+            "handedness": handedness.classification[0].label,
+            "confidence": round(float(handedness.classification[0].score), 2),
+            "gesture": gesture_label,
+            "box_2d": box_2d,
+            "center_2d": center_2d,
+            "landmarks": landmarks_0_1000
+        })
+
+    return formatted_results

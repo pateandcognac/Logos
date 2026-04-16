@@ -6,13 +6,13 @@
     d.run()
 
 - name: ambient_transcript
-  description: Placeholder. Rolling window of ambient speech. Control via `logos.config.prefs.ambient_stt.enabled`.
+  description: TODO. Placeholder. Rolling window of ambient speech. Control via `logos.config.prefs.ambient_stt.enabled`.
   active: false
   code: |
     # Placeholder for the ambient STT hook routine
-    if logos.config.merged.get('ambient_stt', {}).get('enabled', False):
-      print("--- Placeholder for Ambient Transcript (TODO) ---")
-      # import hook_routines.ambient as a; a.run()
+    print("--- Placeholder for Ambient Transcript (TODO) ---")
+    # The node and logic for ambient background listenting already exists. This is an easy implementation.
+    # Should we perhaps add a `sensory.py` module to the API for this and future stuff?
 
 - name: vision_hook
   description: My primary camera feeds. Configure via `logos.config.prefs.vision_hook`.
@@ -20,28 +20,28 @@
   code: |
     import hook_routines.vision as v_hook
     _vision_res = v_hook.run()
-    
     # Inject variables directly into my global namespace
     pan_tilt_result = _vision_res.get('pan_tilt')
     astra_result = _vision_res.get('astra')
     top_down_result = _vision_res.get('top_down')
 
 - name: map3d_render
-  description: Renders 
+  description: Renders a view into my Chora using `logos.config.prefs.map3d`
   active: true
   code: |
-    print("\n--- Chora ---")
+    print("--- Chora ---")
     print("Usage: Configure via logos.config.prefs.map3d")
     if logos.config.merged.map3d.active == True:
         params = logos.config.merged.map3d.render_params
-        map3d_result = logos.map3d.render(**params, verbosity=Verbosity.SILENT)
+        fn=logos.utils.make_time_id()
+        map3d_result = logos.map3d.render(filename=fn, **params, verbosity=Verbosity.SILENT)
         if map3d_result:
             print("Render complete and available in `map3d_result`.")
     else:
         print("map3d rendering not active.")
 
 - name: context_workbench
-  description: Shows the output of small snippets of code, with a lifespan. For temporarily viewing large or dynamic contexts without cluttering my palimpsest.
+  description: Shows the output of small snippets of code, with a loops-to-live (ltl) lifespan. For temporarily viewing large or dynamic contexts without cluttering my palimpsest.
   active: true
   code: |
     import hook_routines.workbench as wb

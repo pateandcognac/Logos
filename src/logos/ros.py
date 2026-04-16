@@ -55,7 +55,7 @@ def transform_point_to_map(
     timestamp: float
 ) -> Optional[Tuple[float, float, float]]:
     """
-    Transforms a 3D coordinate from a specific source frame into the absolute 'map' frame. (e.g. my box_3d detection from an Astra image.)
+    Transforms a 3D coordinate from a specific source frame into the absolute 'map' frame. (e.g. a detection from an Astra image)
     
     Unlike map-to-frame (which usually queries the latest time), this function 
     requires a specific timestamp. This is crucial when projecting historical 
@@ -115,7 +115,7 @@ def transform_map_to_frame(
     
     Args:
         x, y, z: Coordinates in the map frame.
-        target_frame: The frame to transform into (e.g. 'pan_tilt_link').
+        target_frame: The frame to transform into, e.g. `camera_rgb_frame`.
         
     Returns:
         (x, y, z) in the target frame, or None if TF fails.
@@ -245,7 +245,7 @@ def get_pose() -> Optional[Dict[str, float]]:
         # in degrees for Logos and human facing stuff
         theta_deg = math.degrees(theta)
 
-        return {"x": t.x, "y": t.y, "deg": theta_deg}
+        return {"x": t.x, "y": t.y, "theta_deg": theta_deg, "frame": parent_frame}
 
     except Exception:
         return None

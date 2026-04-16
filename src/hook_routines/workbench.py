@@ -2,52 +2,60 @@
 
 import logos
 
-def add(name: str, code: str, ltl: int = 1):
+def upsert(name: str, code: str, ltl: int = 1, location: str = 'ephemera'):
     """
-    Helper function for Logos to put a snippet on the context workbench.
+    Add or update a snippet on the workbench.
     
-    Usage in a <py> block:
-        import hook_routines.workbench as workbench
-        workbench.add("check_docs", "print(logos.files.show('docs.md'))", ltl=2)
+    Args:
+        name: Unique key for this snippet.
+        code: The Python string to execute.
+        ltl: Loops To Live.
+        location: 'arche' (top of context) or 'ephemera' (bottom).
     """
-    # Initialize workbench state if it doesn't exist
     bench = logos.hooks.state.setdefault('workbench', {})
-    bench[name] = {'code': code, 'ltl': ltl}
-    print(f"Workbench: Added '{name}' for the next {ltl} loop(s).")
+    bench[name] = {
+        'code': code, 
+        'ltl': ltl, 
+        'location': location.lower()
+    }
+    print(f"Workbench: Upserted '{name}' in {location} for {ltl} loops.")
 
 def run(location: str):
-    """
-    The context workbench hook execution logic. Can be placed in both arche and ephemera.
-    """
+    """Called by the hook system. Location is 'arche' or 'ephemera'."""
     bench = logos.hooks.state.get('workbench', {})
     if not bench:
-        usage = (f"\n=== Context Workbench ({location}) ===\n"
-                "Runs a small snippet of context emitting `code` for `ltl` loops-to-live. Enables temporary viewing of large docs, changing variables, etc. without cluttering my palimpsest.\n"
-                "Example usage:\n"
-                """workbench.add(name="perusing_docs", code="logos.files.show(path='docs.md', pattern='some regex')", ltl=2)\n""")
+        usage = (f"\n--- Context Workbench ({location}) ---\n"
+                "No content.\n---\n"
+                "Example Usage:\n"
+                "# I need to temporarily [search through some docs|crop/zoom/view an image|monitor a changing var|etc], but don't want to blow up my palimpsest. I'll put it on the auto-expiring workbench.\n"
+                """workbench.upsert(name="doc_review", code="logos.files.show(path='docs.md', pattern='some regex')", ltl=2, location='arche|ephemera')""")
+        
         print(usage)
         return 
 
-    print(f"\n=== Context Workbench ({location}) ===")
+    # Filter for snippets designated for this specific hook location
+    active_snippets = {k: v for k, v in bench.items() if v.get('location') == location}
+    
+    if not active_snippets:
+        return
+
+    print(f"\n--- Context Workbench ({location}) ---")
     to_remove = []
     
-    for name, item in bench.items():
-        print(f"--- [ {name} ] (Loops remaining: {item['ltl']}) ---")
+    for name, item in active_snippets.items():
+        print(f"--- [ {name} ] (ltl: {item['ltl']}) ---")
         try:
-            # We execute the code in the global namespace so it has access
-            # to my persistent variables, and we capture anything it prints.
-            # I must remember to use print() in my workbench code to see the output!
+            # Execute in global scope so it can see 'logos', etc.
             exec(item['code'], globals())
+            print()
         except Exception as e:
             print(f"Workbench Error in '{name}': {e}")
         
-        # Decrement Loops To Live
+        # Decrement LTL (only once per loop, even if in both hooks—but we've split them now)
         item['ltl'] -= 1
         if item['ltl'] <= 0:
             to_remove.append(name)
-            
-    print("=========================\n")
-    
-    # Cleanup expired items
+
+    # Cleanup the main state dict
     for name in to_remove:
         del bench[name]

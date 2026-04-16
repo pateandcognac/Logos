@@ -128,7 +128,7 @@ def summarize_io_buffer(cell_indices: List[int], guidance: str = None):
         })
     example_output_json = json.dumps({"summaries": example_output_tasks}, indent=2)
 
-    full_prompt = f"{system_prompt}\nHere are the tasks and the io_buffer content:\n```json\n{prompt_tasks_json}\n```\n\nYour output will be a single JSON object constructed exactly like this example:\n```json\n{example_output_json}\n```\n\nPlease begin your response now. Thank you!"
+    full_prompt = f"{system_prompt}\n\n<tasks>\nHere are the tasks and the io_buffer content:\n```json\n{prompt_tasks_json}\n```\n\nYour output will be a single JSON object constructed exactly like this example:\n```json\n{example_output_json}\n```\n\nPlease begin your response now. Thank you!\n</tasks>"
 
     # 4. Call the LLM and parse the response
     from .models import llm # Local import to avoid circular dependency issues at startup

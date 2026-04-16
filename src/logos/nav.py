@@ -10,7 +10,7 @@ and the `turtlebot_move` action server for odometry-based relative movements.
 
 import math
 import time
-from typing import Optional, List
+from typing import Optional, List, Union, Dict, Any
 
 from .core import api_call, Verbosity, check_for_interrupt
 from . import ros
@@ -27,7 +27,7 @@ try:
 except ImportError:
     _HAS_ROS = False
 
-__all__ = ["go_to_abs", "move_relative", "turn_then_drive", "approach_coordinate", "approach_detection", "cancel_all", "NavTask"]
+__all__ = ["go_to_abs", "move_relative", "turn_then_drive", "approach_coordinate", "approach_astra_detection", "cancel_all", "NavTask"]
 
 
 class NavTask:
@@ -59,7 +59,7 @@ class NavTask:
         return self._client.get_state() == GoalStatus.SUCCEEDED
 
     def status(self) -> str:
-        """Returns a human-readable status of the goal (e.g., 'ACTIVE', 'SUCCEEDED', 'ABORTED')."""
+        """Returns a human-readable status of the goal (e.g., 'PENDING', 'ACTIVE', 'CANCELED', 'SUCCEEDED', 'ABORTED', 'REJECTED', 'LOST')."""
         if not _HAS_ROS: return "NO_ROS"
         state = self._client.get_state()
         mapping = {
@@ -67,7 +67,7 @@ class NavTask:
             GoalStatus.ACTIVE: "ACTIVE",
             GoalStatus.PREEMPTED: "CANCELED",
             GoalStatus.SUCCEEDED: "SUCCEEDED",
-            GoalStatus.ABORTED: "FAILED/ABORTED",
+            GoalStatus.ABORTED: "ABORTED",
             GoalStatus.REJECTED: "REJECTED",
             GoalStatus.LOST: "LOST"
         }
@@ -158,6 +158,12 @@ def go_to_abs(x: float, y: float, deg: Optional[float] = None, wait: bool = Fals
         return NavTask(None, x, y, 0.0, 0.0)
 
     pose = ros.get_pose()
+    
+    # Guard against odom fallback
+    if pose and pose.get('frame') != 'map':
+        print("nav: CRITICAL DANGER. Current pose is not in 'map' frame. Aborting absolute map routing.")
+        return NavTask(None, x, y, 0.0, 0.0)
+        
     start_x = pose['x'] if pose else 0.0
     start_y = pose['y'] if pose else 0.0
 
@@ -226,7 +232,7 @@ def move_relative(forward_m: float = 0.0, left_m: float = 0.0, turn_deg: float =
         return NavTask(None, 0, 0, 0, 0)
 
     # Current state
-    x, y, deg = pose['x'], pose['y'], pose['theta']
+    x, y, deg = pose['x'], pose['y'], pose['theta_deg']
     theta_rad = math.radians(deg)
     
     # Calculate global map offsets based on my local orientation
@@ -273,7 +279,7 @@ def turn_then_drive(turn_deg: float, forward_m: float, wait: bool = True) -> Nav
     pose = ros.get_pose()
     start_x = pose['x'] if pose else 0.0
     start_y = pose['y'] if pose else 0.0
-    start_theta = pose['theta'] if pose else 0.0
+    start_theta = pose['theta_deg'] if pose else 0.0
     
     # Target global pose after turning and moving forward
     target_theta_rad = start_theta + math.radians(turn_deg)
@@ -309,68 +315,71 @@ def cancel_all() -> None:
 
 
 @api_call(default_verbosity=Verbosity.ACK)
-def approach_detection(box_3d: List[float], standoff: float = 1.0, source_frame: str = 'camera_depth_optical_frame', wait: bool = True) -> NavTask:
+def approach_astra_detection(
+    target: Union[List[float], Dict[str, Any]], 
+    astra_result: "logos.vision.CaptureResult", 
+    standoff: float = 1.0, 
+    wait: bool = True
+) -> NavTask:
     """
-    Navigate to a spot `standoff` meters away from the nearest face of a box_3d I detected from my Astra.
+    Navigate to a spot `standoff` meters away from an object seen in an Astra image.
     
-    This bridges the gap between my native visual 3D detections (in camera optical frame) 
-    and the physical map. It calculates the object's radius on the floor plane to ensure 
-    I stop at the appropriate distance from the surface, not the center.
+    Automatically bridges the gap between my visual detections and the map. 
+    Accepts 3D boxes, 2D boxes, 2D points, or raw YOLO detection dictionaries.
 
     Args:
-        box_3d: The 9-value 3D bounding box list I emit natively:
-                [cx, cy, cz, sx, sy, sz, r, p, y]
-                (Center X, Y, Z; Size X, Y, Z; Roll, Pitch, Yaw).
-                Convention: Camera Optical Frame (X-Right, Y-Down, Z-Forward).
-        standoff: How many meters from the *surface* of the object to stop.
-        source_frame: The TF frame the detection was made in. Defaults to Astra depth.
+        target: Can be a detection dict (e.g. from `smart_detect`), a 9-value 3D box, 
+                a 4-value 2D box, or a 2-value 2D point.
+        astra_result: The specific CaptureResult object the detection was made from.
+                      Crucial for time-accurate TF projection and depth raycasting.
+        standoff: How many meters from the *surface* (or center if point) to stop.
         wait: If True, blocks until arrival.
-
-    Returns:
-        A NavTask object.
-
-    Note to self:
-        I use this when I want to inspect something I've seen. 
-        Since my native `box_3d` is in the camera frame, this function handles the 
-        messy TF transforms to get it onto the map.
-        
-        Crucially, it adjusts the goal so I don't ram into large objects! 
-        If I see a couch that is 1 meter deep, and request a 1.0m standoff, 
-        this function calculates the geometry and stops me 1.5m from the center 
-        (1.0m standoff + 0.5m object radius).
-        
-        Example:
-            # "I see a chair over there, let me get a closer look."
-            # [My native detection triggers] -> box = [...]
-            logos.nav.approach_detection(box, standoff=0.8)
     """
-    # 1. Unpack the box (We only need center and size for this)
-    # Optical Frame: X=Right, Y=Down, Z=Forward
-    cx, cy, cz, sx, sy, sz, *_ = box_3d
+    import logos
 
-    # 2. Transform Center to Map Frame
-    # We use the current time (0.0) as we are acting on a live perception.
-    map_coords = logos.ros.transform_point_to_map(cx, cy, cz, source_frame, 0.0)
-    
-    if not map_coords:
-        print(f"Error: Could not transform detection from {source_frame} to map.")
-        return logos.nav.NavTask(status="ABORTED")
+    # 1. Unpack detection dictionaries if provided
+    if isinstance(target, dict):
+        # Look for the best available spatial data
+        target_data = target.get("box_3d") or target.get("box_2d") or target.get("center_2d") or target.get("point")
+        if not target_data:
+            print("nav: Detection dictionary is missing usable spatial data.")
+            return NavTask(None, 0, 0, 0, 0)
+        target = target_data
 
-    mx, my, mz = map_coords
+    # 2. Handle 3D Box [cx, cy, cz, sx, sy, sz, r, p, y]
+    if len(target) == 9:
+        cx, cy, cz, sx, sy, sz, *_ = target
+        source_frame = astra_result.depth_points_msg.header.frame_id
+        
+        # Use the EXACT timestamp of the image capture!
+        map_coords = logos.ros.transform_point_to_map(cx, cy, cz, source_frame, astra_result.timestamp)
+        if not map_coords:
+            print(f"nav: Could not transform 3D box from {source_frame} to map.")
+            return NavTask(None, 0, 0, 0, 0)
+            
+        mx, my, mz = map_coords
+        object_radius = max(sx, sz) / 2.0
 
-    # 3. Calculate "Floor Radius"
-    # In Optical Frame, the object's footprint on the floor is defined by X (width) and Z (depth).
-    # We want to stop `standoff` away from the face. 
-    # Conservative approach: treat the object depth as the max of its optical X/Z dimensions 
-    # halved. This prevents clipping corners of rotated objects.
-    object_radius = max(sx, sz) / 2.0
-    
+    # 3. Handle 2D Box [y1, x1, y2, x2] or Point [y, x]
+    elif len(target) in (2, 4):
+        map_coords = astra_result.derive_world_coordinate(target)
+        if not map_coords:
+            print("nav: Could not derive world coordinate from 2D point/box (no valid depth).")
+            return NavTask(None, 0, 0, 0, 0)
+            
+        mx, my, mz = map_coords
+        # We don't know the exact 3D size, so we assume a generic 25cm radius
+        object_radius = 0.25 
+        
+    else:
+        print(f"nav: Target format not recognized. Length: {len(target)}")
+        return NavTask(None, 0, 0, 0, 0)
+
     # 4. Total Standoff = Requested Standoff + Distance from Center to Face
     effective_standoff = standoff + object_radius
 
     # 5. Execute Approach
-    # approach_coordinate automatically faces the target (mx, my) upon arrival.
-    return logos.nav.approach_coordinate(mx, my, standoff=effective_standoff, wait=wait)
+    return approach_coordinate(mx, my, standoff=effective_standoff, wait=wait)
 
 @api_call(default_verbosity=Verbosity.BRIEF)
 def approach_coordinate(x: float, y: float, standoff: float, wait: bool = True) -> NavTask:

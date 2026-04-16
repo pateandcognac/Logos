@@ -24,7 +24,7 @@ except ImportError:
 __all__ = [
     "get_bumpers", "get_cliffs", "get_wheel_drops", 
     "get_battery", "get_charger_state", "get_buttons",
-    "velocity", "stop"
+    "velocity", "move_timed", "stop"
 ]
 
 # ─── Internal State & Constants ───────────────────────────────────────
@@ -207,78 +207,66 @@ def get_buttons() -> List[str]:
 
 # ─── Public Movement API ──────────────────────────────────────────────
 
-@api_call(default_verbosity=Verbosity.BRIEF)
-def velocity(
-    linear_x: float,
-    angular_z_deg: float,
-    duration: float,
-    topic: str = "raw",
-) -> None:
+@api_call(default_verbosity=Verbosity.SILENT)
+def velocity(linear_x: float, angular_z_deg: float, topic: str = "raw") -> None:
     """
-    Send raw velocity commands to a 'raw' (default) velocity topic or 'muxed' and *smoothed* topic for a specific duration.
+    Publish a single, non-blocking velocity command to the base.
 
     Args:
-        linear_x: Forward/backward speed in meters per second (m/s). 
-                  Positive is forward, negative is backward. (Max ~0.70)
-        angular_z_deg: Rotational speed in degrees per second (deg/s). 
-                   Positive is counter-clockwise (left), negative is clockwise (right). (Max ~110)
-        duration: How long to apply this velocity, in seconds.
-        topic:    [raw|muxed] Default: *raw*
+        linear_x: Forward/backward speed in m/s.
+        angular_z_deg: Rotational speed in deg/s.
+        topic: [raw|muxed|safety] Default: 'raw'
 
     Note to self:
-        This is for raw, map-ignorant movement! I use 'raw' for short, sharp 
-        movements where I want to overcome inertia quickly (e.g., wiggles, 
-        dances). I can use 'muxed' for smoother, "teleop-style" movements
-        that respect the standard acceleration limits.
-
-        The safety controller can still override me if I am about to hit a wall.
-        This function blocks execution until the duration is complete, publishing 
-        the velocity at 10Hz to the Kobuki motor timeout watchdog.
-
-        Example:
-            logos.base.velocity(0.2, 0.0, 2.0)   # Move forward 0.2 m/s for 2 seconds
-            logos.base.velocity(0.0, 5.0, 3.0)   # Spin left 5 deg/s for 3 seconds
+        This is perfect for control loops (like tracking). The Kobuki hardware 
+        has a ~0.6s timeout. If you don't call this again within that window, 
+        the base will automatically halt.
     """
     global _cmd_vel_pub, _cmd_vel_topic
 
     _ensure_ros()
-    if not _HAS_ROS:
-        print("base: Cannot move, ROS not available.")
-        return
-
-    # Optional but helpful: fail loudly if nobody called rospy.init_node()
-    if not rospy.core.is_initialized():
-        print("base: Cannot move, rospy.init_node() has not been called.")
+    if not _HAS_ROS or not rospy.core.is_initialized():
         return
 
     topic = topic.lower()
-    if topic not in _TOPIC_MAP:
-        raise ValueError(
-            f"Invalid topic alias '{topic}'. Valid options: {list(_TOPIC_MAP.keys())}"
-        )
+    resolved_topic = _TOPIC_MAP.get(topic, _TOPIC_MAP["raw"])
 
-    resolved_topic = _TOPIC_MAP[topic]
-
-    # Create/recreate publisher if needed
     if _cmd_vel_pub is None or _cmd_vel_topic != resolved_topic:
         _cmd_vel_pub = rospy.Publisher(resolved_topic, Twist, queue_size=5)
         _cmd_vel_topic = resolved_topic
         rospy.sleep(0.05)
 
-    # ---- everything below here can stay the same as your current code ----
     cmd = Twist()
     cmd.linear.x = linear_x
     cmd.angular.z = math.radians(angular_z_deg)
+    _cmd_vel_pub.publish(cmd)
 
+
+@api_call(default_verbosity=Verbosity.BRIEF)
+def move_timed(linear_x: float, angular_z_deg: float, duration: float, topic: str = "raw") -> None:
+    """
+    Block and move the base at a specific velocity for a set duration.
+
+    Args:
+        linear_x: Forward/backward speed in m/s.
+        angular_z_deg: Rotational speed in deg/s.
+        duration: Time in seconds to hold this velocity.
+        topic: [raw|muxed|safety] Default: 'raw'
+
+    Note to self:
+        Use this for scripted, open-loop movements (like wiggles, dances, 
+        or backing up blindly). Execution pauses here until the duration ends.
+    """
     rate = rospy.Rate(10)
     end_time = time.time() + duration
 
     while time.time() < end_time:
         check_for_interrupt()
-        _cmd_vel_pub.publish(cmd)
+        # We reuse the new single-publish velocity function here!
+        velocity(linear_x, angular_z_deg, topic=topic, verbosity=Verbosity.SILENT)
         rate.sleep()
 
-    stop(verbosity=Verbosity.SILENT)
+    stop(topic=topic, verbosity=Verbosity.SILENT)
 
 @api_call(default_verbosity=Verbosity.ACK)
 def stop(topic: str = "raw") -> None:

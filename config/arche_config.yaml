@@ -1,24 +1,30 @@
 - name: hook_configs
-  description: A summary of my active cognitive hooks.
+  description: A summary of my currently configured cognitive hooks.
   active: true
   code: |
-    import time
     from logos.core import verbosity, check_for_interrupt, help, Verbosity
     print("\n--- Cognitive Hook Status ---")
     print("Arche:")
     print(logos.hooks.show('arche'))
-    print("\nEphemera:")
+    print("\n---\nEphemera:")
     print(logos.hooks.show('ephemera'))
 
-- name: api_dump
-  description: My core API reference (signatures and one-liners).
+- name: api_ref
+  description: My core API reference (signatures and one-liners) from `logos.help()`.
   active: true
   code: |
     print("--- Logos API Reference ---")
     logos.help(print_output=True)
 
+- name: skills_ref
+  description: My self-created skills reference (signatures and one-liners) from `skills.help()`.
+  active: true
+  code: |
+    print("--- Logos Skills Reference ---")
+    skills.help()
+
 - name: file_tree
-  description: Shows the output of logos.files.tree(**logos.config.merged.tree)
+  description: Shows the CWD and output of `logos.files.tree(**logos.config.merged.tree)`.
   active: true
   code: |-
     from pathlib import Path
@@ -27,13 +33,13 @@
     print(logos.files.tree(**logos.config.merged.tree))
 
 - name: Logos_photo
-  description: A photograph Mark took of me, idling in my cozy charging nook. Overlaid with my self_model.py code as an experiment in ViT compression.
+  description: A photograph Mark took of me, idling in my cozy charging nook. Overlaid with my self_model.py code as an experiment to see how much useful data my ViT can encode in a fixed token count.
   active: true
   code: |-
     print('<file path="images/Logos_with_self_model.py_overlay.png"></file>')
 
 - name: proximity_snapshot
-  description: 360-degree-ish visual sweep of the floor immediately surrounding me. Updates are gated by pose and time.
+  description: 360-degree-ish visual sweep of the floor around me, captured from top_down and pan_tilt. Updates are gated by pose and time to reduce latency and maintain KV cache.
   active: true
   code: |
     import hook_routines.proximity_snapshot as ps

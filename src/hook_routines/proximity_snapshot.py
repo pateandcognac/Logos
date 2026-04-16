@@ -29,7 +29,7 @@ def run():
         dy = current_pose['y'] - last_pose['y']
         dist = math.hypot(dx, dy)
         
-        diff = abs((current_pose['deg'] - last_pose['deg']) % 360)
+        diff = abs((current_pose['theta_deg'] - last_pose['theta_deg']) % 360)
         angle_diff = diff if diff <= 180 else 360 - diff
         
         if dist > DIST_THRESH_M or angle_diff > ANGLE_THRESH_DEG:
@@ -102,13 +102,13 @@ def run():
         quad_view.save()
         
         # Construct the static header string
-        time_str = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(current_time))
+        time_str = time.strftime('%I:%M %p', time.localtime(current_time))
         header_lines = [
             "--- Proprioception Sweep ---",
             f"Captured at: {time_str}"
         ]
         if current_pose:
-            header_lines.append(f"Pose: x={current_pose['x']:.2f}, y={current_pose['y']:.2f}, deg={current_pose['deg']:.1f}")
+            header_lines.append(f"Pose: x={current_pose['x']:.2f}, y={current_pose['y']:.2f}, deg={current_pose['theta_deg']:.1f}")
         header_lines.append(f"Refreshes every {TIME_THRESH_SEC//60} min, or when pose changes > {DIST_THRESH_M}m / {ANGLE_THRESH_DEG}deg")
         header_str = "\n".join(header_lines)
 

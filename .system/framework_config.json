@@ -10,9 +10,9 @@
 		"token_estimation_divisor": 5
 	},
 	"main_model": {
-		"_model": "gemini-robotics-er-1.5-preview",
+		"model": "gemini-robotics-er-1.6-preview",
 		"__model": "gemini-3.1-flash-lite-preview",
-		"model": "gemini-3-flash-preview",
+		"_model": "gemini-3-flash-preview",
 		"___model": "gemini-2.5-flash",
 		"temperature": 1.0,
 		"thinking_config": {
@@ -44,7 +44,8 @@
 		}
 	},
 	"python": {
-		"default_timeout": 36000
+		"default_timeout": 36000,
+		"preload_snippet": ".system/py_env_preload.py"
 	},
 	"agent_settings": {
 		"global_max_io_buffer_media": 10

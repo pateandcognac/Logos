@@ -86,7 +86,7 @@ def help(print_output: bool = True) -> str:
         A formatted string containing the help information.
     """
     output = ["# My Skills Library"]
-    output.append("A programmatic overview of my learned, high-level behaviors.\n")
+    output.append("An overview of my self-crafted, high-level behaviors.\n")
 
     # Find all modules that have been loaded under the 'skills' namespace
     skill_modules = []

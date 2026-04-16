@@ -159,6 +159,7 @@ def help(
     import importlib
     import logos
 
+    # secret logos.everything sentinel for dumping all docstrings in one go
     dump_all = obj is getattr(logos, "everything", None) or obj is _ALL_SENTINEL
     output: List[str] = []
 
