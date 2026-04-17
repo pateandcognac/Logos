@@ -81,7 +81,7 @@ class NavTask:
             This uses straight-line (Euclidean) distance. If I have to drive through
             rooms or around a large obstacles, this number can go down before it 
             goes up, and may even pass 1.0 before reaching goal. This is usable information!
-            If 1.0 < progress < -0.25 then ttp("On my way... just gotta take a little detour first.")
+            If progress > 1.0 or progress < -0.25 then ttp("On my way... just gotta take a little detour first.")
         """
         pose = ros.get_pose()
         if not pose:

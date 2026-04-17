@@ -1430,10 +1430,13 @@ def publish_debug(
 
     # Color palette for different detection sources
     colors = {
-        "yolo11": (0, 255, 0),      # Green
-        "yolo_world": (255, 255, 0), # Cyan
-        "vlam": (255, 0, 255),       # Magenta
-        "default": (0, 165, 255)     # Orange
+        "yolo11": (0, 255, 0),         # Green
+        "yolo_world": (255, 255, 0),   # Cyan
+        "yoloe": (255, 0, 0),          # Blue
+        "yoloe_pf": (255, 0, 0),       # Blue
+        "yoloe_text": (255, 0, 255),   # Magenta
+        "vlam": (255, 0, 255),         # Magenta
+        "default": (0, 165, 255),      # Orange
     }
 
     if detections:

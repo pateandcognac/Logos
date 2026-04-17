@@ -45,4 +45,4 @@
   active: true
   code: |
     import hook_routines.workbench as wb
-    wb.run('ephemera')
+    wb.run('ephemera', globals())

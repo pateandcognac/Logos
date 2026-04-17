@@ -217,7 +217,7 @@ def _prepare_for_llm_yaml(
     # Let ruamel handle int, float, None, etc.
     return obj
 
-def get_center(box_2d: List[float]) -> Tuple[float, float]:
+def get_box_center(box_2d: List[float]) -> Tuple[float, float]:
     """
     Calculates the [y, x] center point of a normalized 0-1000 bounding box.
     

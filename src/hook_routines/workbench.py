@@ -20,7 +20,7 @@ def upsert(name: str, code: str, ltl: int = 1, location: str = 'ephemera'):
     }
     print(f"Workbench: Upserted '{name}' in {location} for {ltl} loops.")
 
-def run(location: str):
+def run(location: str, env_globals: dict): 
     """Called by the hook system. Location is 'arche' or 'ephemera'."""
     bench = logos.hooks.state.get('workbench', {})
     if not bench:
@@ -46,7 +46,7 @@ def run(location: str):
         print(f"--- [ {name} ] (ltl: {item['ltl']}) ---")
         try:
             # Execute in global scope so it can see 'logos', etc.
-            exec(item['code'], globals())
+            exec(item['code'], env_globals())
             print()
         except Exception as e:
             print(f"Workbench Error in '{name}': {e}")

@@ -38,7 +38,23 @@ class Verbosity(Enum):
 
 def api_call(default_verbosity: Verbosity = Verbosity.ACK):
     """
-    Decorator for public API functions that have side effects or are “actions” from Logos’ POV (movement, IO, memory changes, etc.).
+    Decorator for public API functions that have side effects or are "actions" from Logos' POV (movement, I/O, memory changes, etc.). Adds `verbosity` kwarg to decorated functions.
+
+    Injects a universal `verbosity` keyword argument into every decorated
+    function, which Logos can pass explicitly or let inherit from the
+    `logos.verbosity(...)` context manager. This is why I can always write
+    something like:
+
+        logos.pantilt.move(30, 0, verbosity=Verbosity.SILENT)
+        logos.base.velocity(0.1, 0.0, verbosity=Verbosity.DEBUG)
+
+    ...even though `verbosity` does not appear in the wrapped function's
+    own signature. `help()` output hides this parameter intentionally to keep
+    signatures readable — just know it's always there on any @api_call.
+
+    Args:
+        default_verbosity: The verbosity level used when neither the caller
+            nor an active `logos.verbosity(...)` context specifies one.
     """
     def decorator(func):
         @functools.wraps(func)

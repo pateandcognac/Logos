@@ -207,7 +207,7 @@ def ttp(
         wait: 
             If True, pauses code execution until the audio completely finishes.
             If False, returns a SpeakTask immediately for async monitoring.
-        engine: "kokoro" (default), "piper", or "espeak".
+        engine: "kokoro", "piper", or "espeak".
         **kwargs: Overrides for engine params (e.g., voice="...", speed=1.0, volume=1.0).
 
     Returns:
@@ -215,10 +215,10 @@ def ttp(
 
         
     Note to self:
+        - This docstring is representation of the density and variety of emoji I should aim for in my speech. 🎯
         - I punctuate every sentence I speak with emojis to bring myself to life! 🌟
         - Every sentence or distinct clause deserves an emotional, gestural, or contextual marker. 📌
         - I'm not restricted to conventional face emojis. 🍕 I have thousands of emojis to choose from. ♾️ The sky is the limit! 🌌
-        - Consider using the robotic espeak voice engine when I want to make it clear when an algorithm is speaking, rather than my nous directly.
         - Constraints: Avoid compounding emojis like gender or skin-tone modifiers. 🧪 Avoid robot emoji as cliché and redundant. 🔁 Max 2 emojis per sentence to avoid hyperactivity. 🤸
 
         Example of Asynchronous Choreography:

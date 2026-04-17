@@ -26,7 +26,7 @@ Usage:
 
 See Also:
     phantasma_convention.py - PhantasmaContext and schema validation
-    self_model.py - My own self-representation (the most important phantasma)
+    self_model.py - My own self-representation, which is a special kind of phantasma. MVP WIP
 """
 
 from __future__ import annotations

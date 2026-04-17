@@ -26,6 +26,9 @@ import random     # For non-deterministic behaviors, like choosing a random gree
 from pathlib import Path # The modern, object-oriented way to handle filesystem paths.
 from ruamel.yaml import YAML
 import io
+import os
+import sys
+import traceback
 
 # --- Types ---
 from typing import List, Set, Dict, Tuple, Union, Optional

@@ -8,8 +8,8 @@ illuminator LEDs, and laser pointer. This module translates between intuitive
 degree-space commands and the raw servo protocol spoken by the Arduino.
 
 Coordinate convention (from my perspective, facing forward):
-    Pan:  positive = right,  negative = left
-    Tilt: positive = up,     negative = down
+    Pan:  positive = left,  negative = right
+    Tilt: positive = up,    negative = down
     Home: (0, 0) = straight ahead, level
 
 Physical limits:
@@ -71,16 +71,12 @@ FOV: Dict[str, Tuple[float, float]] = {
 
 # ─── Internal Conversion ─────────────────────────────────────────────
 
-def _deg_to_counts(deg: float, home_counts: int) -> int:
-    """
-    Convert a degree value to servo counts.
-    # +deg (Left) equals higher servo counts
-    """
-    return int(round(home_counts + deg * _COUNTS_PER_DEG))
-
-
 def _counts_to_deg_pan(counts: int, home_counts: int) -> float:
     return (counts - home_counts) / _COUNTS_PER_DEG
+
+def _deg_to_counts_pan(deg: float, home_counts: int) -> int:
+    # +deg (Right) equals lower servo counts
+    return int(round(home_counts - deg * _COUNTS_PER_DEG))
 
 def _deg_to_counts_tilt(deg: float, home_counts: int) -> int:
     # +deg (Up) equals lower servo counts
@@ -165,8 +161,8 @@ def _publish_servo(pan_counts: int, tilt_counts: int, repeat: int = 1):
 def move(
     pan_deg: float, 
     tilt_deg: float, 
-    duration: float = 0.5, 
-    steps: int = 10
+    duration: float = 0.25, 
+    steps: int = 4
 ) -> Tuple[float, float]:
     """
     Move the pan/tilt head to an absolute position with interpolation and easing.
@@ -181,9 +177,7 @@ def move(
         The clamped (pan, tilt) degrees actually commanded.
 
     Note to self:
-        Interpolation solves the problem of the small servos sometimes getting stuck,
-        makes my movements look more natural, and prevents hardware-straining 'snaps',
-        and reduces camera shake by easing in quadratically.
+        Interpolation solves the problem of the small servos sometimes getting stuck if I command a large jump in one go. By breaking it into smaller steps, it makes my movements look more natural, and prevents hardware-straining 'snaps', and reduces camera shake by easing in quadratically.
     """
     _ensure_subscribers()
     target_pan, target_tilt = _clamp_deg(pan_deg, tilt_deg)
