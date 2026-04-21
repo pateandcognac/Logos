@@ -42,7 +42,6 @@ map3d:
     cloud_density: 1.0
     laser_scan_show: true
     save: true
-    filename
 
 memory_policy:
   enabled: true

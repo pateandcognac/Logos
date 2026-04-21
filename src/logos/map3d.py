@@ -535,6 +535,9 @@ class Map3d:
         # Capture behavior tuning
         self._frame_cache_max_age_s = 1.5
         self._camera_warmup_s = 0.35
+        self._camera_info_wait_s = 2.0
+        self._camera_startup_retry_delay_s = 0.35
+        self._camera_startup_extra_timeout_s = 2.5
         self._camera_unsynced_max_delta_s = 0.35
         self._camera_unsynced_cache_max_age_s = 1.5
 
@@ -914,6 +917,76 @@ class Map3d:
         timeout_s: float = 10.0,
         allow_unsynced_fallback: bool = True,
     ) -> Tuple[PointCloud2, Image, CameraInfo, str]:
+        cached = self._try_get_recent_synced_triple(self._frame_cache_max_age_s)
+        if cached is not None:
+            pc_msg, rgb_msg, info_msg = cached
+            return pc_msg, rgb_msg, info_msg, "cached_sync"
+
+        last_error: Optional[RuntimeError] = None
+        for attempt in range(2):
+            attempt_timeout_s = float(timeout_s)
+            if attempt > 0:
+                attempt_timeout_s += float(self._camera_startup_extra_timeout_s)
+                self._add_render_warning(
+                    "Camera startup was still warming up; retrying frame acquisition once."
+                )
+                time.sleep(max(0.0, float(self._camera_startup_retry_delay_s)))
+
+            try:
+                return self._acquire_camera_triple_once(
+                    timeout_s=attempt_timeout_s,
+                    allow_unsynced_fallback=allow_unsynced_fallback,
+                )
+            except RuntimeError as exc:
+                last_error = exc
+
+        if last_error is not None:
+            raise last_error
+        raise RuntimeError("Failed to acquire camera frame.")
+
+    def _describe_camera_acquire_state(self) -> str:
+        now = time.time()
+        with self._frame_lock:
+            latest_sync_age = (
+                now - self._latest_frame_wall_time
+                if self._latest_frame_wall_time > 0.0 else None
+            )
+            latest_pc_age = (
+                now - self._latest_pc_raw_wall_time
+                if self._latest_pc_raw_wall_time > 0.0 else None
+            )
+            latest_rgb_age = (
+                now - self._latest_rgb_raw_wall_time
+                if self._latest_rgb_raw_wall_time > 0.0 else None
+            )
+            have_info = (
+                self._latest_info is not None
+                or self._camera_info_cache is not None
+            )
+
+        parts = []
+        parts.append(
+            "camera_info=ready" if have_info else "camera_info=missing"
+        )
+        if latest_sync_age is None:
+            parts.append("sync_frame=none")
+        else:
+            parts.append(f"sync_frame_age={latest_sync_age:.2f}s")
+        if latest_pc_age is None:
+            parts.append("pointcloud=none")
+        else:
+            parts.append(f"pointcloud_age={latest_pc_age:.2f}s")
+        if latest_rgb_age is None:
+            parts.append("rgb=none")
+        else:
+            parts.append(f"rgb_age={latest_rgb_age:.2f}s")
+        return ", ".join(parts)
+
+    def _acquire_camera_triple_once(
+        self,
+        timeout_s: float = 10.0,
+        allow_unsynced_fallback: bool = True,
+    ) -> Tuple[PointCloud2, Image, CameraInfo, str]:
         """
         Acquire one camera frame triple while keeping subscriptions on-demand.
 
@@ -921,11 +994,6 @@ class Map3d:
             (pc_msg, rgb_msg, info_msg, mode) where mode is one of:
             "cached_sync", "sync", "unsynced".
         """
-        cached = self._try_get_recent_synced_triple(self._frame_cache_max_age_s)
-        if cached is not None:
-            pc_msg, rgb_msg, info_msg = cached
-            return pc_msg, rgb_msg, info_msg, "cached_sync"
-
         self._start_camera_subscribers()
         start_t = time.time()
         try:
@@ -935,7 +1003,13 @@ class Map3d:
 
             # Give camera_info a brief chance to latch on first use.
             if self._camera_info_cache is None:
-                info_wait_s = max(0.0, min(1.0, float(timeout_s) - (time.time() - start_t)))
+                info_wait_s = max(
+                    0.0,
+                    min(
+                        float(self._camera_info_wait_s),
+                        float(timeout_s) - (time.time() - start_t),
+                    ),
+                )
                 if info_wait_s > 0.0:
                     self._camera_info_event.wait(timeout=info_wait_s)
 
@@ -996,9 +1070,11 @@ class Map3d:
                             )
                         return pc_raw, rgb_raw, info_msg, "unsynced"
 
+            state = self._describe_camera_acquire_state()
             raise RuntimeError(
-                "Timed out waiting for synchronized camera frame; "
-                "unsynced fallback unavailable."
+                "Camera frame acquisition timed out. "
+                "No synchronized RGB/depth frame was ready, and unsynced fallback "
+                f"was unavailable ({state})."
             )
         finally:
             self._stop_camera_subscribers()
@@ -3419,7 +3495,6 @@ def get_map3d() -> Map3d:
         return _CHORA_SINGLETON
 
 
-@api_call(default_verbosity=Verbosity.ACK)
 def render(*args, **kwargs) -> RenderResult:
     return get_map3d().render(*args, **kwargs)
 
