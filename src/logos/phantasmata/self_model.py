@@ -179,7 +179,7 @@ def build(params: Dict[str, Any], ctx: Any) -> Optional[SceneObject]:
         visualization, I'd read joint state here:
             try:
                 import logos
-                pan_deg, tilt_deg = logos.pantilt.get_position()
+                pan_deg, tilt_deg = logos.pantilt.get_angles()
             except Exception:
                 pan_deg, tilt_deg = 0.0, 0.0
     """

@@ -96,7 +96,7 @@ ALL_ASTRA_FEEDS = ("rgb", "depth", "depth_registered", "camera_info")
 DEFAULT_ASTRA_FEEDS = ("rgb", "depth_registered")
 
 # Artifact storage base path
-_ARTIFACT_BASE = Path("artifacts")
+_ARTIFACT_BASE = Path("ipc")
 
 # Plain YAML instance for sidecar files (not LLM-optimized — needs to round-trip)
 _sidecar_yaml = None
@@ -286,7 +286,7 @@ class CaptureResult:
         full_meta.update(system_meta)
 
         # Update internal meta to reflect the full data saved to disk
-        self.meta = full_meta # CHANGE: update self.meta
+        self.meta = full_meta
 
         meta_path = source_dir / f"{self.photo_id}.yaml"
         _write_sidecar(meta_path, full_meta)
@@ -327,24 +327,25 @@ class CaptureResult:
 
         print(f'<file path="{self.path}">{content}</file>')
 
-    def crop(self, box_2d: List[float]) -> np.ndarray:
+    def crop(self, box_2d: List[float]) -> "CaptureResult":
         """
         Crop a region from the image using normalized 0-1000 coordinates.
 
         Args:
-            box_2d: Bounding box as [y_min, x_min, y_max, x_max], each in
+            box_2d: Bounding box as [y_min, x_min, y_max, x_max] in 
                 my standard 0-1000 normalized coordinate space.
 
         Returns:
-            A new np.ndarray (BGR uint8) containing the cropped region.
+            A new CaptureResult containing the cropped region. Depth and camera 
+            intrinsics are intentionally dropped, as cropping invalidates them.
 
         Note to self:
-            Useful for "zooming in" on a detection. I can capture at high res
-            and then crop to isolate a region of interest:
-
-                result = logos.vision.capture('pan_tilt', resolution=(1944, 2592))
-                detections = [{"box_2d": [300, 400, 600, 700], "label": "thing"}]
-                zoomed = result.crop(detections[0]["box_2d"])
+            Useful for isolating a region of interest. Because it returns a 
+            CaptureResult, I can immediately save and view it!
+                
+                res = logos.vision.capture('pan_tilt')
+                zoomed = res.crop([300, 400, 600, 700])
+                zoomed.view(meta_keys=["parent_photo_id"])
         """
         h, w = self.image.shape[:2]
         y_min = int(box_2d[0] / 1000.0 * h)
@@ -358,7 +359,30 @@ class CaptureResult:
         y_max = max(y_min + 1, min(h, y_max))
         x_max = max(x_min + 1, min(w, x_max))
 
-        return self.image[y_min:y_max, x_min:x_max].copy()
+        cropped_img = self.image[y_min:y_max, x_min:x_max].copy()
+
+        # Build metadata for the new crop
+        crop_meta = {
+            "is_crop": True,
+            "crop_box_2d": box_2d,
+        }
+        if self.photo_id:
+            crop_meta["parent_photo_id"] = self.photo_id
+            
+        # Inherit any user-defined metadata from the parent (optional, but handy)
+        for k, v in self.meta.items():
+            if k not in crop_meta and k not in ["photo_id", "resolution"]:
+                crop_meta[k] = v
+
+        return CaptureResult(
+            image=cropped_img,
+            source=self.source,
+            timestamp=self.timestamp,
+            pose=self.pose,
+            pan_tilt_degs=self.pan_tilt_degs,
+            # Intentionally omitting depth/camera_info to prevent spatial math errors
+            meta=crop_meta
+        )
 
     def add_meta(self, **kwargs) -> None:
         """
@@ -461,6 +485,8 @@ class CaptureResult:
             source_frame=source_frame, timestamp=self.timestamp
         )
 
+    
+
     def overlay_coordinate_grid(self, rows: int = 3, cols: int = 4) -> None:
         """
         Burn a grid of sampled 3D coordinates directly into an Astra image.
@@ -485,21 +511,21 @@ class CaptureResult:
 
         h, w = self.image.shape[:2]
         
-        # Calculate grid spacing (inset by 1/(N+0.25) to center the grid)
-        y_step = h // (rows + .25)
-        x_step = w // (cols + .25)
+        # 1. Expand the grid! 
+        # Calculate grid using np.linspace to push points closer to edges
+        # We'll use a 15% margin to ensure points aren't exactly on the border
+        margin_x = int(w * 0.15)
+        margin_y = int(h * 0.15)
         
-        hud_elements = []
+        x_coords = np.linspace(margin_x, w - margin_x, cols, dtype=int)
+        y_coords = np.linspace(margin_y, h - margin_y, rows, dtype=int)
         
-        # We need the ROS transform helper
         from . import ros
 
-        for r in range(1, rows + 1):
-            for c in range(1, cols + 1):
-                py, px = int(r * y_step), int(c * x_step)
-                
+        for py in y_coords:
+            for px in x_coords:
                 # Draw the sampling anchor dot
-                cv2.circle((self.image, px, py), 3, (0, 255, 0), -1)
+                cv2.circle(self.image, (px, py), 3, (0, 255, 0), -1)
 
                 # --- Sampling Logic with NaN Search ---
                 # Search a small radius if the exact pixel is invalid (NaN)
@@ -514,22 +540,22 @@ class CaptureResult:
                 
                 patch = self.depth_points[y1:y2, x1:x2]
                 
-                # Find valid (non-NaN, non-zero) points in patch
-                # depth_points is (H, W, 3)
                 valid_mask = ~np.isnan(patch).any(axis=2) & (patch[:, :, 2] != 0)
                 valid_pts = patch[valid_mask]
 
                 if valid_pts.size > 0:
-                    # Take the median to reject outliers/noise
                     sample_pt = np.median(valid_pts, axis=0)
                 
                 # --- Text Generation ---
+                # We collect the lines and colors to pass to our adaptive drawer
+                text_lines = []
+                colors = []
+
                 if sample_pt is not None:
-                    # Camera Frame (X-Right, Y-Down, Z-Forward usually)
                     cx, cy, cz = sample_pt
-                    cam_text = f"C({cx:.2f}, {cy:.2f}, {cz:.2f})"
+                    text_lines.append(f"C({cx:.2f}, {cy:.2f}, {cz:.2f})")
+                    colors.append((255, 255, 0)) # Cyan
                     
-                    # Map Frame (Transform using stored timestamp)
                     map_pt = ros.transform_point_to_map(
                         cx, cy, cz, 
                         self.depth_points_msg.header.frame_id, 
@@ -538,27 +564,55 @@ class CaptureResult:
                     
                     if map_pt:
                         mx, my, mz = map_pt
-                        map_text = f"M({mx:.2f}, {my:.2f}, {mz:.2f})"
+                        text_lines.append(f"M({mx:.2f}, {my:.2f}, {mz:.2f})")
+                        colors.append((0, 165, 255)) # Orange
                     else:
-                        map_text = "M: TF Error"
-
-                    # Add HUD Elements (Camera = Cyan, Map = Orange)
-                    # We manually place them near the point
-                    # Note: We use a trick here. HudElement usually uses anchors.
-                    # To place text at arbitrary px, we need a slight adaptation
-                    # or we just draw directly. 
-                    #
-                    # Since overlay_hud is anchor-based, let's just use cv2 directly 
-                    # here for precision placement next to the dot.
-                    
-                    # Camera Coords
-                    self._draw_label_at(px + 5, py - 10, cam_text, (255, 255, 0)) # Cyan
-                    # Map Coords
-                    self._draw_label_at(px + 5, py + 5, map_text, (0, 165, 255)) # Orange
+                        text_lines.append("M: TF Error")
+                        colors.append((0, 0, 255)) # Red
 
                 else:
-                    # Invalid Surface
-                    self._draw_label_at(px + 2, py, "NaN", (0, 0, 255)) # Red
+                    text_lines.append("NaN")
+                    colors.append((0, 0, 255)) # Red
+                    
+                # Call the adaptive text drawer
+                self._draw_adaptive_labels(px, py, text_lines, colors, w, h)
+
+    def _draw_adaptive_labels(self, px: int, py: int, lines: List[str], colors: List[Tuple[int, int, int]], w: int, h: int):
+        """Helper to draw multi-line text that adapts to image edges."""
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        font_scale = 0.3
+        thickness = 1
+        line_spacing = 4
+        
+        # Calculate the bounding box of our entire text block
+        sizes = [cv2.getTextSize(txt, font, font_scale, thickness)[0] for txt in lines]
+        max_tw = max(sz[0] for sz in sizes)
+        th = sizes[0][1] # height of one line
+        total_th = (len(lines) * th) + ((len(lines) - 1) * line_spacing)
+        
+        # Default position: Centered horizontally, placed slightly below the dot
+        start_x = px - (max_tw // 2)
+        start_y = py + 10 
+        
+        # Adaptive X bounds (Push inward if hitting left/right edges)
+        pad = 4
+        if start_x < pad:
+            start_x = pad
+        elif start_x + max_tw > w - pad:
+            start_x = w - max_tw - pad
+            
+        # Adaptive Y bounds (If falling off the bottom, flip to above the dot)
+        if start_y + total_th > h - pad:
+            start_y = py - 10 - total_th
+            
+        # Draw the lines!
+        current_y = start_y + th # cv2.putText origin is the baseline (bottom of text)
+        for txt, color in zip(lines, colors):
+            # Draw a black outline (stroke) for readability
+            cv2.putText(self.image, txt, (start_x, current_y), font, font_scale, (0, 0, 0), thickness + 1, cv2.LINE_AA)
+            # Draw the colored text on top
+            cv2.putText(self.image, txt, (start_x, current_y), font, font_scale, color, thickness, cv2.LINE_AA)
+            current_y += th + line_spacing
 
     def _draw_label_at(self, x: int, y: int, text: str, color: Tuple[int, int, int]):
         """Helper to draw semi-transparent text at a specific pixel."""
@@ -1162,7 +1216,7 @@ def get_pan_tilt_degs() -> Optional[Tuple[float, float]]:
     """Read current pan/tilt degrees. Returns None if module not available."""
     try:
         from . import pantilt
-        return pantilt.get_position()
+        return pantilt.get_angles()
     except Exception:
         return None
 
@@ -1200,7 +1254,7 @@ def capture(
             tier (2592x1944 native, downscaled to target).
         view: If True, automatically save and print a <file> tag so the
             image appears in my context window.
-        save: If True, save to artifacts directory (without viewing).
+        save: If True, save to ipc directory (without viewing).
         astra_feeds: Which Astra data streams to capture. Only used when
             source='astra'. Defaults to ('rgb', 'depth_registered').
             Options: 'rgb', 'depth', 'depth_registered', 'camera_info'.
@@ -1296,7 +1350,7 @@ def capture(
 def crop(
     image_or_result: Union[np.ndarray, CaptureResult],
     box_2d: List[float],
-) -> np.ndarray:
+) -> Union[np.ndarray, CaptureResult]:
     """
     Crop a region from an image using normalized 0-1000 coordinates.
 
@@ -1309,10 +1363,8 @@ def crop(
             normalized coordinates.
 
     Returns:
-        Cropped np.ndarray (BGR uint8).
-
-    Note to self:
-        Same as CaptureResult.crop(), but works on plain arrays too.
+        If input is CaptureResult -> returns a new CaptureResult.
+        If input is np.ndarray -> returns a cropped np.ndarray (BGR uint8).
     """
     if isinstance(image_or_result, CaptureResult):
         return image_or_result.crop(box_2d)
@@ -1772,7 +1824,6 @@ def make_quad_composite(
         source="composite",
         meta={"composition": "quad_view", "count": len(items)}
     )
-
 
 __all__ = [
     "capture", "crop", "publish_debug",

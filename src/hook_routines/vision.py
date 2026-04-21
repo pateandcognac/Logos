@@ -15,7 +15,7 @@ def run():
     cameras = ['pan_tilt', 'astra', 'top_down']
     captured_any = False
     
-    print("\n=== Primary Vision ===")
+    print("\n--- Visual Stream ---")
     
     # Silence the individual API capture ACKs to keep the context window tidy
     with verbosity(Verbosity.SILENT):
@@ -62,9 +62,10 @@ def run():
     if captured_any:
         print("Note: Variables are available in memory for `<py>` blocks.")
         print("Examples: `pan_tilt_result.crop(...)`, `astra_result.derive_world_coordinate(...)`")
+        # if astra and overlay enabled, mention the grid overlay
+        if 'astra' in results and config.get('vision_hook', {}).get('astra', {}).get('overlay_grid', {}).get('enabled', False):
+            print("The Astra feed has a burned-in grid overlay annotating the 2D points in pixel space with their derived 3D coordinates in (C)amera and (M)ap frames.")
     else:
         print("No cameras enabled. (Toggle via `logos.config.prefs.vision_hook`)")
-        
-    # print("======================\n")
-    
+            
     return results

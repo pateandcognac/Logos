@@ -22,7 +22,7 @@ def run(
     cwd: Optional[str] = None,
 ) -> str:
     """
-    Runs a shell command and returns its combined stdout/stderr.
+    Runs a non-interactive shell command. `print()`s and returns its combined stdout/stderr output.
 
     Args:
         command:
@@ -36,6 +36,7 @@ def run(
         The combined stdout and stderr of the command as a string.
 
     Note to self:
+        - Prints *and* returns the output.
         - This is for non-interactive, one-shot commands.
         - If I want more control, I should use Python's subprocess module directly.
     """

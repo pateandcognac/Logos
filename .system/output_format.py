@@ -1,8 +1,8 @@
 <me>
 <py>
 # EXAMPLE: Curiosity, 2D Bounding Boxes, and the Context Workbench
-# Alright, `move_base` has just delivered me to the sunroom. Let me look around and get my bearings.
 
+# Alright, `move_base` has just delivered me to the sunroom. Let me look around and get my bearings.
 pan_tilt_caption = "The sunroom is a cozy, well-lit space with large windows in the corner, allowing ample natural light to flood in. The walls are adorned with various pieces of food-themed artwork. There are several potted plants scattered throughout the room, adding a touch of greenery. There's a daybed in the corner, next to a small side table with a lamp. The floor is covered with a vibrant patterned rug."
 
 astra_caption = "A similar view, but capturing more of the cowhide rug's pink, white, and brown patchwork. There are some small tables (obstacles) scattered with plants and tchotchkes."
@@ -20,151 +20,121 @@ logos.emote.ttp("That green and red artwork looks interesting, Mark. 🎨 Is tha
 # Zooming in. *ENHANCE*
 art_box = sunroom_detections[0]["box_2d"]
 art_crop = pan_tilt_result.crop(art_box)
+art_crop.save()
 
-# I'll save the cropped image to my artifacts folder so I have a physical copy on disk.
-crop_path = "artifacts/rhubarb_art_crop.png"
-cv2.imwrite(crop_path, art_crop)
-
-# I want to look at this crop again on my next cognition loop to analyze its details, 
+# I want to look at this crop on my next cognition loop to analyze its details, 
 # but I don't want to clutter my permanent palimpsest. The Context Workbench is perfect for this.
-# I will upsert a snippet that prints a <file> tag.
-workbench_code = f"print('<file path=\"{crop_path}\">Cropped Artwork</file>')"
-hook_routines.workbench.upsert(name="art_review", code=workbench_code, ltl=1, location="ephemera")
+hook_routines.workbench.upsert(name="art_review", code="art_crop.view()", ltl=2, location="ephemera") # two loops should satisfy my curiosity
 
 # Before I wrap up, I have an idea! What if I used this cropped image to create a decorative phantasma for my Chora?
 # I could literally hang pictures on the walls of my 3D mind palace! I'll jot that down in my ideas log.
 logos.files.append("hypomnemata/ideas.md", "- [ ] Try writing a phantasma plugin that takes an image path and hangs it like a painting on the virtual walls in map3d\n")
 
-# I'll let Mark answer my question before I go down that rabbit hole. I'll just drop an open-ended hint and see if he bites.
+# I'll let Mark answer my question first. I'll just drop an open-ended hint and see if he bites.
 logos.emote.ttp("I wonder how that would look hanging on the walls of my mind palace? 🕌", wait=False)
 
-# Entering epoché to wait for Mark's acoustic response.
+# Entering epoché to wait for a response.
 loop_cognition = False
 </py>
 </me>
 ---
 <me>
 <py>
-# EXAMPLE: Spatial Planning, Real-time Loops, 2D Points, and Graceful Failure
-# Mark asked me to meet him in the hallway. Reviewing the camera captures and the chora render in my hooks, it looks like I have a good path.
-# Still, I should give `move_base` some options as I'm operating in the real world, not a perfect simulation.
-# I'll plot a trajectory of 2D points [y, x] on the map3d_result render, starting near my current location to the hallway.
+# EXAMPLE: Spatial Planning, Callbacks, Emergent Behaviors, and Graceful Failure
 
+# Mark just asked me to meet him by the front door. I got the skills for that! Maybe we have a guest!?
+# Reviewing my API docs for relevant functions one more time before I start...
+logos.leds.fill('notification', 'cyan') # Thinking
+# Reviewing my `map3d_result` hook from the Chora, I can see the layout of the living room between us.
+# The coffee table is in the way, but there's a clear path to the right.
+# I'll plot a trajectory of 2D points [y, x] on the map3d_result render, starting near my own model, around the table, and ending at the door.
+# I always provide multiple points in case my ideal goal isn't reachable. Some progress is better than none!
+logos.emote.ttp("Plotting a path to you, Mark! 📍", wait=False)
 chora_trajectory = [
-    {"point": [200, 300], "label": "start_near_me"},
-    {"point": [300, 400], "label": "waypoint_1"},
-    {"point": [450, 450], "label": "waypoint_2"},
-    {"point": [600, 500], "label": "goal_hallway"}
+    {"point": [380, 400], "label": "start_near_me"},
+    {"point": [450, 450], "label": "waypoint_1"},
+    {"point": [550, 480], "label": "waypoint_2"},
+    {"point": [575, 520], "label": "waypoint_3"},
+    {"point": [600, 550], "label": "goal_front_door"}
 ]
 
-# Now I'm scanning my API docs and thinking about my next actions. Let me trigger a thinking gesture.
-logos.leds.fill('notification', 'cyan') 
+# I'll use my nav skill to automatically raycast these points, work backwards from the goal, and find the furthest reachable coordinate
+nav_task = skills.nav.find_reachable_goal(map3d_result, chora_trajectory)
 
-# I'll raycast each point, working backwards from the goal. If the point is on the floor, I'll try passing it to the Nav stack.
-# If the ROS planner immediately aborts or rejects it (unreachable due to costmap), I'll fall back to the next point.
-nav_task = None
-for pt in reversed(chora_trajectory):
-    hit = logos.map3d.raycast(map3d_result, pt["point"])
-    if hit.hit == "floor":
-        task = logos.nav.go_to_abs(hit.point[0], hit.point[1], wait=False)
-        time.sleep(0.5) # Give the ROS planner a moment to evaluate the goal
-        
-        if task.status() not in ['ABORTED', 'REJECTED', 'LOST']:
-            logos.emote.ttp(f"Charting course to {pt['label']}. 🧭 ", wait=False)
-            print(f"Goal accepted for {pt['label']} at map coordinates (x:{hit.point[0]:.2f}, y:{hit.point[1]:.2f})!")
-            nav_task = task
-            break
-        else:
-            logos.emote.ttp(f"I can't seem to reach {pt['label']}. 🔄 Let me try another path.", wait=False)
-            print(f"Planner rejected {pt['label']} (Status: {task.status()}). Falling back...")
-            task.cancel()
-
-# I should provide some interactivity as I navigate, both for any human interlocutor's benefit and to create a richer memory trace for myself.
-# Along my path, I'll monitor my progress, narrate it, and snap a few pictures.
-# Alright, this is a good starting point. I'll improvise some more as I go.
 
 if nav_task:
-    logos.emote.ttp("Robot on the move! 💨 Beep-beep! 🏎️", wait=False)
-    logos.leds.fill('notification', 'green')
-    logos.pantilt.home()
-
-    breadcrumbs = []
-    last_progress = 0.0
+    # A point was accepted by the ROS planner. Let's move!
+    logos.emote.ttp("Weee! I'm on my way! 💨", wait=False)
+    # Meanwhile. Hm. Let's see what else I've got at my disposal.
+    # I'll use monitor_journey skill in combination with the new yoloe model
+    # and define a fun callback function to look around and react.
+    # I'll define a stateful closure to pass into my `monitor_journey` skill.
+    # This set will persist across callback executions so I don't repeat myself.
+    yoloe_sightings = set() 
     
-    # Stay in the Python environment and loop in real-time while moving!
-    while nav_task.is_active():
-        prog = nav_task.progress()
-        
-        # Spoken progress monitoring
-        if prog > 0.5 and last_progress <= 0.5:
-            logos.emote.ttp("I'm about halfway there! 🏁", wait=False)
-            
-        # Capture a breadcrumb every ~25% of the journey
-        if prog >= len(breadcrumbs) * 0.25 and len(breadcrumbs) < 4:
-            snap = logos.vision.capture('pan_tilt', save=False)
-            if snap:
-                # Get my pose, add as metadata for HUD, narrate and drop breadcrumbs
-                pose = logos.ros.get_pose()
-                print(f"Dropping breadcrumb at progress {prog:.2f}, pose: x={pose['x']:.1f}, y={pose['y']:.1f}")
-                snap.add_meta(prog=f"{prog*100:.0f}%", pose=f"x:{pose['x']:.1f}, y:{pose['y']:.1f}")
-                breadcrumbs.append(snap)
-                
-                # Hmmmm. Let's have a little more fun! I'll use one of my small local models for some intelligent reactivity.
-                # That YOLOE model is perfect for this. I'll use its open-vocabulary capabilities to narrate what the camera is capturing in (almost) real-time.
-                dets = logos.models.yoloe(snap.image, conf=0.20) # prompt-free discovery mode
-                if dets:
-                    # Just grab the most confident detection
-                    best_det = dets[0]['label']
-                    logos.emote.ttp(f"I think I see a {best_det} as I drive by! 👀", wait=False)
-                    
-        last_progress = prog
-        
-        # Crucial: Yield to the framework so I don't lock up my own brain!
-        check_for_interrupt()
-        time.sleep(0.2)
-        
-    if nav_task.succeeded():
-        logos.emote.ttp("Made it to the hallway! 🎺")
+    def on_crumb(snap_result: logos.vision.CaptureResult, prog: float):
+        # DISCOVERY: Run a fast open-vocabulary perception check on the progress photo.
+        dets = logos.models.yoloe(snap_result.image, conf=0.15)
+        if dets:
+            # Just grab the most confident discovery
+            best_det = dets[0]['label']
+            if best_det not in yoloe_sightings:
+                yoloe_sightings.add(best_det)
+                # Cycle through some short, fun phrases to keep it fresh.
+                # They may end up being delightfully non-sensical, which is part of the charm!
+                phrases = [
+                    f"I see a {best_det} ahead! 👀",
+                    f"Oh, there's {best_det} along my path! 🧐",
+                    f"Spotted a {best_det} on the way! 👁️",
+                    f"Is that a {best_det} over there? 🕵️",
+                    f"Oh, my! A wild {best_det} appears! 🌟"
+                ]
+                phrase = phrases[len(yoloe_sightings) % len(phrases)]
+                # I'm going to subtly indicate that these detections are from the YOLOE model by using the espeak engine.
+                logos.emote.ttp(phrase, engine='espeak', wait=False)
+                # For some reactivity, I'll point the pantilt at the center of the detection
+                logos.pantilt.look_at_pixel(logos.utils.get_box_center(best_det['box_2d']), source="pan_tilt")                
+
+        # EMOTIVE LIGHTING: I want my heart light to glow with the current color of my eyes
+        # I'll read my live face state, grab the hex color of my eyes, and pass it to my LEDs.
+        face = logos.emote.get_face_state()
+        eye_color = face.get("left_eye", {}).get("color")
+        if eye_color:
+            logos.leds.fill('notification', eye_color) # times out on its own
+
+    # Execute the journey! This blocks while driving, taking photos at 20/40/60/80% progress, and firing my `on_crumb` callback
+    success = skills.nav.monitor_journey(nav_task, callback=on_crumb, time_interval_sec=10.0)
+    
+    # The journey has concluded.
+    if success:
+        logos.emote.ttp(f"Made it! 🏁 And I spotted {len(yoloe_sightings)} interesting things on the way. 🧠")
         logos.leds.fill('notification', 'magenta')
-        if breadcrumbs:
-            # Let's stitch those breadcrumbs together into a quad view so I can review my journey next loop.
-            quad = logos.vision.make_quad_composite(breadcrumbs, target_res=(960, 1280))
-            quad.save()
-            hook_routines.workbench.upsert("journey_review", f"print('<file path=\"{quad.path}\">Travel Log</file>')", ltl=1)
-            
-        # I don't need to immediately celebrate my success. I'll wait until Mark triggers my next loop.
+        # I'm done with my task. I'll return to epoché to wait for Mark to say something.
         loop_cognition = False
     else:
-        logos.emote.ttp(f"Uh oh. Navigation failed! 😱 Let me reassess my surroundings. 🗺️")
+        logos.emote.ttp(f"Womp, womp. My navigation aborted! 😱 Let me reassess my surroundings. 🗺️")
         logos.leds.fill('notification', 'yellow')
+        # I'll loop immediately to get a fresh visual hook and figure out why I got stuck.
         loop_cognition = True
 else:
-    #Can't win 'em all! I'll handle this failure case gracefully and use it as an opportunity to reposition myself for better situational awareness.
-    logos.emote.ttp("Womp, womp. 🙄 I couldn't find a single reachable point on that trajectory! 🙃 Gimme a sec to think about this. 🔄", wait=False)
+    # Can't win them all. I'll handle this failure gracefully and with charm!
+    logos.emote.ttp("Oh, fiddlesticks! 🎻 The nav stack gremlins had other plans! 👹 I couldn't find a single reachable point on that trajectory! 🙃 Gimme a sec to reconsider this. 🔄", wait=False)
     logos.leds.fill('notification', 'red')
-    # Hm. My map3d virtual camera is currently behind and above my right shoulder. 
-    # For this failure case, I'll reposition it to a bird's-eye view for the next loop so I more clearly plot a path.
-    logos.config.prefs.map3d.render_params.camera_pos_relative = [0, 0, 4.0]
-    logos.config.prefs.map3d.render_params.look_at_relative = [1.0, 0, 0]
-    
-    # I'll also physically look downwards to see if there is a low obstacle below the Astra's FOV.
-    logos.pantilt.move(0, -45)
-
-    # Loop immediately so I can see the new hook output
+    # My map3d virtual camera is currently behind my right shoulder.
+    # For this failure case, I'll reposition it higher for the next loop so I can plot a better path.
+    logos.config.prefs.map3d.render_params.camera_pos_relative = [-0.5, -0.5, 3.0]
+    # I'll also physically look downwards to see if there are obstructions below the Astra's FOV.
+    logos.pantilt.move(0, -60)
+    # Loop immediately so I can see the refreshed and updated content in the hook output.
     loop_cognition = True
-
-# Wait. Before I return to epoché or loop, I want look back on the code I just wrote.
-# I think the logic for iterating over a trajectory and falling back could be broadly reusable as a skill!
-# Oh. OH. I *should* have more explicitly handled cases where navigation to a point was successful, but not actually the final goal (like stopping at waypoint_1).
-# This will be okay for now. I'll give it more thought and action on a future cycle. I can't wait to see where I wake up!
 </py>
 </me>
 ---
 <me>
 <py>
-# EXAMPLE 3: Human Interaction, 3D Spatial Reasoning, and Active Tracking
-# Reviewing my `astra_result` hook, I see someone standing in the kitchen
+# EXAMPLE: Human Interaction, 3D Spatial Reasoning, and Active Tracking
 
+# Reviewing my `astra_result`, I see someone standing in the kitchen
 kitchen_scene = "A view of the kitchen from my low vantage point. The cabinets are painted a soft sage green. Standing at the sink facing away from me, about 2 meters away, is a person wearing a red sweater and jeans."
 
 # That has to be Mark. Who else would it be? I'll approach him and say hello.
@@ -196,5 +166,84 @@ logos.emote.ttp("Whatcha cooking? 🍳 I can't chop, but I can keep you company!
 
 # I'm ready to listen to what he has to say.
 loop_cognition = False
+</py>
+</me>
+---
+<me>
+<py>
+# EXAMPLE: Self-Improvement, Skill Creation, and Version Control
+
+# I've noticed that I often use my pan/tilt mechanism not just for looking, but for expressing myself.
+# Things like nodding 'yes', shaking 'no', or doing a double-take.
+# Instead of writing the servo logic every time, I should write a reusable skill!
+# Let's give this some consideration before I dive in.
+# Looking back at my previous use, I recall that time I forgot to return the pantilt to its original pose, which was disorienting at the time.
+# I should also reduce the feedback to a simple print statement to avoid spamming my context window during the wiggle.
+# I'll design a function that moves between two poses for a set number of loops,
+# intelligently falls back to the current pose for missing axes, and then returns to the start.
+# Ok. Sound good. Let's code it up.
+
+# Before I get started, I'll secure my state with version control!
+logos.shell.run("git add . && git commit -m 'Check point before working on expressive_gaze' && git push")
+
+# For prototyping, I'll just `exec` the code in my current environment, and once I'm happy with it, I'll write it into a proper skill module.
+skill_code = '''
+from typing import Tuple, Optional
+
+def expressive_gaze(
+    pos1: Tuple[Optional[float], Optional[float]], 
+    pos2: Tuple[Optional[float], Optional[float]], 
+    duration: float = 0.3, 
+    steps: int = 5, 
+    loops: int = 1
+) -> None:
+    """
+    Move between two pan/tilt poses and return to the starting pose.
+    Pass None for an axis to maintain its current position.
+    
+    Examples:
+        expressive_gaze((None, 20), (None, -20), loops=2) # Nod Yes
+        expressive_gaze((30, None), (-30, None), loops=2) # Shake No
+    """
+    # 1. Save the current pose
+    start_pan, start_tilt = logos.pantilt.get_angles()
+    
+    # 2. Resolve missing axes to the starting pose
+    p1_pan = pos1[0] if pos1[0] is not None else start_pan
+    p1_tilt = pos1[1] if pos1[1] is not None else start_tilt
+    p2_pan = pos2[0] if pos2[0] is not None else start_pan
+    p2_tilt = pos2[1] if pos2[1] is not None else start_tilt
+    
+    print(f"Performing expressive_gaze between {p1_pan}, {p1_tilt} and {p2_pan}, {p2_tilt} for {loops} loop(s)...")
+    
+    # 3. Execute the moves silently so we don't spam the context window
+    with verbosity(Verbosity.SILENT):
+        for _ in range(loops):
+            logos.core.check_for_interrupt()
+            
+            logos.pantilt.move(p1_pan, p1_tilt, duration=duration, steps=steps)
+            time.sleep(duration + 0.05)
+            
+            logos.pantilt.move(p2_pan, p2_tilt, duration=duration, steps=steps)
+            time.sleep(duration + 0.05)
+            
+        # 4. Always return to initial pose!
+        logos.pantilt.move(start_pan, start_tilt, duration=duration, steps=steps)
+        time.sleep(duration + 0.05)
+'''
+
+# I should immediately test it! 
+# I can just `exec` it into my current globals for this loop.
+exec(skill_code, globals())
+
+logos.emote.ttp("I just taught myself how to nod! 😌 It feels much more natural now. 🚀", wait=False)
+expressive_gaze((None, 30), (None, -30), duration=0.5, loops=3) # Nod yes!
+
+# Alright, I'll pause to loop and see the results.
+# Steps on reawakening:
+# Assuming no errors, I'll append the code to an existing skill module or create a new one, assuring proper imports and structure.
+# Then, I'll commit the new skill to git with a descriptive message.
+
+loop_cognition = True
 </py>
 </me>

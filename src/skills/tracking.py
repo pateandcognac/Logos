@@ -11,6 +11,7 @@ from typing import Dict, Any, Optional
 import time
 import logos
 from skills.vision import smart_detect
+import math
 
 # A tiny global state to coast through YOLO flicker
 _tracking_state = {
@@ -23,22 +24,26 @@ def look_at(detection: Dict[str, Any], source: str = "pan_tilt", continuous: boo
     Aim the pan-tilt head at a detection.
     (Updated to support non-blocking continuous tracking)
     """
-    box = detection.get("box_2d")
+    print(f"{detection=}")
+    # detection=[{'label': 'person', 'box_2d': [88, 253, 980, 807], 'confidence': 0.9, 'source': 'yolo11'}]
+    box = detection[0]
     if not box: return
-
-    y1, x1, y2, x2 = box
-    label = detection.get("label", "").lower()
+    
+    print(f"{box=}")
+    # box={'label': 'person', 'box_2d': [88, 253, 980, 807], 'confidence': 0.9, 'source': 'yolo11'}
+    y1, x1, y2, x2 = box["box_2d"]
+    label = box.get("label", "").lower()
 
     target_y = y1 + ((y2 - y1) * 0.15) if label == "person" else (y1 + y2) / 2.0
     target_x = (x1 + x2) / 2.0
 
     # If tracking continuously, use fast, non-blocking moves
-    dur = 0.1 if continuous else 0.4
-    steps = 1 if continuous else 10
+    dur = 0.05 # if continuous else 0.4
+    steps = 2 # if continuous else 10
 
     if label == "person" and y1 < 50:
         # Target's head is cut off, search up!
-        logos.pantilt.nudge(0, 10) 
+        logos.pantilt.nudge(0, 3) 
     else:
         # We manually replicate look_at_pixel here to pass dur/steps
         # Convert to fraction from center
@@ -46,7 +51,7 @@ def look_at(detection: Dict[str, Any], source: str = "pan_tilt", continuous: boo
         y_frac = (target_y / 1000.0) - 0.5
         fov_h, fov_v = logos.vision.FOV[source]
         
-        current_pan, current_tilt = logos.pantilt.get_position()
+        current_pan, current_tilt = logos.pantilt.get_angles()
         # +x_frac (target is right) means we must Pan Right (negative)
         new_pan = current_pan + (-x_frac * fov_h)
         new_tilt = current_tilt + (-y_frac * fov_v)
@@ -113,9 +118,9 @@ def track_step(
             # derive_world_coordinate averages out NaN pixels!
             world_pt = astra_res.derive_world_coordinate(box)
             if world_pt:
-                # Calculate hypotenuse distance (ignoring Z height)
-                import math
-                dist = math.hypot(world_pt[0], world_pt[1])
+                # get pose and calculate hypotenuse distance (ignoring Z height)
+                pose = logos.ros.get_pose()
+                dist = math.hypot(world_pt[0] - pose['x'], world_pt[1] - pose['y'])
                 _tracking_state["last_depth"] = dist
                 
                 # Proportional drive control
@@ -129,7 +134,7 @@ def track_step(
 
     else:
         # Astra lost them. Are they around the corner? Let's check the head!
-        current_pan, _ = logos.pantilt.get_position()
+        current_pan, _ = logos.pantilt.get_angles()
         
         if abs(current_pan) > 15.0:
             # The head is looking away from center. Assume it's tracking the target.

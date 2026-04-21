@@ -247,7 +247,7 @@ def move_relative(forward_m: float = 0.0, left_m: float = 0.0, turn_deg: float =
 
 
 @api_call(default_verbosity=Verbosity.BRIEF)
-def turn_then_drive(turn_deg: float, forward_m: float, wait: bool = True) -> NavTask:
+def turn_then_drive(turn_deg: float, forward_m: float, wait: bool = False) -> NavTask:
     """
     Smoothed movement using odometry (rotate first, then drive forward/backward).
 
@@ -382,7 +382,7 @@ def approach_astra_detection(
     return approach_coordinate(mx, my, standoff=effective_standoff, wait=wait)
 
 @api_call(default_verbosity=Verbosity.BRIEF)
-def approach_coordinate(x: float, y: float, standoff: float, wait: bool = True) -> NavTask:
+def approach_coordinate(x: float, y: float, standoff: float, wait: bool = False) -> NavTask:
     """
     Navigate to a position a specific distance away from a target, arriving facing it.
 

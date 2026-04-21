@@ -13,7 +13,7 @@ Coordinate convention (from my perspective, facing forward):
     Home: (0, 0) = straight ahead, level
 
 Physical limits:
-    Pan:  -80° (left)  to +100° (right)
+    Pan:  +100° (left)  to -80° (right)
     Tilt: -60° (down)  to  +70° (up)
 """
 
@@ -45,7 +45,7 @@ _COUNTS_PER_DEG = (_SERVO_MAX - _SERVO_MIN) / _FULL_RANGE_DEG  # 2.5
 
 # Home positions in servo counts (0° in degree space)
 _HOME_PAN_COUNTS = 400
-_HOME_TILT_COUNTS = 425
+_HOME_TILT_COUNTS = 450
 
 # Physical servo limits for the tilt axis (narrower than full range)
 _TILT_SERVO_MIN = 225
@@ -76,7 +76,7 @@ def _counts_to_deg_pan(counts: int, home_counts: int) -> float:
 
 def _deg_to_counts_pan(deg: float, home_counts: int) -> int:
     # +deg (Right) equals lower servo counts
-    return int(round(home_counts - deg * _COUNTS_PER_DEG))
+    return int(round(home_counts + deg * _COUNTS_PER_DEG))
 
 def _deg_to_counts_tilt(deg: float, home_counts: int) -> int:
     # +deg (Up) equals lower servo counts
@@ -162,7 +162,7 @@ def move(
     pan_deg: float, 
     tilt_deg: float, 
     duration: float = 0.25, 
-    steps: int = 4
+    steps: int = 5
 ) -> Tuple[float, float]:
     """
     Move the pan/tilt head to an absolute position with interpolation and easing.
@@ -177,13 +177,13 @@ def move(
         The clamped (pan, tilt) degrees actually commanded.
 
     Note to self:
-        Interpolation solves the problem of the small servos sometimes getting stuck if I command a large jump in one go. By breaking it into smaller steps, it makes my movements look more natural, and prevents hardware-straining 'snaps', and reduces camera shake by easing in quadratically.
+        Interpolation attempts to solve three problems: cheap servos sometimes getting stuck, the arduino missing a message, and easing camera shake. By breaking it into smaller steps, it makes my movements look more natural, prevents hardware-straining 'snaps', and reduces camera shake by easing in quadratically.
     """
     _ensure_subscribers()
     target_pan, target_tilt = _clamp_deg(pan_deg, tilt_deg)
     
     # Get our current starting point
-    start_pan, start_tilt = get_position()
+    start_pan, start_tilt = get_angles()
     
     # Calculate deltas
     d_pan = target_pan - start_pan
@@ -193,7 +193,7 @@ def move(
     if duration <= 0 or steps <= 1:
         p_cnt = _deg_to_counts_pan(target_pan, _HOME_PAN_COUNTS)
         t_cnt = _deg_to_counts_tilt(target_tilt, _HOME_TILT_COUNTS)
-        _publish_servo(p_cnt, t_cnt, repeat=3)
+        _publish_servo(p_cnt, t_cnt, repeat=1)
         return (target_pan, target_tilt)
 
     step_delay = duration / steps
@@ -222,7 +222,7 @@ def move(
     # Final "Insurance" publish to ensure we are exactly at the target
     final_p = _deg_to_counts_pan(target_pan, _HOME_PAN_COUNTS)
     final_t = _deg_to_counts_tilt(target_tilt, _HOME_TILT_COUNTS)
-    _publish_servo(final_p, final_t, repeat=3)
+    _publish_servo(final_p, final_t, repeat=1)
     
     return (target_pan, target_tilt)
 
@@ -244,7 +244,7 @@ def nudge(d_pan: float, d_tilt: float) -> Tuple[float, float]:
             logos.pantilt.nudge(5, 0)    # Glance a bit more to the right
             logos.pantilt.nudge(0, -10)  # Tilt down a touch
     """
-    current_pan, current_tilt = get_position()
+    current_pan, current_tilt = get_angles()
     new_pan = current_pan + d_pan
     new_tilt = current_tilt + d_tilt
     return move(new_pan, new_tilt, verbosity=Verbosity.SILENT)
@@ -265,7 +265,7 @@ def home() -> Tuple[float, float]:
     return move(0.0, 0.0, verbosity=Verbosity.SILENT)
 
 
-def get_position() -> Tuple[float, float]:
+def get_angles() -> Tuple[float, float]:
     """
     Read the current pan/tilt position in degrees.
 
@@ -344,60 +344,9 @@ def look_at_pixel(
     pan_offset = -x_frac * fov_h
     tilt_offset = -y_frac * fov_v
 
-    current_pan, current_tilt = get_position()
+    current_pan, current_tilt = get_angles()
     new_pan = current_pan + pan_offset
     new_tilt = current_tilt + tilt_offset
 
-    return move(new_pan, new_tilt, duration=0.4, verbosity=Verbosity.SILENT)
+    return move(new_pan, new_tilt, duration=0.5, verbosity=Verbosity.SILENT)
 
-'''
-@api_call(default_verbosity=Verbosity.BRIEF)
-def look_at_coord(x: float, y: float, z: float) -> Tuple[float, float]:
-    """
-    Rotate the pan/tilt head to look at a specific 3D coordinate in the map frame.
-
-    Args:
-        x, y, z: The target 3D coordinate in the map frame (meters).
-                 Often obtained from `logos.map3d.raycast()`.
-
-    Returns:
-        The new absolute (pan, tilt) position in degrees.
-
-    Note to self:
-        This is incredibly powerful! I can click on a point in my mind palace
-        (map3d render), raycast it to a 3D point, and then physically look at it.
-    """
-    from . import ros
-    
-    # We need to transform the target point into the frame of the pan_tilt_link
-    # to figure out the angles. We add a small offset because the camera itself
-    # is mounted slightly above the servo axis, but aiming from the link is usually
-    # close enough for jazz.
-    target_frame = "pan_tilt_link"
-    # TODO: create a pan-tilt link!?
-     
-    local_pt = ros.transform_map_to_frame(x, y, z, target_frame)
-    if local_pt is None:
-        print(f"pantilt: Could not transform target ({x}, {y}, {z}) to {target_frame}.")
-        return get_position()
-        
-    local_x, local_y, local_z = local_pt
-    
-    # Calculate spherical coordinates (yaw/pitch) from the Cartesian point.
-    # In ROS standard frames: X is forward, Y is left, Z is up.
-    
-    # Yaw (pan) = atan2(y, x). 
-    # ROS Y is left (+), but our Pan is right (+). So we negate Y.
-    pan_rad = math.atan2(-local_y, local_x)
-    
-    # Pitch (tilt) = atan2(z, x)
-    # Note: math.hypot(x, y) gives the ground distance. 
-    # Tilt is the angle 'up' from the horizon.
-    dist_xy = math.hypot(local_x, local_y)
-    tilt_rad = math.atan2(local_z, dist_xy)
-    
-    pan_deg = math.degrees(pan_rad)
-    tilt_deg = math.degrees(tilt_rad)
-    
-    return move(pan_deg, tilt_deg, duration=1.0, verbosity=Verbosity.SILENT)
-'''

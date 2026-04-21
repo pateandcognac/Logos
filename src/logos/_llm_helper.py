@@ -25,7 +25,7 @@ import os
 import json
 
 from google import genai
-from google.genai import types as genai_types
+from google.genai import types
 
 # TODO: 
 
@@ -50,26 +50,26 @@ def main() -> None:
         response = client.models.generate_content(
             model=model_name,
             contents=[prompt],
-            config=genai_types.GenerateContentConfig(
+            config=types.GenerateContentConfig(
                 temperature=temperature,
                 thinking_config=types.ThinkingConfig(
-                    thinking_level="LOW",
+                    thinking_budget=-1),
                 safetySettings=[
-                    genai_types.SafetySetting(
-                        category=genai_types.HarmCategory.HARM_CATEGORY_HARASSMENT,
-                        threshold=genai_types.HarmBlockThreshold.BLOCK_NONE,
+                    types.SafetySetting(
+                        category=types.HarmCategory.HARM_CATEGORY_HARASSMENT,
+                        threshold=types.HarmBlockThreshold.BLOCK_NONE,
                     ),
-                    genai_types.SafetySetting(
-                        category=genai_types.HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-                        threshold=genai_types.HarmBlockThreshold.BLOCK_NONE,
+                    types.SafetySetting(
+                        category=types.HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+                        threshold=types.HarmBlockThreshold.BLOCK_NONE,
                     ),
-                    genai_types.SafetySetting(
-                        category=genai_types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
-                        threshold=genai_types.HarmBlockThreshold.BLOCK_NONE,
+                    types.SafetySetting(
+                        category=types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+                        threshold=types.HarmBlockThreshold.BLOCK_NONE,
                     ),
-                    genai_types.SafetySetting(
-                        category=genai_types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-                        threshold=genai_types.HarmBlockThreshold.BLOCK_NONE,
+                    types.SafetySetting(
+                        category=types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+                        threshold=types.HarmBlockThreshold.BLOCK_NONE,
                     ),
                 ],
             ),

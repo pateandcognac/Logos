@@ -201,7 +201,7 @@ def _is_speaking() -> bool:
 
 def get_pose() -> Optional[Dict[str, float]]:
     """
-    Get the robot's current pose from TF. Returns x, y, deg.
+    Get the robot's current pose from TF. Returns x, y, theta_deg.
 
     Tries map -> base_link first, falls back to odom -> base_link.
     Returns None if neither transform is available (no crash, no hang).

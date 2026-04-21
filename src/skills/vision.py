@@ -106,7 +106,7 @@ def scan_room(
                   (-80, -60), (-20, -60), (40, -60), (100, -60)]
 
     # Prepend current position so we check where we are looking RIGHT NOW first
-    curr_pan, curr_tilt = logos.pantilt.get_position()
+    curr_pan, curr_tilt = logos.pantilt.get_angles()
     points = [(curr_pan, curr_tilt)] + base_points
 
     for pan, tilt in points:

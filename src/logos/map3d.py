@@ -13,7 +13,6 @@ The core workflow is a two-step process:
     rendered image back into the 3D world, giving me an actionable
     map coordinate.
 
-# TODO: Document phantasmata, and a how-to.
 
 This allows me to visually plan paths, understand spatial relationships, and
 select navigation goals in a way that transcends my physical sensors.
@@ -308,7 +307,7 @@ class RenderResult:
             self.meta = self.meta or {}
 
             self.photo_id = self.meta.get("render_id", uuid.uuid4().hex[:12])
-            save_dir = "artifacts/map3d"
+            save_dir = "ipc/map3d"
             os.makedirs(save_dir, exist_ok=True)
             self.path = path or os.path.join(save_dir, f"{self.photo_id}.png")
             cv2.imwrite(self.path, self.image)
@@ -495,6 +494,8 @@ class Map3d:
         self.map_topic = map_topic
         self.base_frame = base_frame
         self.map_frame = map_frame
+        self._world_frame_candidates: List[str] = [map_frame, "odom"]
+        self._render_defaults: Dict[str, Any] = {}
 
         self._tf_buffer = None
         self._tf_listener = None
@@ -565,27 +566,23 @@ class Map3d:
         self._instance_cache: Dict[str, List[SceneObject]] = {}
         self._instance_cache_lock = threading.Lock()
 
-        # Configuration paths (can be overridden via logos.config.map3d)
+        # ---- Configuration paths (can be overridden via logos.config.map3d) ---
         # self._phantasmata_dir: str = "src/logos/phantasmata"
         # self._mind_palace_path: str = "config/mind_palace_00.yaml"
 
-        # Try to read paths and FOV from logos.config.merged.map3d
+        # Try to read defaults from logos.config.merged.map3d
         map3d_config: Dict[str, Any] = {}
         default_fov_horz_deg = 63.0
         default_fov_axis = "horizontal"
 
         try:
-            import logos
-            map3d_config = logos.config.merged.get("map3d", {})
-
-            if "phantasmata_dir" in map3d_config:
-                self._phantasmata_dir = map3d_config["phantasmata_dir"]
-            if "chora_config" in map3d_config:
-                self._mind_palace_path = f"{map3d_config['chora_config']}"
+            map3d_config = self._get_live_map3d_config()
+            render_params = map3d_config.get("render_params", {})
+            self._apply_live_map3d_config(map3d_config)
 
             # --- FOV ---
-            cfg_fov_deg = map3d_config.get("fov_deg")
-            cfg_fov_axis = map3d_config.get("fov_axis")
+            cfg_fov_deg = render_params.get("fov_deg")
+            cfg_fov_axis = render_params.get("fov_axis")
 
             chosen_fov_deg = None
             chosen_axis = None
@@ -598,9 +595,12 @@ class Map3d:
                     chosen_axis = "horizontal"
             
             if chosen_fov_deg is not None:
-                default_fov_deg = chosen_fov_deg
+                default_fov_horz_deg = chosen_fov_deg
             if chosen_axis is not None:
                 default_fov_axis = chosen_axis
+
+            if isinstance(render_params, dict):
+                self._render_defaults = dict(render_params)
 
         except Exception:
             pass
@@ -626,7 +626,7 @@ class Map3d:
             "ray_infinity_distance_m": 50.0,
             "render_point_size": 3.0,
             "fov_deg": float(default_fov_horz_deg),
-            "fov_axis": "horizontal",              
+            "fov_axis": default_fov_axis,
 
             # Point cloud display
             "cloud_density": 1.0,             # 0.0-1.0, fraction of points to keep
@@ -645,6 +645,13 @@ class Map3d:
             "laser_scan_center_band_px": 1,       # +/- around center row
             "laser_scan_color": [1.0, 0.0, 0.0],  # RGB red in [0,1]
         }
+
+        if "cloud_density" in self._render_defaults:
+            self.settings["cloud_density"] = float(self._render_defaults["cloud_density"])
+        if "cloud_alpha" in self._render_defaults:
+            self.settings["cloud_alpha"] = float(self._render_defaults["cloud_alpha"])
+        if "laser_scan_show" in self._render_defaults:
+            self.settings["laser_scan_show"] = bool(self._render_defaults["laser_scan_show"])
 
         # Open3D 0.13 + Filament has HARD thread affinity:
         # the OffscreenRenderer/Filament backend must be created + used from
@@ -667,6 +674,53 @@ class Map3d:
 
         self._start_map_subscriber()
         # Camera subscribers are started on-demand inside render()
+
+    def _get_live_map3d_config(self) -> Dict[str, Any]:
+        try:
+            import logos
+            cfg = logos.config.merged.get("map3d", {})
+            return dict(cfg) if isinstance(cfg, dict) else {}
+        except Exception:
+            return {}
+
+    def _apply_live_map3d_config(self, map3d_config: Dict[str, Any]) -> Dict[str, Any]:
+        render_params = map3d_config.get("render_params", {})
+
+        if "phantasmata_dir" in map3d_config:
+            self._phantasmata_dir = str(map3d_config["phantasmata_dir"])
+        if "chora_config" in map3d_config:
+            self._mind_palace_path = str(map3d_config["chora_config"])
+        if "map_frame" in map3d_config:
+            cfg_map_frame = map3d_config["map_frame"]
+            if isinstance(cfg_map_frame, (list, tuple)):
+                candidates = [
+                    str(frame) for frame in cfg_map_frame
+                    if frame is not None and str(frame).strip()
+                ]
+            else:
+                candidates = [str(cfg_map_frame)] if str(cfg_map_frame).strip() else []
+            if candidates:
+                self.map_frame = candidates[0]
+                self._world_frame_candidates = candidates
+
+        if isinstance(render_params, dict):
+            self._render_defaults = dict(render_params)
+            settings = getattr(self, "settings", None)
+            if isinstance(settings, dict):
+                if "fov_deg" in render_params:
+                    settings["fov_deg"] = float(render_params["fov_deg"])
+                if "fov_axis" in render_params:
+                    settings["fov_axis"] = str(render_params["fov_axis"]).lower()
+                if "cloud_density" in render_params:
+                    settings["cloud_density"] = float(render_params["cloud_density"])
+                if "cloud_alpha" in render_params:
+                    settings["cloud_alpha"] = float(render_params["cloud_alpha"])
+                if "laser_scan_show" in render_params:
+                    settings["laser_scan_show"] = bool(render_params["laser_scan_show"])
+            return self._render_defaults
+
+        self._render_defaults = {}
+        return self._render_defaults
 
     # ---------------- ROS plumbing ----------------
 
@@ -1752,7 +1806,7 @@ class Map3d:
         # NOTE: "cloud_opacity" here is NOT real alpha transparency.
         # It's a visual hack: blend per-point RGB toward the background color.
         # This works everywhere (even legacy visualizers) and avoids transparency
-        # sorting artifacts, but it is not actual blending in the renderer.
+        # sorting ipc, but it is not actual blending in the renderer.
         #
         # Real transparency (Filament) is handled in _render_scene via
         # material.base_color alpha + material.has_alpha.
@@ -2237,7 +2291,15 @@ class Map3d:
     def _resolve_world_frame(self) -> str:
         buf = self._get_tf_buffer()
 
-        for candidate in [self.map_frame, "odom"]:
+        seen = set()
+        candidates = []
+        for candidate in list(self._world_frame_candidates) + ["odom"]:
+            if candidate in seen or not candidate:
+                continue
+            seen.add(candidate)
+            candidates.append(candidate)
+
+        for candidate in candidates:
             try:
                 buf.lookup_transform(
                     candidate, self.base_frame,
@@ -2945,13 +3007,13 @@ class Map3d:
         rot_matrix_3x3: Optional[Union[np.ndarray, List[List[float]]]] = None,
         look_distance_m: float = 2.0,
         max_cloud_height_m: Optional[float] = None,
-        resolution: Tuple[int, int] = (1000, 1000),  # (height, width)
+        resolution: Optional[Tuple[int, int]] = None,  # (height, width)
         fov_deg: Optional[float] = None,
         fov_axis: Optional[str] = None,  # "horizontal" or "vertical"
-        include_robot: bool = True,
-        view: bool = True,
-        save: bool = True,
-        save_dir: str = "artifacts/chora",
+        include_robot: Optional[bool] = None,
+        view: Optional[bool] = None,
+        save: Optional[bool] = None,
+        save_dir: str = "ipc/map3d",
         filename: Optional[str] = "debug.png",
         # Point cloud display — None = use self.settings value
         cloud_alpha: Optional[float] = None,
@@ -3026,6 +3088,30 @@ class Map3d:
             would be the foundation of a true 3D semantic world model.
         """
         check_for_interrupt()
+
+        render_defaults = self._apply_live_map3d_config(self._get_live_map3d_config())
+        if resolution is None:
+            resolution = render_defaults.get("resolution", (1000, 1000))
+        if camera_pos_relative is None and "camera_pos_relative" in render_defaults:
+            camera_pos_relative = render_defaults["camera_pos_relative"]
+        if look_at_relative is None and "look_at_relative" in render_defaults:
+            look_at_relative = render_defaults["look_at_relative"]
+        if fov_deg is None and "fov_deg" in render_defaults:
+            fov_deg = float(render_defaults["fov_deg"])
+        if fov_axis is None and "fov_axis" in render_defaults:
+            fov_axis = str(render_defaults["fov_axis"])
+        if include_robot is None:
+            include_robot = bool(render_defaults.get("include_robot", True))
+        if view is None:
+            view = bool(render_defaults.get("view", True))
+        if save is None:
+            save = bool(render_defaults.get("save", True))
+        if cloud_alpha is None and "cloud_alpha" in render_defaults:
+            cloud_alpha = float(render_defaults["cloud_alpha"])
+        if cloud_density is None and "cloud_density" in render_defaults:
+            cloud_density = float(render_defaults["cloud_density"])
+        if laser_scan_show is None and "laser_scan_show" in render_defaults:
+            laser_scan_show = bool(render_defaults["laser_scan_show"])
 
         if resolution: resolution = tuple(resolution)
         if camera_pos_relative: camera_pos_relative = tuple(camera_pos_relative)
@@ -3187,6 +3273,9 @@ class Map3d:
         if save or view:
             out_path = None
             if filename:
+                # if has '.png', don't add another; otherwise ensure it ends with '.png'
+                if not filename.lower().endswith('.png'):
+                    filename += '.png'
                 os.makedirs(save_dir, exist_ok=True)
                 out_path = os.path.join(save_dir, filename)
             result.save(view=view, path=out_path)

@@ -18,12 +18,13 @@ Note to self:
     ambiguous edits are for me.
 """
 
+
 import difflib
 import fnmatch
 import os
 import re
 import tempfile
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import List, Optional, Pattern, Set, Tuple
 
 from .core import Verbosity, api_call, check_for_interrupt
@@ -118,6 +119,84 @@ def _normalize_extensions(show_extensions: Optional[List[str]]) -> Optional[Set[
     return out
 
 
+def _normalize_summary_specs(summarize_dirs: Optional[List[str]]) -> List[str]:
+    """
+    Normalize summarize patterns into POSIX-style workspace-relative strings.
+
+    Examples:
+        "ipc"
+        "./ipc/runs"
+        "build/*"
+        "src/**/generated"
+
+    Note to self:
+        These specs are matched against each directory's path relative to my
+        current working directory, not against the directory basename.
+    """
+    if not summarize_dirs:
+        return []
+
+    workspace_resolved = WORKSPACE_PATH.resolve()
+    normalized: List[str] = []
+
+    for raw_spec in summarize_dirs:
+        spec = raw_spec.strip()
+        if not spec:
+            continue
+
+        # Be forgiving if an absolute path under the workspace is passed in.
+        spec_path = Path(spec)
+        if spec_path.is_absolute():
+            try:
+                spec = spec_path.resolve().relative_to(workspace_resolved).as_posix()
+            except ValueError:
+                # Outside the workspace: ignore it.
+                continue
+        else:
+            spec = spec.replace("\\", "/")
+            if spec.startswith("./"):
+                spec = spec[2:]
+            spec = spec.strip("/")
+
+        if spec:
+            normalized.append(spec)
+
+    return normalized
+
+
+def _workspace_relative_posix(path: Path) -> Optional[str]:
+    """
+    Return `path` relative to the workspace root as a POSIX string.
+
+    Returns:
+        A relative POSIX path, or None if the path is outside the workspace.
+    """
+    try:
+        return path.resolve().relative_to(WORKSPACE_PATH.resolve()).as_posix()
+    except ValueError:
+        return None
+
+
+def _should_summarize_dir(dir_path: Path, summarize_specs: List[str]) -> bool:
+    """
+    Return True when `dir_path` matches any workspace-relative summarize spec.
+
+    Note to self:
+        I use path-aware matching here, not basename matching. A spec like
+        "ipc/runs" means exactly that path relative to cwd. Wildcards are
+        supported with pathlib-style glob semantics.
+    """
+    if not summarize_specs:
+        return False
+
+    rel = _workspace_relative_posix(dir_path)
+    if rel is None:
+        return False
+
+    rel_path = PurePosixPath(rel)
+    return any(rel_path.match(spec) for spec in summarize_specs)
+
+
 def _safe_count_dir_entries(dir_path: Path) -> Optional[int]:
     """
     Count entries in a directory.
@@ -133,6 +212,70 @@ def _safe_count_dir_entries(dir_path: Path) -> Optional[int]:
         return sum(1 for _ in dir_path.iterdir())
     except OSError:
         return None
+
+
+def _bucketed_count(count: int) -> str:
+    """
+    Return a power-of-two bucket string to stabilize the LLM KV cache.
+    Examples: 0 -> '0', 32 -> '32', 45 -> '> 32'
+    """
+    if count == 0:
+        return "0"
+    p2 = 1 << (count.bit_length() - 1)
+    if count == p2:
+        return str(count)
+    return f"> {p2}"
+
+
+def _count_visible_files_recursive(
+    dir_path: Path,
+    show_hidden: bool,
+    show_ext: Optional[Set[str]],
+    inline_masks: Optional[List[str]],
+    ignore_patterns: List[str],
+) -> int:
+    """
+    Count files recursively using the same visibility rules as the tree.
+
+    Note to self:
+        Summary counts should agree with what I would conceptually show if I
+        expanded the tree, otherwise the summaries become misleading.
+    """
+    count = 0
+
+    try:
+        for root_dir, dirnames, filenames in os.walk(dir_path, topdown=True):
+            check_for_interrupt()
+            root_path = Path(root_dir)
+
+            kept_dirnames: List[str] = []
+            for dirname in dirnames:
+                if _matches_any(dirname, ignore_patterns):
+                    continue
+                if dirname.startswith(".") and not show_hidden:
+                    continue
+                kept_dirnames.append(dirname)
+            dirnames[:] = kept_dirnames
+
+            for filename in filenames:
+                if _matches_any(filename, ignore_patterns):
+                    continue
+
+                is_meta = _matches_any(filename, inline_masks)
+
+                if filename.startswith(".") and not show_hidden and not is_meta:
+                    continue
+
+                if show_ext is not None and not is_meta:
+                    if Path(filename).suffix.lower() not in show_ext:
+                        continue
+
+                count += 1
+
+    except OSError:
+        pass
+
+    return count
 
 
 def _wrap_words(prefix: str, words: List[str], max_width: int = 110) -> List[str]:
@@ -356,6 +499,99 @@ def _list_visible_entries(
     return (meta_files, subdirs, normal_files, trunc_info)
 
 
+def _render_summarized_dir(
+    dir_path: Path,
+    indent: str,
+    show_hidden: bool,
+    show_ext: Optional[Set[str]],
+    inline_masks: Optional[List[str]],
+    ignore_patterns: List[str],
+    limit: int,
+) -> List[str]:
+    """
+    Render a summarized directory as one shallow block.
+
+    Format:
+        some_dir/ [summarized files > 32]
+          child_a/ [summarized files 8]
+          child_b/ [summarized files > 64]
+          [direct files > 16]
+
+    Note to self:
+        This is intentionally shallow. I want a little structure without paying
+        for a full traversal.
+    """
+    total_files = _count_visible_files_recursive(
+        dir_path=dir_path,
+        show_hidden=show_hidden,
+        show_ext=show_ext,
+        inline_masks=inline_masks,
+        ignore_patterns=ignore_patterns,
+    )
+
+    lines = [f"{indent}{dir_path.name}/ [summarized files {_bucketed_count(total_files)}]"]
+
+    try:
+        entries = list(dir_path.iterdir())
+    except OSError:
+        lines.append(f"{indent}  [error cannot read directory]")
+        return lines
+
+    child_dirs: List[Path] = []
+    direct_files = 0
+
+    for entry in entries:
+        name = entry.name
+
+        if _matches_any(name, ignore_patterns):
+            continue
+
+        is_meta = _matches_any(name, inline_masks)
+        is_hidden = name.startswith(".")
+
+        if is_hidden and not show_hidden and not is_meta:
+            continue
+
+        if entry.is_dir():
+            child_dirs.append(entry)
+            continue
+
+        if entry.is_file():
+            if show_ext is not None and not is_meta:
+                if entry.suffix.lower() not in show_ext:
+                    continue
+            direct_files += 1
+
+    child_dirs.sort(key=lambda path: path.name.lower())
+
+    trunc_info: Optional[Tuple[int, int]] = None
+    shown_dirs = child_dirs
+    if limit > 0 and len(child_dirs) > limit:
+        trunc_info = (len(child_dirs), limit)
+        shown_dirs = child_dirs[:limit]
+
+    for child_dir in shown_dirs:
+        child_count = _count_visible_files_recursive(
+            dir_path=child_dir,
+            show_hidden=show_hidden,
+            show_ext=show_ext,
+            inline_masks=inline_masks,
+            ignore_patterns=ignore_patterns,
+        )
+        lines.append(
+            f"{indent}  {child_dir.name}/ [summarized files {_bucketed_count(child_count)}]"
+        )
+
+    if direct_files:
+        lines.append(f"{indent}  [direct files {_bucketed_count(direct_files)}]")
+
+    if trunc_info is not None:
+        total, shown = trunc_info
+        lines.append(f"{indent}  [truncated child_dirs total={total} shown={shown}]")
+
+    return lines
+
+
 def _render_tree_recursive(
     dir_path: Path,
     indent: str,
@@ -365,6 +601,7 @@ def _render_tree_recursive(
     inline_masks: Optional[List[str]],
     limit: int,
     ignore_patterns: List[str],
+    summarize_specs: List[str],
     root: Path,
 ) -> List[str]:
     """
@@ -387,6 +624,8 @@ def _render_tree_recursive(
             Maximum visible entries per directory.
         ignore_patterns:
             Glob patterns to ignore.
+        summarize_specs:
+            Workspace-relative directory patterns to summarize.
         root:
             The overall tree root for relative display.
 
@@ -403,19 +642,6 @@ def _render_tree_recursive(
     check_for_interrupt()
 
     lines: List[str] = []
-
-    if dir_path.name == "artifacts":
-        try:
-            file_count = sum(
-                1
-                for name in os.listdir(dir_path)
-                if os.path.isfile(os.path.join(dir_path, name))
-            )
-            lines.append(f"{indent}{dir_path.name}/ [summarized files={file_count}]")
-        except OSError as exc:
-            lines.append(f"{indent}{dir_path.name}/ [error {exc}]")
-        return lines
-
     lines.append(f"{indent}{dir_path.name}/")
 
     if depth <= 0:
@@ -448,6 +674,20 @@ def _render_tree_recursive(
         lines.extend(_render_meta_file(meta_path, child_indent, root))
 
     for subdir in subdirs:
+        if _should_summarize_dir(subdir, summarize_specs):
+            lines.extend(
+                _render_summarized_dir(
+                    dir_path=subdir,
+                    indent=child_indent,
+                    show_hidden=show_hidden,
+                    show_ext=show_ext,
+                    inline_masks=inline_masks,
+                    ignore_patterns=ignore_patterns,
+                    limit=limit,
+                )
+            )
+            continue
+
         lines.extend(
             _render_tree_recursive(
                 dir_path=subdir,
@@ -458,6 +698,7 @@ def _render_tree_recursive(
                 inline_masks=inline_masks,
                 limit=limit,
                 ignore_patterns=ignore_patterns,
+                summarize_specs=summarize_specs,
                 root=root,
             )
         )
@@ -673,6 +914,7 @@ def tree(
     show_extensions: Optional[List[str]] = None,
     inline_meta_masks: Optional[List[str]] = None,
     ignore_globs: Optional[List[str]] = None,
+    summarize_dirs: Optional[List[str]] = None,
     files_per_dir_limit: int = 50,
 ) -> str:
     """
@@ -692,6 +934,9 @@ def tree(
         ignore_globs:
             Optional extra ignore patterns in addition to `.logosignore` and my
             built-in defaults.
+        summarize_dirs:
+            Optional list of workspace-relative directory paths or glob patterns
+            to summarize instead of fully traversing.
         files_per_dir_limit:
             A per-directory safety cap to keep large trees from flooding my
             context.
@@ -719,6 +964,7 @@ def tree(
         ignore_patterns.extend(ignore_globs)
 
     show_ext = _normalize_extensions(show_extensions)
+    summarize_specs = _normalize_summary_specs(summarize_dirs)
 
     header = "./" if str(root) in (".", "") else f"{root.as_posix().rstrip('/')}/"
     lines: List[str] = [header]
@@ -750,16 +996,18 @@ def tree(
         lines.extend(_render_meta_file(meta_path, "  ", root))
 
     for subdir in subdirs:
-        if subdir.name == "artifacts":
-            try:
-                file_count = sum(
-                    1
-                    for name in os.listdir(subdir)
-                    if os.path.isfile(os.path.join(subdir, name))
+        if _should_summarize_dir(subdir, summarize_specs):
+            lines.extend(
+                _render_summarized_dir(
+                    dir_path=subdir,
+                    indent="  ",
+                    show_hidden=show_hidden,
+                    show_ext=show_ext,
+                    inline_masks=inline_meta_masks,
+                    ignore_patterns=ignore_patterns,
+                    limit=files_per_dir_limit,
                 )
-                lines.append(f"  {subdir.name}/ [summarized files={file_count}]")
-            except OSError as exc:
-                lines.append(f"  {subdir.name}/ [error {exc}]")
+            )
             continue
 
         lines.extend(
@@ -772,6 +1020,7 @@ def tree(
                 inline_masks=inline_meta_masks,
                 limit=files_per_dir_limit,
                 ignore_patterns=ignore_patterns,
+                summarize_specs=summarize_specs,
                 root=root,
             )
         )
@@ -785,7 +1034,6 @@ def tree(
         lines.append(f"  [truncated total={total} shown={shown}]")
 
     return "\n".join(lines).rstrip()
-
 
 def read(path: str) -> str:
     """
@@ -844,9 +1092,17 @@ def append(path: str, content: str):
         f.write(content)
 
 
-def show(path: str, max_chars: int = 32767, pattern: Optional[str] = None) -> str:
+# src/logos/files.py
+
+import os
+from pathlib import Path
+from typing import Optional
+
+def show(path: str, max_chars: int = 32768, pattern: Optional[str] = None) -> str:
     """
-    Print and return a possibly filtered, truncated view of a file.
+    Print and return a possibly regex filtered, truncated view of a text file. Image files will have a <file> link printed.
+    Includes safety checks to prevent dumping binary data, and gracefully 
+    handles images by returning them to my context window.
 
     Args:
         path:
@@ -858,7 +1114,7 @@ def show(path: str, max_chars: int = 32767, pattern: Optional[str] = None) -> st
             lines before truncation.
 
     Returns:
-        The displayed text snippet.
+        The displayed text snippet, or a <file> tag if it's an image.
 
     Note to self:
         I use this when I want quick visibility in my context window. For more
@@ -866,7 +1122,36 @@ def show(path: str, max_chars: int = 32767, pattern: Optional[str] = None) -> st
     """
     check_for_interrupt()
 
-    content = read(path)
+    p = Path(path)
+
+    # 1. Image Check
+    image_exts = {'.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp'}
+    if p.suffix.lower() in image_exts:
+        # Emit the special tag so the harness renders it in my context window
+        msg = f'<file path="{path}">Image file ({p.suffix})</file>'
+        print(msg)
+        return msg
+    # TODO: load image and metadata if it exists into a CaptureResult and return that CaptureResult instead of `msg` text
+
+    # 2. Binary Check Heuristic
+    # We read a small chunk of raw bytes. If we find a null byte (\x00), 
+    # it's almost certainly a binary file (compiled code, zip, DB, etc.)
+    try:
+        with open(path, 'rb') as f:
+            chunk = f.read(1024)
+            if b'\0' in chunk:
+                msg = f"[Warning: '{path}' appears to be a binary file. Display omitted.]"
+                print(msg)
+                return msg
+    except FileNotFoundError:
+        # If the file doesn't exist, we just let the standard read() below 
+        # throw the expected error so behavior remains consistent.
+        pass
+    except Exception:
+        pass
+
+    # 3. Read and Process Text
+    content = read(path) # assuming read() exists in logos.files
 
     if pattern is not None:
         regex = _compile_regex(pattern)

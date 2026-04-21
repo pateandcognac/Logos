@@ -54,17 +54,17 @@ def run():
         if snap_top:
             snap_top.add_meta(camera_pos_relative="[-0.15, 0, 1.0]")
 
-        start_pan, start_tilt = logos.pantilt.get_position()
+        start_pan, start_tilt = logos.pantilt.get_angles()
         
         sweep_config = [
-            (-70, -60, "Floor Left"),
+            (70, -60, "Floor Left"),
             (0, -60,   "Floor Center"),
-            (60, -60,  "Floor Right")
+            (-70, -60,  "Floor Right")
         ]
         
         pan_tilt_snaps = []
         for pan, tilt, label in sweep_config:
-            logos.pantilt.move(pan, tilt, steps=10, duration=0.4)
+            logos.pantilt.move(pan, tilt, steps=5, duration=0.4)
             time.sleep(0.2) 
             
             res = logos.vision.capture('pan_tilt', save=False, view=False)
@@ -125,3 +125,6 @@ def run():
         # Fallback if a camera fails
         print("--- Proprioception Sweep ---")
         print("Status: Failed to acquire camera feeds.")
+
+        # sleep for 1.5 sec to allow pan-tilt to stabilize
+        time.sleep(1.5)

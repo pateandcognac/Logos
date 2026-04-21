@@ -15,10 +15,14 @@ import hook_routines.workbench
 import hook_routines.dashboard
 import hook_routines.memory_manager
 import hook_routines.proximity_snapshot
+import hook_routines.ambient_transcript
+
 
 # --- Python Standard Library (The Essentials) ---
 import time       # For all temporal operations: sleeping, measuring duration, etc.
-from datetime import datetime, timedelta, timezone
+# from datetime import datetime
+import datetime
+# from datetime import timedelta, timezone, datetime
 import math       # For trigonometry, angles, and distances in my physical space.
 import json       # For inspecting my memory files (io_buffer, summaries).
 import re         # For advanced text parsing, searching, and code manipulation.

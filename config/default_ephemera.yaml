@@ -1,13 +1,15 @@
   - name: dashboard
-    description: Real-time status (pose, battery, time, loop count) and memory check.
+    description: Real-time status (pose, battery, time, loop count) and memory 
+      check.
     enabled: true
     code: |
       import hook_routines.dashboard as d
       d.run()
 
   - name: ambient_transcript
-    description: The last X minutes of transcribed ambient speech. For environmental awareness.
-    enabled: false
+    description: A rolling window of ambient speech transcriptions for 
+      environmental context.
+    enabled: true
     code: |
       import hook_routines.ambient_transcript
       hook_routines.ambient_transcript.run()
@@ -37,7 +39,7 @@
           if map3d_result:
               print("Render complete and available in `map3d_result`.")
       else:
-          print("map3d rendering not enabled.")
+          print("map3d rendering not active.")
 
   - name: context_workbench
     description: Shows the output of small snippets of code, with a 

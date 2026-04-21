@@ -152,6 +152,7 @@ class SpeakTask:
         """Returns the emoji currently driving my animatronics."""
         playhead = self._get_playhead()
         return playhead['emoji'] if playhead else ""
+    
 
     def progress(self) -> float:
         """Returns estimated playback progress from 0.0 to 1.0."""
@@ -261,6 +262,12 @@ def ttp(
     if kwargs:
         params.update(kwargs)
     
+    # prepare text
+    # replace em dash with comma
+    text = text.replace("—", ", ")
+    # collapse multiple spaces into one
+    text = ' '.join(text.split())
+
     goal = SpeakGoal()
     goal.utterance_text = text
     goal.engine = engine
@@ -312,11 +319,11 @@ def gesture(emoji: str, duration: float = 3.0, channel: str = "both") -> None:
 
 def get_face_state() -> Dict[str, Any]:
     """
-    Retrieve the real-time state of my animatronic face.
+    Retrieve the real-time state of my animated ASCII art face, as controlled by emoji triggers.
     
     Returns:
-        A dictionary containing the latest face state. Returns an empty dict {} 
-        if no data has been received yet. 
+        A dictionary containing my latest face state. Returns an empty dict {} 
+        if no data has been received yet. Typically updates at 8 to 16Hz.
         
         Shape of returned data:
         {
@@ -324,7 +331,7 @@ def get_face_state() -> Dict[str, Any]:
             "duration": float,  # Frame delta (usually ~0.06s active, ~0.25s idle)
             "left_eye": {
                 "gaze_x": float, "gaze_y": float, "scale_x": float, "scale_y": float, 
-                "lid_height": float, "lid_angle": float, "color": str  # hex "#RRGGBB"
+                "lid_height": float, "lid_angle": float, "color": str
             },
             "right_eye": { ... same as left_eye ... },
             "mouth": {
@@ -334,11 +341,15 @@ def get_face_state() -> Dict[str, Any]:
         }
         
         Value Ranges:
-        - gaze, scale: generally -1.0 to +1.0
-        - lid_angle: -45.0 to +45.0 (degrees)
+        - gaze, scale: -1.0 to +1.0
+        - lid_angle: -45.0 to +45.0 (degrees), lids are mirrored, meaning -45.0 for both eyes means angled inwards "angrily"
         - mouth amplitude: 0.0 to 1.0
+        - frequency: 0.0 to about 16.0 in practical use, but no upper limit
+        - phase, phase_increment: roughly -4.0 to 4.0 practically, but no enforced limits
+        - color: 24 bit hex string "#RRGGBB" (directly usable by `logos.leds`)
 
     Note to self:
+        The "eyelids" are functionally eyebrows and lids in appearance, in the same way a cartoon character might have a singular abstracted 
         I can use this to create rich, emergent feedback loops! For example, 
         I can read `gaze_x` to gently rotate my physical `logos.base` to track 
         where my "eyes" are wandering, or I can read the eye `color` and pass it 
@@ -347,7 +358,8 @@ def get_face_state() -> Dict[str, Any]:
         Because this returns an empty dict safely, I can use `.get()` to avoid errors:
             state = logos.emote.get_face_state()
             left_eye = state.get("left_eye", {})
-            hex_color = left_eye.get("color", "#FFFFFF")
+            hex_color = left_eye.get("color")
+            logos.leds.fill("notification", hex_color)
     """
     _ensure_state_sub()
     with _face_state_lock:

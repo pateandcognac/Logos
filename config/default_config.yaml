@@ -27,7 +27,7 @@ tts:
 
 map3d:
   phantasmata_dir: "src/logos/phantasmata"
-  chora_config: "hypomnemata/mind_palace_00.yaml"
+  chora_config: "hypomnemata/chora/mind_palace_00.yaml"
   map_frame: [map, odom, rgb_optical_frame]
   active: true
   render_params:
@@ -42,6 +42,7 @@ map3d:
     cloud_density: 1.0
     laser_scan_show: true
     save: true
+    filename
 
 memory_policy:
   enabled: true
@@ -59,12 +60,9 @@ tree:
   show_hidden: false
   show_extensions: [.py, .yaml, .md, .txt, .png, .jpg, .jsonl]
   inline_meta_masks: '.meta'
+  summarize_dirs: ['ipc']
 
 vision_hook:
-  pan_tilt:
-    enabled: true
-    resolution: [960, 1280]
-    meta_keys: ['pan_tilt_degs']
   astra:
     enabled: false
     resolution: [480, 640]
@@ -74,10 +72,16 @@ vision_hook:
       enabled: true
       rows: 3
       cols: 4
+  pan_tilt:
+    enabled: true
+    resolution: [960, 1280]
+    meta_keys: ['pan_tilt_degs']
   top_down:
     enabled: false
     resolution: [480, 640]
     meta_keys: []
+ambient_stt:
+  last_minutes: 15.0 
 
 # personality: 
 #    description: This is arbitrary and we could put anything here... it's just viewed by the model as text.
