@@ -531,6 +531,8 @@ class Map3d:
         self._occupancy_grid: Optional[OccupancyGrid] = None
         self._occupancy_np: Optional[np.ndarray] = None  # (H, W) int16
         self._map_event = threading.Event()
+        self._map_last_callback_wall_time: float = 0.0
+        self._map_decode_error: Optional[str] = None
 
         # Capture behavior tuning
         self._frame_cache_max_age_s = 1.5
@@ -540,6 +542,9 @@ class Map3d:
         self._camera_startup_extra_timeout_s = 2.5
         self._camera_unsynced_max_delta_s = 0.35
         self._camera_unsynced_cache_max_age_s = 1.5
+        self._map_wait_timeout_s = 1.5
+        self._map_startup_retry_delay_s = 0.35
+        self._map_startup_extra_timeout_s = 2.5
 
         # Floor visual cache (textured plane)
         self._floor_visual_mesh: Optional[o3d.geometry.TriangleMesh] = None
@@ -870,8 +875,11 @@ class Map3d:
             try:
                 h, w = msg.info.height, msg.info.width
                 self._occupancy_np = np.array(msg.data, dtype=np.int16).reshape((h, w))
-            except Exception:
+                self._map_decode_error = None
+            except Exception as exc:
                 self._occupancy_np = None
+                self._map_decode_error = str(exc)
+            self._map_last_callback_wall_time = time.time()
 
             # Invalidate floor visual cache
             self._floor_visual_mesh = None
@@ -888,6 +896,63 @@ class Map3d:
             if self._occupancy_grid is not None and self._occupancy_np is not None:
                 return True
         return self._map_event.wait(timeout=timeout_s)
+
+    def _describe_map_state(self) -> str:
+        now = time.time()
+        with self._map_lock:
+            have_grid = self._occupancy_grid is not None
+            have_occ = self._occupancy_np is not None
+            last_callback_age = (
+                now - self._map_last_callback_wall_time
+                if self._map_last_callback_wall_time > 0.0 else None
+            )
+            decode_error = self._map_decode_error
+
+        parts = [
+            "grid=ready" if have_grid else "grid=missing",
+            "occupancy=ready" if have_occ else "occupancy=missing",
+        ]
+        if last_callback_age is None:
+            parts.append("last_map_callback=none")
+        else:
+            parts.append(f"last_map_callback_age={last_callback_age:.2f}s")
+        if decode_error:
+            parts.append(f"decode_error={decode_error}")
+        return ", ".join(parts)
+
+    def _acquire_map_snapshot(self, timeout_s: Optional[float] = None) -> Optional[MapSnapshot]:
+        snapshot = self._make_map_snapshot()
+        if snapshot is not None:
+            return snapshot
+
+        base_timeout_s = (
+            float(self._map_wait_timeout_s)
+            if timeout_s is None else float(timeout_s)
+        )
+
+        for attempt in range(5):
+            attempt_timeout_s = base_timeout_s
+            if attempt > 0:
+                attempt_timeout_s += float(self._map_startup_extra_timeout_s)
+                self._add_render_warning(
+                    "Map topic was still warming up; retrying map snapshot acquisition once."
+                )
+                time.sleep(max(0.0, float(self._map_startup_retry_delay_s)))
+
+            deadline = time.time() + max(0.0, attempt_timeout_s)
+            while time.time() <= deadline:
+                snapshot = self._make_map_snapshot()
+                if snapshot is not None:
+                    return snapshot
+
+                remaining_s = max(0.0, deadline - time.time())
+                if remaining_s <= 0.0:
+                    break
+
+                wait_s = min(0.25, remaining_s)
+                self._wait_for_map(timeout_s=wait_s)
+
+        return None
 
     def _try_get_recent_synced_triple(
         self,
@@ -3210,12 +3275,11 @@ class Map3d:
         self._resolve_world_frame()
 
         # Freeze the map now so render + later raycast agree.
-        map_snapshot = self._make_map_snapshot()
-        if map_snapshot is None and self._wait_for_map(timeout_s=1.5):
-            map_snapshot = self._make_map_snapshot()
+        map_snapshot = self._acquire_map_snapshot()
         if map_snapshot is None:
             self._add_render_warning(
-                f"Map topic '{self.map_topic}' not ready; rendering floor fallback."
+                f"Map topic '{self.map_topic}' not ready; rendering floor fallback "
+                f"({self._describe_map_state()})."
             )
 
         pc_msg, rgb_msg, info_msg, _ = self._acquire_camera_triple(
