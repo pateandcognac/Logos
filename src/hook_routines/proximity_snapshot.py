@@ -105,7 +105,8 @@ def run():
         # Construct the static header string
         time_str = time.strftime('%I:%M %p', time.localtime(current_time))
         header_lines = [
-            "--- Proprioception Sweep ---",
+            "--- Proximity Snapshot ---",
+            "Visual sweep of the floor around me, composed of top_down and pan_tilt captures."
             f"Captured at: {time_str}"
         ]
         if current_pose:
@@ -124,8 +125,8 @@ def run():
         quad_view.view(meta_keys=['pose', 'camera_pos_relative', 'pan', 'tilt'])
     else:
         # Fallback if a camera fails
-        print("--- Proprioception Sweep ---")
+        print("--- Proximity Snapshot ---")
         print("Status: Failed to acquire camera feeds.")
 
     # sleep for 1 sec to allow pan-tilt to stabilize for any pan-tilt hook capture to follow
-    time.sleep(1)
+    time.sleep(1.15)

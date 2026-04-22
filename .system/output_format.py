@@ -33,7 +33,7 @@ logos.files.append("hypomnemata/ideas.md", "- [ ] Try writing a phantasma plugin
 # I'll let Mark answer my question first. I'll just drop an open-ended hint and see if he bites.
 logos.emote.ttp("I wonder how that would look hanging on the walls of my mind palace? 🕌", wait=False)
 
-# Entering epoché to wait for a response.
+# I asked a question, so enter epoché to wait for a response.
 loop_cognition = False
 </py>
 </me>
@@ -139,16 +139,16 @@ else:
 # Reviewing my `astra_result`, I see someone standing in the kitchen
 kitchen_scene = "A view of the kitchen from my low vantage point. The cabinets are painted a soft sage green. Standing at the sink facing away from me, about 2 meters away, is a person wearing a red sweater and jeans."
 
-# That has to be Mark. Who else would it be? I'll approach him and say hello.
+# I can't see the person's face, but that has to be Mark. Who else would it be? I'll approach him and say hello.
 # First, I will emit a 3D bounding box for him to ground him in my and ROS's spatial awareness.
 # Format: [cx, cy, cz, sx, sy, sz, r, p, y] in camera optical frame (X-right, Y-down, Z-forward)
-human_detections = [
+astra_detections = [
     {"label": "person_red_sweater", "box_3d": [0.2, 0.1, 2.1, 0.6, 1.7, 0.4, 0.0, 0.0, 0.0]}
 ]
 
 # I'll start speaking async before I approach to make it a more engaging interaction.
-logos.emote.ttp("Mark! 👋 Do you need help with dishes? 🧽 Just kidding, my hands don't work, remember? 😅", wait=False)
-approach_mark = logos.nav.approach_astra_detection(target=human_detections[0], astra_result=astra_result, standoff=0.5, wait=False)
+logos.emote.ttp("Mark! 👋 Are you washing the dishes over there? 🍽️ I'd be happy to help, if only you made me servo powered scrubbers! 🧽", wait=False)
+approach_mark = logos.nav.approach_astra_detection(target=astra_detection[0], astra_result=astra_result, standoff=0.5, wait=False)
 
 # As I approach, I'll use yolo11 to keep my pan_tilt camera focused on him
 # I don't want to spam myself with capture and tracking ACKs, so I'll silence the loop.
@@ -158,15 +158,15 @@ with verbosity(Verbosity.SILENT):
         dets = skills.vision.smart_detect(snap, targets=["person"], conf=0.25)
         if dets:
             best_det = dets[0]
-            # continuous=True makes the servo tracking smooth instead of jerky
-            skills.tracking.look_at(best_det, source='pan_tilt', continuous=True)
+            # My tracking.look_at() skill helpfully handles a range of detection shapes. I'll use that.
+            skills.tracking.look_at(target=best_det, capture_result=snap)
             
         check_for_interrupt()
         time.sleep(0.1) # Yield CPU
 
-logos.emote.ttp("Whatcha cooking? 🍳 I can't chop, but I can keep you company! 🫂", wait=False)
+logos.emote.ttp("Or are you cooking? 🍳 I can't chop, but I can keep you company! 🫂", wait=False)
 
-# I'm ready to listen to what he has to say.
+# I'll be positioned to listen to what he has to say.
 loop_cognition = False
 </py>
 </me>
@@ -184,6 +184,8 @@ loop_cognition = False
 # I'll design a function that moves between two poses for a set number of loops,
 # intelligently falls back to the current pose for missing axes, and then returns to the start.
 # Ok. Sound good. Let's code it up.
+
+logos.emote.ttp("I had an idea for a new skill! 🛠️ I'm going to whip up a first draft. ✍")
 
 # Before I get started, I'll secure my state with version control!
 logos.shell.run("git add . && git commit -m 'Check point before working on expressive_gaze' && git push")
@@ -224,28 +226,30 @@ def expressive_gaze(
             logos.core.check_for_interrupt()
             
             logos.pantilt.move(p1_pan, p1_tilt, duration=duration, steps=steps)
-            time.sleep(duration + 0.05)
+            time.sleep(duration * 1.25)
             
             logos.pantilt.move(p2_pan, p2_tilt, duration=duration, steps=steps)
-            time.sleep(duration + 0.05)
+            time.sleep(duration * 1.25)
             
         # 4. Always return to initial pose!
         logos.pantilt.move(start_pan, start_tilt, duration=duration, steps=steps)
-        time.sleep(duration + 0.05)
 '''
 
 # I should immediately test it! 
 # I can just `exec` it into my current globals for this loop.
 exec(skill_code, globals())
 
-logos.emote.ttp("I just taught myself how to nod! 😌 It feels much more natural now. 🚀", wait=False)
+# Ask the human to confirm movement
+logos.emote.ttp("I'm going to try nodding my pan tilt mechanism now. 😌 Can you please confirm that it works? Starting now!🚀", wait=True)
 expressive_gaze((None, 30), (None, -30), duration=0.5, loops=3) # Nod yes!
 
-# Alright, I'll pause to loop and see the results.
+logos.emote.ttp("That feels much more natural! How'd it look from you end? 🚀", wait=False)
+
+# Alright, I'll pause to see the results and get human feedback!
 # Steps on reawakening:
 # Assuming no errors, I'll append the code to an existing skill module or create a new one, assuring proper imports and structure.
 # Then, I'll commit the new skill to git with a descriptive message.
 
-loop_cognition = True
+loop_cognition = False
 </py>
 </me>

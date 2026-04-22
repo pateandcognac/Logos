@@ -59,7 +59,7 @@ PAN_RANGE = (-100.0, 80.0)    # (right_limit, left_limit)
 TILT_RANGE = (-60.0, 70.0)    # (down_limit, up_limit)
 HOME = (0.0, 0.0)
 
-# Camera FOV in degrees (horizontal, vertical) — used by look_at_pixel.
+# Camera FOV in degrees (horizontal, vertical)
 # Defined per source camera. Astra included for future cross-camera gaze.
 FOV: Dict[str, Tuple[float, float]] = {
     "pan_tilt":    (65.0, 50.0),

@@ -1,33 +1,29 @@
-  - name: hook_configs
-    description: A summary of my currently configured cognitive hooks.
+  - name: hook_config
+    description: An overview of my currently configured cognitive hooks.
     enabled: true
     code: |
-      from logos.core import verbosity, check_for_interrupt, help, Verbosity
-      print("\n--- Cognitive Hook Status ---")
+      print("\n--- Hook Config ---")
       print("Arche:")
       print(logos.hooks.show('arche'))
       print("\n---\nEphemera:")
       print(logos.hooks.show('ephemera'))
 
   - name: api_ref
-    description: My core API reference (signatures and one-liners) from 
-      `logos.help()`.
+    description: My core API reference (signatures and one-liners) from `logos.help()`.
     enabled: true
     code: |
-      print("--- Logos API Reference ---")
+      print("--- API Reference ---")
       logos.help(print_output=True)
 
   - name: skills_ref
-    description: My self-created skills reference (signatures and one-liners) 
-      from `skills.help()`.
+    description: My self-created skills reference (signatures and one-liners) from `skills.help()`.
     enabled: true
     code: |
-      print("--- Logos Skills Reference ---")
+      print("--- Skills Reference ---")
       skills.help()
 
-  - name: file_tree
-    description: Shows the CWD and output of 
-      `logos.files.tree(**logos.config.merged.tree)`.
+  - name: my_workspace
+    description: Shows the CWD and output of `logos.files.tree(**logos.config.merged.tree)`.
     enabled: true
     code: |-
       from pathlib import Path
@@ -37,18 +33,10 @@
 
   - name: proximity_snapshot
     description: 360-degree-ish visual sweep of the floor around me, captured 
-      from top_down and pan_tilt. Updates are gated by pose and time to reduce 
+      from top_down and pan_tilt, and stitched into a single image. Updates are gated by pose and time to reduce 
       latency and maintain KV cache.
     enabled: true
     code: |
       import hook_routines.proximity_snapshot as ps
       ps.run()
 
-  - name: context_workbench
-    description: Shows the output of small snippets of code, with a 
-      loops-to-live (ltl) lifespan. For temporarily viewing large or dynamic 
-      contexts without cluttering my palimpsest.
-    enabled: false
-    code: |
-      import hook_routines.workbench as wb
-      wb.run('arche', globals())

@@ -45,11 +45,10 @@ def expressive_gaze(
             logos.core.check_for_interrupt()
             
             logos.pantilt.move(p1_pan, p1_tilt, duration=duration, steps=steps)
-            time.sleep(duration + 0.05)
+            time.sleep(duration * 1.25)
             
             logos.pantilt.move(p2_pan, p2_tilt, duration=duration, steps=steps)
-            time.sleep(duration + 0.05)
+            time.sleep(duration * 1.25)
             
         # 4. Always return to initial pose!
         logos.pantilt.move(start_pan, start_tilt, duration=duration, steps=steps)
-        time.sleep(duration + 0.05)

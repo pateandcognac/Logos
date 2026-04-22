@@ -542,9 +542,9 @@ class Map3d:
         self._camera_startup_extra_timeout_s = 2.5
         self._camera_unsynced_max_delta_s = 0.35
         self._camera_unsynced_cache_max_age_s = 1.5
-        self._map_wait_timeout_s = 1.5
+        self._map_wait_timeout_s = 2.5
         self._map_startup_retry_delay_s = 0.35
-        self._map_startup_extra_timeout_s = 2.5
+        self._map_startup_extra_timeout_s = 1.0
 
         # Floor visual cache (textured plane)
         self._floor_visual_mesh: Optional[o3d.geometry.TriangleMesh] = None
@@ -988,7 +988,7 @@ class Map3d:
             return pc_msg, rgb_msg, info_msg, "cached_sync"
 
         last_error: Optional[RuntimeError] = None
-        for attempt in range(2):
+        for attempt in range(5):
             attempt_timeout_s = float(timeout_s)
             if attempt > 0:
                 attempt_timeout_s += float(self._camera_startup_extra_timeout_s)
@@ -3283,7 +3283,7 @@ class Map3d:
             )
 
         pc_msg, rgb_msg, info_msg, _ = self._acquire_camera_triple(
-            timeout_s=10.0,
+            timeout_s=4.0,
             allow_unsynced_fallback=True,
         )
 
