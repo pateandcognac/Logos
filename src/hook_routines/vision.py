@@ -15,8 +15,6 @@ def run():
     cameras = ['pan_tilt', 'astra', 'top_down']
     captured_any = False
     
-    print("\n--- Visual Stream ---")
-    
     # Silence the individual API capture ACKs to keep the context window tidy
     with verbosity(Verbosity.SILENT):
         for cam in cameras:
@@ -47,24 +45,24 @@ def run():
                     res.save(view=False)
                     
                 # 2. Publish to ROS debug topic (so Mark can see my raw/gridded feed!)
-                logos.vision.publish_debug(res.image, detections=None, source=cam)
+                # logos.vision.publish_debug(res.image, detections=None, source=cam)
                 
                 # 3. Print the <file> tag for my context window
                 res.view(meta_keys=meta_keys)
                 
                 results[cam] = res
                 captured_any = True
-                print(f"[{cam}_result] Captured at {res.resolution[0]}x{res.resolution[1]}.")
+                print(f"Image CaptureResult available as {cam}_result.  {res.resolution[0]}x{res.resolution[1]}.")
             else:
-                print(f"[{cam}_result] Failed to capture.")
+                print(f"{cam}_result Failed to capture!")
 
     # Context window instructions
     if captured_any:
-        print("Note: Variables are available in memory for `<py>` blocks.")
+        print("Variables are available in memory for `<py>` blocks.")
         print("Examples: `pan_tilt_result.crop(...)`, `astra_result.derive_world_coordinate(...)`")
         # if astra and overlay enabled, mention the grid overlay
         if 'astra' in results and config.get('vision_hook', {}).get('astra', {}).get('overlay_grid', {}).get('enabled', False):
-            print("The Astra feed has a burned-in grid overlay annotating the 2D points in pixel space with their derived 3D coordinates in (C)amera and (M)ap frames.")
+            print("Astra grid_overlay is enabled, showing the derived 3D coordinates of pixels in (C)amera and (M)ap frames. Disable for clearer view.")
     else:
         print("No cameras enabled. (Toggle via `logos.config.prefs.vision_hook`)")
             

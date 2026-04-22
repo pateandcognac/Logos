@@ -30,16 +30,16 @@
     description: Renders a view into my Chora using `logos.config.prefs.map3d`
     enabled: true
     code: |
-      print("--- Chora ---")
+      print("--- map3d Render ---")
       print("Usage: Configure via logos.config.prefs.map3d")
-      if logos.config.merged.map3d.active == True:
+      if logos.config.merged.map3d.enabled == True:
           params = logos.config.merged.map3d.render_params
           fn=logos.utils.make_time_id()
           map3d_result = logos.map3d.render(filename=fn, **params, verbosity=Verbosity.SILENT)
           if map3d_result:
               print("Render complete and available in `map3d_result`.")
       else:
-          print("map3d rendering not active.")
+          print("map3d rendering not enabled.")
 
   - name: context_workbench
     description: Shows the output of small snippets of code, with a 
