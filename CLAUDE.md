@@ -24,7 +24,7 @@ The robot's one universal tool. Always available in its Python runtime without i
 
 | Module | Purpose |
 |--------|---------|
-| `core.py` | `@api_call` decorator, `Verbosity` enum, `verbosity()` context manager, cooperative interrupts, `logos.help()` |
+| `core.py` | `@api_call` decorator, `Verbosity` enum, `verbosity()` context manager, cooperative interrupts, `logos.api_help()` |
 | `config.py` | `LogosConfig` — the persistent config object (`logos.config`). Sections: `vision`, `map3d`, `memory_policy`, `files`, `system` |
 | `hooks.py` | Introspect/edit cognitive hook configs (`logos.hooks.show/upsert/remove`) |
 | `vision.py` | Camera capture for `pan_tilt`, `top_down`, `astra` — webcams via OpenCV, Astra via ROS |
@@ -84,7 +84,7 @@ Type hints use Python 3.8 syntax (`Optional[X]`, `List[X]`, `Union[X, Y]` — no
 
 Angles are always degrees in public interfaces. Never expose radians.
 
-`__all__` is defined in modules that have a meaningful public surface to limit what shows in `logos.help()`.
+`__all__` is defined in modules that have a meaningful public surface to limit what shows in `logos.api_help()`.
 
 ## No Traditional Build/Test System
 

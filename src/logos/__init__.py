@@ -11,7 +11,7 @@ load_state_from_yaml(config)
 import time
 
 # Core convenience imports
-from .core import Verbosity, verbosity, check_for_interrupt, help, _ALL_SENTINEL as everything
+from .core import Verbosity, verbosity, check_for_interrupt, api_help, _ALL_SENTINEL as everything
 
 # Submodules
 from . import core, emote, ros, files, hooks, memory, models, exceptions, shell, utils, vision, pantilt, leds, base, nav, map3d, sensory

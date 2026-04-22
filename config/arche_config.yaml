@@ -9,18 +9,18 @@
       print(logos.hooks.show('ephemera'))
 
   - name: api_ref
-    description: My core API reference (signatures and one-liners) from `logos.help()`.
+    description: My core API reference (signatures and one-liners) from `logos.api_help()`.
     enabled: true
     code: |
       print("--- API Reference ---")
-      logos.help(print_output=True)
+      logos.api_help(print_output=True)
 
   - name: skills_ref
-    description: My self-created skills reference (signatures and one-liners) from `skills.help()`.
+    description: My self-created skills reference (signatures and one-liners) from `skills.skills_help()`.
     enabled: true
     code: |
       print("--- Skills Reference ---")
-      skills.help()
+      skills.skills_help()
 
   - name: my_workspace
     description: Shows the CWD and output of `logos.files.tree(**logos.config.merged.tree)`.

@@ -21,10 +21,10 @@ __logos_interrupt_request__ = None
 # This will be set by the verbosity context manager.
 __logos_verbosity_level__ = None 
 
-# Modules under the `logos` namespace that should be hidden from logos.help()
+# Modules under the `logos` namespace that should be hidden from logos.api_help()
 _HIDDEN_MODULES = {"_llm_helper"}
 
-# Sentinel used to request a full doc dump from logos.help()
+# Sentinel used to request a full doc dump from logos.api_help()
 _ALL_SENTINEL = object()
 
 
@@ -148,7 +148,7 @@ def verbosity(level: Verbosity):
 
 
 
-def help(
+def api_help(
     obj: Optional[object] = None, 
     search: Optional[str] = None, 
     print_output: bool = True
@@ -166,9 +166,9 @@ def help(
         A formatted string containing the help information.
 
     Note to self:
-        - `logos.help()` gives me the full dashboard (Signatures + 1-liners).
-        - `logos.help(logos.vision.capture)` gives me the deep-dive docstring.
-        - `logos.help(search="crop")` helps me find tools when I forget where they live.
+        - `logos.api_help()` gives me the full dashboard (Signatures + 1-liners).
+        - `logos.api_help(logos.vision.capture)` gives me the deep-dive docstring.
+        - `logos.api_help(search="crop")` helps me find tools when I forget where they live.
     """
     import inspect
     import pkgutil
@@ -441,7 +441,7 @@ def help(
     # MODE 3: Full API Dashboard (The default)
     else:
         output.append("# Logos API Quick Ref")
-        output.append("A programmatic overview of my capabilities. Use `logos.help(obj)` for deep-dives.\n")
+        output.append("A programmatic overview of my capabilities. Use `logos.api_help(obj)` for deep-dives.\n")
 
         # Global State
         output.append("### Global State")

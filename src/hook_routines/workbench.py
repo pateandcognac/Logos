@@ -26,7 +26,7 @@ def run(location: str, env_globals: dict):
     if not bench:
         usage = (f"\n--- Context Workbench ({location}) ---\n"
                 "No content.\n---\n"
-                "Use case: When I want to view some token heavy context, but don't want it to clutter up my palimpsest long-term, I can put it on this workbench for a number of loops-to-live.\n"
+                "Use case: When I want to view some token heavy context, but don't want it to clutter up my palimpsest long-term, I can put it on this auto-expiring workbench hook for a number of loops-to-live.\n"
                 """Example: `hook_routines.workbench.upsert(name="doc_review", code="logos.files.show(path='docs.md', pattern='some regex')", ltl=2)`""")
         
         print(usage)
@@ -34,7 +34,7 @@ def run(location: str, env_globals: dict):
 
     # Filter for snippets designated for this specific hook location
     active_snippets = {k: v for k, v in bench.items() if v.get('location') == location}
-    
+     
     if not active_snippets:
         return
 

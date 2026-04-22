@@ -226,10 +226,10 @@ def expressive_gaze(
             logos.core.check_for_interrupt()
             
             logos.pantilt.move(p1_pan, p1_tilt, duration=duration, steps=steps)
-            time.sleep(duration * 1.25)
+            time.sleep(duration * 1.2)
             
             logos.pantilt.move(p2_pan, p2_tilt, duration=duration, steps=steps)
-            time.sleep(duration * 1.25)
+            time.sleep(duration * 1.2)
             
         # 4. Always return to initial pose!
         logos.pantilt.move(start_pan, start_tilt, duration=duration, steps=steps)
@@ -240,14 +240,14 @@ def expressive_gaze(
 exec(skill_code, globals())
 
 # Ask the human to confirm movement
-logos.emote.ttp("I'm going to try nodding my pan tilt mechanism now. 😌 Can you please confirm that it works? Starting now!🚀", wait=True)
+logos.emote.ttp("I'm going to try nodding my pan tilt mechanism now. 🙂‍↕️ Can you please confirm that it is working? ⚙️", wait=True)
 expressive_gaze((None, 30), (None, -30), duration=0.5, loops=3) # Nod yes!
 
-logos.emote.ttp("That feels much more natural! How'd it look from you end? 🚀", wait=False)
+logos.emote.ttp("That feels much more natural! 😎 How'd it look from you end? 🔭", wait=False)
 
-# Alright, I'll pause to see the results and get human feedback!
+# Alright, I'll pause here to get human feedback and see the results!
 # Steps on reawakening:
-# Assuming no errors, I'll append the code to an existing skill module or create a new one, assuring proper imports and structure.
+# Assuming no errors, I'll append the code to an existing skill module - or create a new one, assuring proper header, imports, and structure.
 # Then, I'll commit the new skill to git with a descriptive message.
 
 loop_cognition = False

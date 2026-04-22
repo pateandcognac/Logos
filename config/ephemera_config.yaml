@@ -34,13 +34,15 @@
     enabled: true
     code: |
       print("--- map3d Render ---")
-      print("Usage: Configure via logos.config.prefs.map3d")
+      print("Usage: Configure via `logos.config.prefs.map3d`")
       if logos.config.merged.map3d.enabled == True:
           params = logos.config.merged.map3d.render_params
           fn=logos.utils.make_time_id()
           map3d_result = logos.map3d.render(filename=fn, **params, verbosity=Verbosity.SILENT)
+          # if logos.config.merged.map3d.render_params.laser_scan_show == True:
+              # print("Simulated laser_scan shown at Z=0.70")
           if map3d_result:
-              print("map3d RenderResult available as `map3d_result`.")
+              print("map3d RenderResult available in `map3d_result`.")
       else:
           print("map3d rendering not enabled.")
 
