@@ -21,7 +21,7 @@
     enabled: true
     code: |
       print("--- Vision Hook ---")
-      print("Configure via `logos.config.prefs.vision_hook`.")"
+      print("Configure via `logos.config.prefs.vision_hook`.")
       import hook_routines.vision as v_hook
       _vision_res = v_hook.run()
       # Inject variables directly into my global namespace

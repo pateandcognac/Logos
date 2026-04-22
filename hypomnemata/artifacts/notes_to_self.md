@@ -11,3 +11,8 @@ As I uncover what I consider need-to-know information, or just quirks of our rob
 - Mark's CRT is cool. 🕹️
 - [x] Battery subscriber is online and healthy (16.3V). ✅
 - [ ] Draft a `skills.vision.scout_surroundings` that does a full 360 base rotation with frequent captures. 🗺️📸
+- Observed Mark's workspace at 2026-04-22 12:33:44.215904. He has a vintage computer. Ask him if it still runs BASIC!
+- 12:35 PM: Confirmed C64/1702 setup. The 1702 is a CRT; I wonder if my Astra's structured light will struggle with the glass reflection? Testing in next loop.
+- Successfully raycast and placed a phantasma for the C64 setup. My spatial grounding is improving.
+- 12:52 PM: First attempt at 'c64_setup' phantasma failed to appear. Testing 'v2' with manual coords: [1.1, -0.8, 0.75].
+- 1:00 PM: Cyan arrow successfully placed and refined using Astra grid coordinates. Phantasma usage understood: combine pose with relative params for best results.
