@@ -1,0 +1,11 @@
+photo_id: podj0m0
+source: top_down
+timestamp: 1776804358.790863
+resolution:
+- 480
+- 640
+pose:
+  x: 0.006034093540689532
+  y: -0.07201661551012609
+  theta_deg: 3.604219850208633
+  frame: map

@@ -62,14 +62,14 @@ def show(location: str) -> str:
 
     for r in hooks:
         name = r.get('name', 'Unnamed')
-        active = r.get('active', 'N/A')
+        enabled = r.get('enabled', 'N/A')
         desc = r.get('description', 'No description.')
-        output.append(f"- {name} (active: {active}): {desc}")
+        output.append(f"- {name} (enabled: {enabled}): {desc}")
 
     return "\n".join(output)
 
 @api_call(default_verbosity=Verbosity.ACK)
-def upsert(location: str, name: str, *, description: Union[str, None] = None, active: Union[bool, None] = None, code: Union[str, None] = None, insert_before: Union[str, None] = None,) -> None:
+def upsert(location: str, name: str, *, description: Union[str, None] = None, enabled: Union[bool, None] = None, code: Union[str, None] = None, insert_before: Union[str, None] = None,) -> None:
     """
     Update an existing hook or create a new one in the requested configuration.
 
@@ -77,7 +77,7 @@ def upsert(location: str, name: str, *, description: Union[str, None] = None, ac
         location: Which config file to edit ('arche' or 'ephemera').
         name: Unique hook name to update or create.
         description: Human-friendly summary to store with the hook.
-        active: Whether to show. True/False.
+        enabled: Whether to show. True/False.
         code: Python source for the hook. Required when creating a new hook.
         insert_before: Optional hook name to insert before when creating.
     """
@@ -89,7 +89,7 @@ def upsert(location: str, name: str, *, description: Union[str, None] = None, ac
 
     updates = {
         "description": description,
-        "active": active,
+        "enabled": enabled,
         "code": code,
     }
     provided_updates = {k: v for k, v in updates.items() if v is not None}

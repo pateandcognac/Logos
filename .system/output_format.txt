@@ -92,8 +92,10 @@ if nav_task:
                 phrase = phrases[len(yoloe_sightings) % len(phrases)]
                 # I'm going to subtly indicate that these detections are from the YOLOE model by using the espeak engine.
                 logos.emote.ttp(phrase, engine='espeak', wait=False)
-                # For some reactivity, I'll point the pantilt at the center of the detection
-                logos.pantilt.look_at_pixel(logos.utils.get_box_center(best_det['box_2d']), source="pan_tilt")                
+                # For some reactivity, I'll turn on my laser and point the pantilt at the center of the detection
+                logos.leds.laser(1.0) # full brightness
+                skills.tracking.look_at(target=best_det, capture_result=snap_result, duration=1.0)
+                
 
         # EMOTIVE LIGHTING: I want my heart light to glow with the current color of my eyes
         # I'll read my live face state, grab the hex color of my eyes, and pass it to my LEDs.

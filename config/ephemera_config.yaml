@@ -1,17 +1,19 @@
   - name: dashboard
-    description: Real-time status (pose, battery, time, loop count) and memory check.
+    description: Real-time status (pose, battery, time, loop count) and memory 
+      check.
     enabled: true
     code: |
       import hook_routines.dashboard as d
       d.run()
 
   - name: ambient_transcript
-    description: The last X minutes of transcribed ambient speech. For environmental awareness.
+    description: Listen for livestream audio and Mark's commentary.
     enabled: false
     code: |
       import hook_routines.ambient_transcript
       hook_routines.ambient_transcript.run()
 
+    active: true
   - name: vision_hook
     description: My primary camera feeds. Configure via 
       `logos.config.prefs.vision_hook`.

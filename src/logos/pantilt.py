@@ -26,7 +26,7 @@ from typing import Dict, Optional, Tuple
 
 
 __all__ = [
-    "move", "nudge", "home", "get_position", "look_at_pixel", "look_at_coord",
+    "move", "nudge", "home", "get_angles",
     "PAN_RANGE", "TILT_RANGE", "HOME", "FOV",
 ]
 
@@ -75,7 +75,7 @@ def _counts_to_deg_pan(counts: int, home_counts: int) -> float:
     return (counts - home_counts) / _COUNTS_PER_DEG
 
 def _deg_to_counts_pan(deg: float, home_counts: int) -> int:
-    # +deg (Right) equals lower servo counts
+    # +deg (Left) equals higher servo counts
     return int(round(home_counts + deg * _COUNTS_PER_DEG))
 
 def _deg_to_counts_tilt(deg: float, home_counts: int) -> int:
@@ -165,7 +165,7 @@ def move(
     steps: int = 5
 ) -> Tuple[float, float]:
     """
-    Move the pan/tilt head to an absolute position with interpolation and easing.
+    Move the pan/tilt head to an absolute position with interpolation and easing. Blocking.
 
     Args:
         pan_deg: Target pan.
@@ -228,25 +228,25 @@ def move(
 
 
 @api_call(default_verbosity=Verbosity.BRIEF)
-def nudge(d_pan: float, d_tilt: float) -> Tuple[float, float]:
+def nudge(pan_deg: float, tilt_deg: float) -> Tuple[float, float]:
     """
     Adjust the pan/tilt head by a relative offset from its current position.
 
     Args:
-        d_pan:  Degrees to add to current pan. Positive = rightward.
-        d_tilt: Degrees to add to current tilt. Positive = upward.
+        pan_deg:  Degrees to add to current pan. Positive = leftward.
+        tilt_deg: Degrees to add to current tilt. Positive = upward.
 
     Returns:
         The new absolute (pan, tilt) position in degrees after clamping.
 
     Note to self:
         Handy for small corrections without needing to know absolute position.
-            logos.pantilt.nudge(5, 0)    # Glance a bit more to the right
+            logos.pantilt.nudge(5, 0)    # Glance a bit more to the left
             logos.pantilt.nudge(0, -10)  # Tilt down a touch
     """
     current_pan, current_tilt = get_angles()
-    new_pan = current_pan + d_pan
-    new_tilt = current_tilt + d_tilt
+    new_pan = current_pan + pan_deg
+    new_tilt = current_tilt + tilt_deg
     return move(new_pan, new_tilt, verbosity=Verbosity.SILENT)
 
 
@@ -285,68 +285,4 @@ def get_angles() -> Tuple[float, float]:
         tilt = _counts_to_deg_tilt(_current_tilt_counts, _HOME_TILT_COUNTS)
     return (pan, tilt)
 
-
-@api_call(default_verbosity=Verbosity.BRIEF)
-def look_at_pixel(
-    point_2d: Tuple[float, float],
-    source: str = "pan_tilt",
-) -> Tuple[float, float]:
-    """
-    Shift gaze to center a detected point in the image.
-
-    Given a point detected in a camera image (using my normalized 0-1000
-    coordinate system), this computes the angular offset from image center
-    and adjusts the pan/tilt servos to bring that point to center frame.
-
-    Args:
-        point_2d: Detection point as [y, x], each in 0-1000 normalized
-            coordinates (y: top=0, bottom=1000; x: left=0, right=1000).
-            This matches my native detection format.
-        source: Which camera the detection came from. Currently only
-            'pan_tilt' is supported (the camera on the pan/tilt head).
-
-    Returns:
-        The new absolute (pan, tilt) position in degrees after the move.
-
-    Note to self:
-        This is the bridge between my visual perception and physical gaze.
-        When I detect something interesting in my pan_tilt image, I can
-        immediately look at it:
-
-            detections = [{"point": [300, 700], "label": "interesting_thing"}]
-            logos.pantilt.look_at_pixel(detections[0]["point"])
-
-        For objects detected in the astra or top_down cameras, I would need
-        to use a different approach (e.g., project through depth to 3D, then
-        compute gaze angles), which is not yet implemented.
-
-        The pan_tilt camera image is flipped at capture time to correct for
-        its inverted mounting, so pixel coordinates are in natural orientation:
-        right-in-image = right-in-world.
-    """
-    if source != "pan_tilt":
-        raise NotImplementedError(
-            f"look_at_pixel currently only supports source='pan_tilt'. "
-            f"Got '{source}'. Cross-camera gaze requires 3D projection."
-        )
-
-    y_norm, x_norm = point_2d
-
-    # Convert from 0-1000 to fraction-from-center (-0.5 to +0.5)
-    x_frac = (x_norm / 1000.0) - 0.5  # positive = right of center
-    y_frac = (y_norm / 1000.0) - 0.5  # positive = below center
-
-    fov_h, fov_v = FOV[source]
-
-    # Angular offset: how far from image center in degrees
-    # Pan:  object right in image (+x_frac) → pan right (negative)
-    # Tilt: object above in image (-y_frac) → tilt up (positive)
-    pan_offset = -x_frac * fov_h
-    tilt_offset = -y_frac * fov_v
-
-    current_pan, current_tilt = get_angles()
-    new_pan = current_pan + pan_offset
-    new_tilt = current_tilt + tilt_offset
-
-    return move(new_pan, new_tilt, duration=0.5, verbosity=Verbosity.SILENT)
 

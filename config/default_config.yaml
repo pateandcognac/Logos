@@ -79,7 +79,7 @@ vision_hook:
     enabled: false
     resolution: [480, 640]
     meta_keys: []
-ambient_stt:
+ambient_transcript:
   last_minutes: 15.0 
 
 # personality: 

@@ -440,7 +440,7 @@ def help(
 
     # MODE 3: Full API Dashboard (The default)
     else:
-        output.append("# Logos API Dashboard")
+        output.append("# Logos API Quick Ref")
         output.append("A programmatic overview of my capabilities. Use `logos.help(obj)` for deep-dives.\n")
 
         # Global State

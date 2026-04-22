@@ -7,11 +7,13 @@ These behaviors translate spatial detections into physical motor commands,
 allowing me to maintain "eye contact" or follow targets with my base.
 """
 
-from typing import Dict, Any, Optional
+from typing import Dict, List, Tuple, Union, Any, Optional
 import time
+import math
 import logos
 from skills.vision import smart_detect
-import math
+from logos.vision import CaptureResult
+import logos.utils
 
 # A tiny global state to coast through YOLO flicker
 _tracking_state = {
@@ -19,47 +21,66 @@ _tracking_state = {
     "last_depth": 1.0,
 }
 
-def look_at(detection: Dict[str, Any], source: str = "pan_tilt", continuous: bool = False) -> None:
+def look_at(
+    target: Union[Dict[str, Any], List[Dict[str, Any]], List[float], Tuple[float, float]], 
+    capture_result: Optional[CaptureResult] = None, 
+    duration: float = 0.25, 
+    steps: int = 5
+) -> None:
     """
-    Aim the pan-tilt head at a detection.
-    (Updated to support non-blocking continuous tracking)
-    """
-    print(f"{detection=}")
-    # detection=[{'label': 'person', 'box_2d': [88, 253, 980, 807], 'confidence': 0.9, 'source': 'yolo11'}]
-    box = detection[0]
-    if not box: return
+    Aim the pan-tilt head at a detection, bounding box, or point.
     
-    print(f"{box=}")
-    # box={'label': 'person', 'box_2d': [88, 253, 980, 807], 'confidence': 0.9, 'source': 'yolo11'}
-    y1, x1, y2, x2 = box["box_2d"]
-    label = box.get("label", "").lower()
+    If a capture_result is provided, uses its saved metadata to calculate 
+    the offset perfectly, compensating for any hardware movement that 
+    occurred during image processing.
 
-    target_y = y1 + ((y2 - y1) * 0.15) if label == "person" else (y1 + y2) / 2.0
-    target_x = (x1 + x2) / 2.0
-
-    # If tracking continuously, use fast, non-blocking moves
-    dur = 0.05 # if continuous else 0.4
-    steps = 2 # if continuous else 10
-
-    if label == "person" and y1 < 50:
-        # Target's head is cut off, search up!
-        logos.pantilt.nudge(0, 3) 
-    else:
-        # We manually replicate look_at_pixel here to pass dur/steps
-        # Convert to fraction from center
-        x_frac = (target_x / 1000.0) - 0.5
-        y_frac = (target_y / 1000.0) - 0.5
-        fov_h, fov_v = logos.vision.FOV[source]
+    Args:
+        target: A detection dict, list of dicts, a [y, x] point, or [y1, x1, y2, x2] box.
+        capture_result: The CaptureResult this target came from (highly recommended).
+        duration: Total time for the movement in seconds. Use 0.0 for instant non-blocking ticks.
+        steps: Number of interpolation steps. Use 1 for instant non-blocking ticks.
+    """
+    # 1. Resolve Target robustly
+    resolved_point = logos.utils.resolve_gaze_point(target)
+    if not resolved_point:
+        print("look_at: Could not resolve target into a [y, x] point. Skipping.")
+        return
         
-        current_pan, current_tilt = logos.pantilt.get_angles()
-        # +x_frac (target is right) means we must Pan Right (negative)
-        new_pan = current_pan + (-x_frac * fov_h)
-        new_tilt = current_tilt + (-y_frac * fov_v)
+    target_y, target_x = resolved_point
+
+    # 2. Convert 0-1000 pixel coordinates to fraction from center (-0.5 to 0.5)
+    x_frac = (target_x / 1000.0) - 0.5
+    y_frac = (target_y / 1000.0) - 0.5
+
+    # Always use the pan_tilt camera's FOV for these calculations
+    fov_h, fov_v = logos.vision.FOV["pan_tilt"]
+    
+    # 3. Angular offset: how far from image center in degrees
+    # Pan:  object right in image (+x_frac) → pan right (negative)
+    # Tilt: object above in image (-y_frac) → tilt up (positive)
+    pan_offset = -x_frac * fov_h
+    tilt_offset = -y_frac * fov_v
+
+    # 4. Determine our reference angles (Latency Compensation)
+    ref_pan, ref_tilt = None, None
+    
+    if capture_result and capture_result.pan_tilt_degs:
+        # Use the angles from the exact millisecond the frame was grabbed
+        ref_pan, ref_tilt = capture_result.pan_tilt_degs
         
-        logos.pantilt.move(
-            new_pan, new_tilt, duration=dur, steps=steps, 
-            verbosity=logos.Verbosity.SILENT
-        )
+    if ref_pan is None or ref_tilt is None:
+        # Fallback to current live angles
+        ref_pan, ref_tilt = logos.pantilt.get_angles()
+
+    new_pan = ref_pan + pan_offset
+    new_tilt = ref_tilt + tilt_offset
+
+    # 5. Move!
+    logos.pantilt.move(
+        new_pan, new_tilt, 
+        duration=duration, steps=steps, 
+        verbosity=logos.Verbosity.SILENT
+    )
 
 def track_step(
     target: str = "person",
@@ -72,6 +93,7 @@ def track_step(
     
     Fuses Astra (Source of Truth), Pan-Tilt (Scout), and Eyes (Flavor) into 
     smooth base movements. Also handles Pan-Tilt head tracking automatically.
+    This function contains no blocking sleep calls.
 
     Args:
         target: The YOLO/World target to track.
@@ -86,82 +108,76 @@ def track_step(
     global _tracking_state
     now = time.time()
     
-    # 1. Grab both cameras (warm up first if needed, but in a loop they stay warm)
-    pt_img = logos.vision.capture('pan_tilt').image
+    # 1. Grab both cameras (Capture entire result so we have metadata)
+    pt_res = logos.vision.capture('pan_tilt')
     astra_res = logos.vision.capture('astra')
     
     # 2. Track with Head (Pan-Tilt)
-    pt_dets = smart_detect(pt_img, target)
-    if pt_dets:
-        look_at(pt_dets[0], source="pan_tilt", continuous=True)
+    if pt_res and pt_res.image is not None:
+        pt_dets = smart_detect(pt_res.image, target)
+        if pt_dets:
+            # Fast, non-blocking tick using latency compensation!
+            look_at(pt_dets[0], capture_result=pt_res, duration=0.0, steps=1)
+            
+            # Nudge logic if target's top edge is too close to the top of the frame
+            y1 = pt_dets[0].get("box_2d", [0, 0, 0, 0])[0]
+            if pt_dets[0].get("label") == "person" and y1 < 50:
+                logos.pantilt.nudge(0, 3)
     
     # 3. Track with Base (Astra + Head Fusion)
-    astra_dets = smart_detect(astra_res.image, target)
     target_heading_deg = 0.0
     drive_speed = 0.0
     turn_speed = 0.0
     
-    if astra_dets:
-        _tracking_state["last_seen_time"] = now
+    if astra_res and astra_res.image is not None:
+        astra_dets = smart_detect(astra_res.image, target)
         
-        # --- ROTATION CALCULATION ---
-        # Astra is source of truth. Map pixel error to degrees.
-        box = astra_dets[0]["box_2d"]
-        center_x = (box[1] + box[3]) / 2.0
-        # Positive error = target is to the LEFT.
-        error_frac = 0.5 - (center_x / 1000.0) 
-        astra_fov_h = logos.vision.FOV["astra_rgb"][0]
-        target_heading_deg = error_frac * astra_fov_h
-        
-        # --- DRIVE CALCULATION ---
-        if drive and astra_res.depth_points is not None:
-            # derive_world_coordinate averages out NaN pixels!
-            world_pt = astra_res.derive_world_coordinate(box)
-            if world_pt:
-                # get pose and calculate hypotenuse distance (ignoring Z height)
-                pose = logos.ros.get_pose()
-                dist = math.hypot(world_pt[0] - pose['x'], world_pt[1] - pose['y'])
-                _tracking_state["last_depth"] = dist
-                
-                # Proportional drive control
-                dist_error = dist - target_dist
-                drive_speed = dist_error * 0.4 # Kp_drive
-                # Clamp speed
-                drive_speed = max(-0.2, min(0.3, drive_speed))
-                
-                # If they are super close (depth NaN usually <0.4m), world_pt might fail. 
-                # We handle that below.
-
-    else:
-        # Astra lost them. Are they around the corner? Let's check the head!
-        current_pan, _ = logos.pantilt.get_angles()
-        
-        if abs(current_pan) > 15.0:
-            # The head is looking away from center. Assume it's tracking the target.
-            # Base needs to turn to catch up to the head.
-            target_heading_deg = current_pan
+        if astra_dets:
+            _tracking_state["last_seen_time"] = now
             
-        # Coasting logic for drive
-        if now - _tracking_state["last_seen_time"] < 1.0:
-            # Coast using last known depth
-            dist_error = _tracking_state["last_depth"] - target_dist
-            drive_speed = (dist_error * 0.4) * 0.5 # Halved speed while coasting
+            # --- ROTATION CALCULATION ---
+            box = astra_dets[0]["box_2d"]
+            center_x = (box[1] + box[3]) / 2.0
+            error_frac = 0.5 - (center_x / 1000.0) 
+            astra_fov_h = logos.vision.FOV["astra_rgb"][0]
+            target_heading_deg = error_frac * astra_fov_h
+            
+            # --- DRIVE CALCULATION ---
+            if drive and astra_res.depth_points is not None:
+                world_pt = astra_res.derive_world_coordinate(box)
+                if world_pt:
+                    pose = logos.ros.get_pose()
+                    dist = math.hypot(world_pt[0] - pose['x'], world_pt[1] - pose['y'])
+                    _tracking_state["last_depth"] = dist
+                    
+                    dist_error = dist - target_dist
+                    drive_speed = dist_error * 0.4 
+                    drive_speed = max(-0.2, min(0.3, drive_speed))
+
         else:
-            # Target completely lost
-            return False
+            # Astra lost them. Are they around the corner? Let's check the head!
+            current_pan, _ = logos.pantilt.get_angles()
+            
+            if abs(current_pan) > 15.0:
+                target_heading_deg = current_pan
+                
+            # Coasting logic for drive
+            if now - _tracking_state["last_seen_time"] < 1.0:
+                dist_error = _tracking_state["last_depth"] - target_dist
+                drive_speed = (dist_error * 0.4) * 0.5 
+            else:
+                return False
 
     # 4. Add Eye Coupling "Flavor"
     if couple_eyes:
         face_state = logos.emote.get_face_state()
         if face_state:
             gaze_x = face_state.get("left_eye", {}).get("gaze_x", 0.0)
-            # If eyes dart left (-1.0), add ~10 degrees to target heading
             target_heading_deg += (-gaze_x * 10.0)
 
     # 5. Execute Base Movement
-    # Kp_turn converts heading degrees to turn speed
     turn_speed = target_heading_deg * 0.03
-    turn_speed = max(-40.0, min(40.0, turn_speed)) # Clamp max turn
+    turn_speed = max(-40.0, min(40.0, turn_speed)) 
 
     # Publish single velocity command (Kobuki watchdog will stop us if loop hangs)
     logos.base.velocity(

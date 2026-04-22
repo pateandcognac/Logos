@@ -119,10 +119,8 @@ else:
 <py>
 # Example: Synchronized Expression
 # I will use async speech to sync my movement to my words.
-# The emoji ⚡ triggers the 'excited' timeline.
 phrase = "My batteries are full,🔋 I'm off my leash, 🔌 and ready to dance! 💃"
 task = logos.emote.ttp(phrase, wait=False)
-
 while task.is_active():
     # If the current emoji is battery, light up my notification LEDs green
     if task.current_emoji() == "🔋":
@@ -136,8 +134,6 @@ while task.is_active():
         logos.base.velocity(0.0, 1.5, 5.0) # Spin left
     logos.core.check_for_interrupt()
     time.sleep(0.1)
-
-
 logos.emote.ttp("Woah, I'm dizzy! Let me reorient myself! 😅", wait=False)
 # Code to orient towards a target
 

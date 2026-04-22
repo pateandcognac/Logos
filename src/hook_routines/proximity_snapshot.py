@@ -64,8 +64,9 @@ def run():
         
         pan_tilt_snaps = []
         for pan, tilt, label in sweep_config:
-            logos.pantilt.move(pan, tilt, steps=5, duration=0.4)
-            time.sleep(0.2) 
+            logos.pantilt.move(pan, tilt, steps=5, duration=0.3)
+            # stabilize 
+            time.sleep(0.3) 
             
             res = logos.vision.capture('pan_tilt', save=False, view=False)
             if res:
@@ -79,7 +80,7 @@ def run():
                     del res.meta['pose'] 
                 pan_tilt_snaps.append(res)
 
-        logos.pantilt.move(start_pan, start_tilt, steps=5, duration=0.2)
+        logos.pantilt.move(start_pan, start_tilt, steps=5, duration=0.3)
 
     # --- 4. STITCH AND SAVE STATE ---
     if snap_top and len(pan_tilt_snaps) == 3:
@@ -126,5 +127,5 @@ def run():
         print("--- Proprioception Sweep ---")
         print("Status: Failed to acquire camera feeds.")
 
-        # sleep for 1.5 sec to allow pan-tilt to stabilize
-        time.sleep(1.5)
+    # sleep for 1 sec to allow pan-tilt to stabilize for any pan-tilt hook capture to follow
+    time.sleep(1)

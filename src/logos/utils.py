@@ -236,6 +236,81 @@ def get_box_center(box_2d: List[float]) -> Tuple[float, float]:
     center_x = (x_min + x_max) / 2.0
     return (center_y, center_x)
 
+# Logos/src/logos/utils.py
+# Add to existing file:
+
+def get_top_center(box_2d: List[float], top_fraction: float = 0.15) -> Tuple[float, float]:
+    """
+    Calculates a point near the top-center of a normalized 0-1000 bounding box.
+    Useful for aiming at the head/face area of a person detection.
+    """
+    if len(box_2d) == 2:
+        return (box_2d[0], box_2d[1])
+    
+    y_min, x_min, y_max, x_max = box_2d
+    center_x = (x_min + x_max) / 2.0
+    target_y = y_min + ((y_max - y_min) * top_fraction)
+    return (target_y, center_x)
+
+def resolve_gaze_point(
+    target: Union[Dict[str, Any], List[Dict[str, Any]], List[float], Tuple[float, float]]
+) -> Optional[Tuple[float, float]]:
+    """
+    Universally resolves different spatial target formats into a single [y, x] pixel coordinate.
+    Designed to be robust against LLM-generated inputs.
+    """
+    if not target:
+        return None
+
+    # Case 1: List of dicts (e.g., raw YOLO results) -> Pick the first one safely
+    if isinstance(target, list) and len(target) > 0 and isinstance(target[0], dict):
+        target = target[0]
+
+    # Case 2: Dictionary (Logos detection format)
+    if isinstance(target, dict):
+        # Explicit point takes priority
+        if "point" in target and len(target["point"]) == 2:
+            return (float(target["point"][0]), float(target["point"][1]))
+        
+        # Fallback to bounding box logic
+        if "box_2d" in target and len(target["box_2d"]) == 4:
+            label = target.get("label", "").lower()
+            if label == "person":
+                return get_top_center(target["box_2d"])
+            return get_box_center(target["box_2d"])
+            
+        return None
+
+    # Case 3: Raw bounding box [y1, x1, y2, x2]
+    if isinstance(target, (list, tuple)) and len(target) == 4:
+        return get_box_center(target)
+
+    # Case 4: Raw point [y, x]
+    if isinstance(target, (list, tuple)) and len(target) == 2:
+        return (float(target[0]), float(target[1]))
+
+    return None
+
+def get_gaze_target(detection: Dict[str, Any]) -> Tuple[float, float]:
+    """
+    Smartly determines the best [y, x] point to look at from a detection dict.
+    Aims for the top 15% (head/face area) for people, and the center for everything else.
+    
+    Args:
+        detection: A standard Logos detection dictionary.
+        
+    Returns:
+        A tuple of (target_y, target_x) in 0-1000 coordinates.
+    """
+    box = detection.get("box_2d")
+    if not box:
+        return (500.0, 500.0) # Fallback to dead center of image
+    
+    label = detection.get("label", "").lower()
+    if label == "person":
+        return get_top_center(box)
+    
+    return get_box_center(box)
 
 def dump_yaml(
     data: Any,

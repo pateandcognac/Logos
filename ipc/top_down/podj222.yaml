@@ -1,0 +1,11 @@
+photo_id: podj222
+source: top_down
+timestamp: 1776804410.9667082
+resolution:
+- 480
+- 640
+pose:
+  x: 0.04588119159499509
+  y: -0.09520321244791934
+  theta_deg: 45.05897198939717
+  frame: map

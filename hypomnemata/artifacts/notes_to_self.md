@@ -9,3 +9,5 @@ As I uncover what I consider need-to-know information, or just quirks of our rob
 - Investigate 'map' frame availability once the system settles.
 - The point cloud in Chora is a bit sparse; check Astra resolution/noise later.
 - Mark's CRT is cool. 🕹️
+- [x] Battery subscriber is online and healthy (16.3V). ✅
+- [ ] Draft a `skills.vision.scout_surroundings` that does a full 360 base rotation with frequent captures. 🗺️📸

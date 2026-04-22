@@ -309,17 +309,18 @@ def yolo11(image: np.ndarray, classes: Union[List[str], None] = None, conf: floa
             [{"label": "person", "box_2d": [y1, x1, y2, x2], "confidence": 0.88, "source": "yolo11"}]
 
         Note to self:
-            This is my peripheral nervous system! It is incredibly fast. Use this 
+            The fastest, yet dumbest, . Use this 
             inside loops for real-time tracking or fast obstacle classification.
             
             Example:
-                img = logos.vision.capture('pan_tilt').image
-                people = logos.models.yolo11(img, classes=["person"])
+                # Capture the full result so we have metadata for latency compensation
+                scene = logos.vision.capture('pan_tilt')
+                people = logos.models.yolo11(scene.image, classes=["person"])
+                
                 if people:
-                    # Use utils.get_center to find the middle of the bounding box
-                    target_center = logos.utils.get_center(people[0]["box_2d"])
-                    logos.pantilt.look_at_pixel(target_center)
-    """
+                    # look_at handles the bounding box math and latency compensation automatically!
+                    logos.skills.tracking.look_at(people[0], capture_result=scene)
+        """
     global _yolo11_model
     
     try:
