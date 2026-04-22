@@ -56,3 +56,11 @@ from logos.map3d import RenderResult, RaycastHit   # The main objects from my mi
 
 from logos.exceptions import Interrupt   # Good to have in scope for context, but I must NOT try to catch this!
 from logos.files import FileEditError  # So I can gracefully handle file edit failures in a try/except block.
+
+logos.pantilt.home(verbosity=Verbosity.SILENT)
+
+for _ in range(10):
+    logos.leds.fill('green', verbosity=Verbosity.SILENT)
+    time.sleep(0.1)
+
+logos.pantilt.home(verbosity=Verbosity.SILENT)

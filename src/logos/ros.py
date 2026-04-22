@@ -25,19 +25,23 @@ _subscribers = {}
 _last_known_speaking_state = False
 _speaking_state_lock = threading.Lock()
 
+_last_diagnostics: Optional['DiagnosticArray'] = None
+_diagnostics_lock = threading.Lock()
+
+_tf_buffer = None
+_tf_listener = None
+
 
 # ROS imports — gated so the module can be introspected without a live node
 try:
     import rospy
     from sensor_msgs.msg import Image, PointCloud2, CameraInfo
+    from diagnostic_msgs.msg import DiagnosticArray # <--- ADD THIS
     from cv_bridge import CvBridge
     _HAS_ROS = True
 except ImportError:
     _HAS_ROS = False
 
-
-_tf_buffer = None
-_tf_listener = None
 
 def get_tf_buffer():
     """Lazy initialization of the TF buffer to prevent ROS startup race conditions."""
@@ -46,6 +50,7 @@ def get_tf_buffer():
         _tf_buffer = tf2_ros.Buffer()
         _tf_listener = tf2_ros.TransformListener(_tf_buffer)
     return _tf_buffer
+
 
 def transform_point_to_map(
     x: float, 
@@ -170,26 +175,64 @@ def get_action_client(name: str, action_type, wait_time: float = 2.0):
     return client
 
 
+
+
+
+
 def _speaking_cb(msg):
     global _last_known_speaking_state
     with _speaking_state_lock:
         _last_known_speaking_state = msg.data
 
+
+def _diagnostics_cb(msg):
+    global _last_diagnostics
+    with _diagnostics_lock:
+        _last_diagnostics = msg
+
 def init_subscribers():
-    """
-    Initializes background subscribers for system state monitoring.
-    This is called when the module is first imported/used to start listening.
-    """
+    """Initializes background subscribers for system state monitoring."""
     global _subscribers
     if 'speaking' not in _subscribers:
-        # Latch is handled by the publisher, but we just need the latest state.
         _subscribers['speaking'] = rospy.Subscriber(
-            '/tts/is_speaking', 
-            Bool, 
-            _speaking_cb, 
-            queue_size=1
+            '/tts/is_speaking', Bool, _speaking_cb, queue_size=1
         )
+    if 'diagnostics' not in _subscribers and _HAS_ROS:
+        try:
+            from diagnostic_msgs.msg import DiagnosticArray
+            _subscribers['diagnostics'] = rospy.Subscriber(
+                '/diagnostics_agg', DiagnosticArray, _diagnostics_cb, queue_size=1
+            )
+        except ImportError:
+            pass
 
+def get_diagnostic_alerts() -> Optional[List[Dict[str, Any]]]:
+    """
+    Returns a list of diagnostic warnings/errors (Level > 0).
+    Returns None if no diagnostic message has been received yet.
+    Returns an empty list [] if all systems are Level 0 (OK).
+    """
+    init_subscribers()
+    with _diagnostics_lock:
+        if _last_diagnostics is None:
+            return None
+        
+        alerts = []
+        # Levels: 0=OK, 1=WARN, 2=ERROR, 3=STALE
+        level_map = {1: "WARN", 2: "ERROR", 3: "STALE"}
+        
+        for status in _last_diagnostics.status:
+            if status.level > 0:
+                alerts.append({
+                    'level_int': status.level,
+                    'level_str': level_map.get(status.level, "UNKNOWN"),
+                    'name': status.name,
+                    'message': status.message,
+                    # Convert key-value pairs to a simple dict
+                    'values': {kv.key: kv.value for kv in status.values}
+                })
+        return alerts
+    
 def _is_speaking() -> bool:
     """Returns True if I am currently outputting speech audio."""
     # Ensure listener is active

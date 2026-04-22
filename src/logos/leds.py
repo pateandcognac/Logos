@@ -130,12 +130,15 @@ def _pack_led(index: int, color_int: int) -> int:
 # ─── Public API ────
 
 @api_call(default_verbosity=Verbosity.ACK)
-def set(strip: str, colors: Sequence[ColorValue]) -> None:
+def set(
+    strip: Optional[str] = "notification",
+    colors: Sequence[ColorValue] = (),
+) -> None:
     """
     Set individual LED colors on a strip ('notification' or 'pan_tilt').
 
     Args:
-        strip: Which strip to address: 'notification', or 'pan_tilt'.
+        strip: Which strip to address. Defaults to 'notification'.
         colors: A sequence of color values, one per LED. Length must match
             the strip's LED count, or be shorter (remaining LEDs unchanged).
             Each element can be a hex int, RGB tuple, or named color string.
@@ -151,6 +154,7 @@ def set(strip: str, colors: Sequence[ColorValue]) -> None:
             # notification strip with RGB tuples
             logos.leds.set('notification', [(255,0,0)] * 5 + [(0,255,0)] * 5 + [(0,0,255)] * 5)
     """
+    strip = strip or "notification"
     pub = _get_strip_pub(strip)
     led_count = STRIPS[strip]["count"]
 
@@ -168,22 +172,34 @@ def set(strip: str, colors: Sequence[ColorValue]) -> None:
 
 
 @api_call(default_verbosity=Verbosity.ACK)
-def fill(strip: str, color: ColorValue) -> None:
+def fill(
+    color: ColorValue = "off",
+    strip: Optional[str] = "notification",
+) -> None:
     """
     Set all LEDs on a strip ('notification' bubble or 'pan_tilt' flash illuminator) to the same color (hex int, RGB tuple, or named string).
 
     Args:
-        strip: Which strip: 'notification' or 'pan_tilt'.
         color: A single color value (hex int, RGB tuple, or named string).
+            When passed as the only positional argument, it targets the
+            default 'notification' strip.
+        strip: Which strip to address. Defaults to 'notification'.
 
     Note to self:
         Quick way to light up or blank a strip.
 
         Example:
-            logos.leds.fill('notification', 'cyan')
-            logos.leds.fill('notification', (0, 100, 255))
-            logos.leds.fill('pan_tilt', 0xFFFFFF)  # For illumination
+            logos.leds.fill('cyan')
+            logos.leds.fill((0, 100, 255))
+            logos.leds.fill('pan_tilt', 0xFFFFFF)  # Backward-compatible old order
+            logos.leds.fill(0xFFFFFF, 'pan_tilt')  # Preferred explicit order
     """
+    # Backward compatibility for the previous API shape:
+    # fill('pan_tilt', 'blue') -> fill('blue', 'pan_tilt')
+    if isinstance(color, str) and color in STRIPS and strip not in STRIPS:
+        color, strip = strip, color
+
+    strip = strip or "notification"
     led_count = STRIPS[strip]["count"]
     color_int = _normalize_color(color)
     set(strip, [color_int] * led_count, verbosity=Verbosity.SILENT)
@@ -203,7 +219,7 @@ def off(strip: Optional[str] = None) -> None:
     """
     targets = [strip] if strip else list(STRIPS.keys())
     for s in targets:
-        fill(s, "off", verbosity=Verbosity.SILENT)
+        fill("off", s, verbosity=Verbosity.SILENT)
     if strip is None:
         laser(0.0, verbosity=Verbosity.SILENT)
 

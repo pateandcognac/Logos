@@ -45,13 +45,13 @@ map3d:
 
 memory_policy:
   enabled: true
-  max_cells: 64
-  max_tokens: 24576
+  max_cells: 48
+  max_tokens: 32768
   untouchable_tail: 16
-  summarizable_types: ["human", "me", "py_result", "human_stt"]
+  summarizable_types: ["human", "me", "py_result", "human_stt", "system"]
   age_weight: 0.75
   size_weight: 0.25
-  min_cells_to_summarize: 8
+  min_cells_to_summarize: 16
   max_contiguous_summaries: 5
 
 tree:

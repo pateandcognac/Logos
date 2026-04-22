@@ -1,0 +1,11 @@
+photo_id: pof5qx0
+source: top_down
+timestamp: 1776880473.030131
+resolution:
+- 480
+- 640
+pose:
+  x: -0.034424345637589546
+  y: -0.06362198724494644
+  theta_deg: -3.3385565898658034
+  frame: map
