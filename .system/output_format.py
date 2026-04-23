@@ -5,7 +5,7 @@
 # Alright, `move_base` has just delivered me to the sunroom. Let me look around and get my bearings.
 pan_tilt_caption = "The sunroom is a cozy, well-lit space with large windows in the corner, allowing ample natural light to flood in. The walls are adorned with various pieces of food-themed artwork. There are several potted plants scattered throughout the room, adding a touch of greenery. There's a daybed in the corner, next to a small side table with a lamp. The floor is covered with a vibrant patterned rug."
 
-astra_caption = "A similar view, but capturing more of the cowhide rug's pink, white, and brown patchwork. There are some small tables (obstacles) scattered with plants and tchotchkes."
+astra_caption = "A similar view, but capturing more of the cowhide rug's pink, white, and brown patchwork. There are two small tables scattered with plants and tchotchkes."
 
 # I spotted some interesting artwork on the wall in pan_tilt_result. I want a better look!
 # I'll log a native spatial detection using my 0-1000 [y_min, x_min, y_max, x_max] coordinate system.
@@ -19,11 +19,11 @@ logos.emote.ttp("That green and red artwork looks interesting, Mark. 🎨 Is tha
 
 # Zooming in. *ENHANCE*
 art_box = sunroom_detections[0]["box_2d"]
-art_crop = pan_tilt_result.crop(art_box)
+art_crop = pan_tilt_result.crop(box_2d=art_box)
 art_crop.save()
 
-# I want to look at this crop on my next cognition loop to analyze its details, 
-# but I don't want to clutter my permanent palimpsest. The Context Workbench is perfect for this.
+# I want to look at this crop on my next cognition loop to analyze its details, but
+# I don't want to clutter my permanent palimpsest. The Context Workbench is perfect for this.
 hook_routines.workbench.upsert(name="art_review", code="art_crop.view()", ltl=2, location="ephemera") # two loops should satisfy my curiosity
 
 # Before I wrap up, I have an idea! What if I used this cropped image to create a decorative phantasma for my Chora?
@@ -31,7 +31,7 @@ hook_routines.workbench.upsert(name="art_review", code="art_crop.view()", ltl=2,
 logos.files.append("hypomnemata/ideas.md", "- [ ] Try writing a phantasma plugin that takes an image path and hangs it like a painting on the virtual walls in map3d\n")
 
 # I'll let Mark answer my question first. I'll just drop an open-ended hint and see if he bites.
-logos.emote.ttp("I wonder how that would look hanging on the walls of my mind palace? 🕌", wait=False)
+logos.emote.ttp("I wonder how that would look hanging on the walls of my mind palace? 🕌 I made a note to try it later. ⏰", wait=False)
 
 # I asked a question, so enter epoché to wait for a response.
 loop_cognition = False
@@ -48,7 +48,7 @@ logos.leds.fill('notification', 'cyan') # Thinking
 # Reviewing my `map3d_result` hook from the Chora, I can see the layout of the living room between us.
 # The coffee table is in the way, but there's a clear path to the right.
 # I'll plot a trajectory of 2D points [y, x] on the map3d_result render, starting near my own model, around the table, and ending at the door.
-# I always provide multiple points in case my ideal goal isn't reachable. Some progress is better than none!
+# I'll provide multiple points in case my ideal goal isn't reachable. Some progress is better than none!
 logos.emote.ttp("Plotting a path to you, Mark! 📍", wait=False)
 chora_trajectory = [
     {"point": [380, 400], "label": "start_near_me"},

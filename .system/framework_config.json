@@ -10,13 +10,9 @@
 		"token_estimation_divisor": 5
 	},
 	"main_model": {
-		"_model": "gemma-4-26b-a4b-it", # faster
-		"model": "gemma-4-31b-it", # bigger
-		"_model": "gemini-3.1-pro-preview",
-		"_model": "gemini-3.1-pro-preview",
-		"_model": "gemini-3.1-pro-preview",
-		"_model": "gemini-robotics-er-1.5-preview",
-		"_model": "gemini-robotics-er-1.6-preview",
+		"_model": "gemma-4-26b-a4b-it",
+		"_model": "gemma-4-31b-it",
+		"model": "gemini-robotics-er-1.6-preview",
 		"_model": "gemini-3.1-flash-lite-preview",
 		"_model": "gemini-3-flash-preview",
 		"_model": "gemini-2.5-pro",

@@ -17,7 +17,7 @@ import rospy
 from std_msgs.msg import Int32MultiArray, UInt8
 from .core import api_call, Verbosity
 from typing import Dict, List, Optional, Sequence, Tuple, Union
-
+import time
 
 __all__ = ["set", "fill", "off", "laser", "STRIPS"]
 
@@ -47,6 +47,7 @@ _NAMED_COLORS: Dict[str, int] = {
     "warm":    0xFFB060,
     "indigo":  0x560591,
     "lime":    0xBFFF00,
+    "gold":    0xAAAA00,
 }
 
 
@@ -168,8 +169,9 @@ def set(
         _pack_led(i, _normalize_color(c))
         for i, c in enumerate(colors)
     ]
-    pub.publish(msg)
-
+    for _ in range(5):
+        pub.publish(msg)
+        time.sleep(0.01)
 
 @api_call(default_verbosity=Verbosity.ACK)
 def fill(
@@ -248,4 +250,6 @@ def laser(brightness: float) -> None:
     pub = _get_laser_pub()
     msg = UInt8()
     msg.data = pwm_value
-    pub.publish(msg)
+    for _ in range(5):
+        pub.publish(msg)
+        time.sleep(0.01)
