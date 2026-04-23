@@ -104,4 +104,17 @@ mobileclip_blt.ts
 /ipc/astra/*.yaml
 /ipc/pan_tilt/*.yaml
 /ipc/composite/*.yaml
+/ipc/top_down/*.yaml
+
+/ipc/astra/*.png
+/ipc/pan_tilt/*.png
+/ipc/composite/*.png
+/ipc/top_down/*.png
+
+/ipc/astra/*.jpg
+/ipc/pan_tilt/*.jpg
+/ipc/composite/*.jpg
+/ipc/top_down/*.jpg
+
+
 /images
