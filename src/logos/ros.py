@@ -152,7 +152,7 @@ def get_action_client(name: str, action_type, wait_time: float = 2.0):
     Retrieves (or creates) a SimpleActionClient.
     
     Args:
-        name: The ROS topic name of the action server (e.g., 'speak').
+        name: The ROS topic name of the action server (e.g., 'ttp').
         action_type: The ROS Action message type (e.g., SpeakAction).
         wait_time: How long to wait for the server to connect (seconds).
     

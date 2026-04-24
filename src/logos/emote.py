@@ -132,7 +132,8 @@ class SpeakTask:
 
     def is_active(self) -> bool:
         """Returns True if audio is still playing or synthesis is still running."""
-        if not _HAS_ROS: return False
+        if not _HAS_ROS or self._client is None:
+            return False
         
         # Check if action server is still working
         state = self._client.get_state()
@@ -165,7 +166,7 @@ class SpeakTask:
 
     def cancel(self) -> None:
         """Stop speaking immediately."""
-        if _HAS_ROS:
+        if _HAS_ROS and self._client is not None:
             self._client.cancel_goal()
             time.sleep(0.1)
 
@@ -174,6 +175,9 @@ class SpeakTask:
         Blocks execution until all audio has finished playing.
         Safely yields to cooperative interrupts.
         """
+        if not _HAS_ROS or self._client is None:
+            return False
+
         rate = rospy.Rate(10)
         while self.is_active():
             check_for_interrupt()
@@ -242,7 +246,7 @@ def ttp(
         print(f"Voice Error: ROS unavailable. (Would have said: {text})")
         return SpeakTask(None)
 
-    client = ros.get_action_client("speak", SpeakAction)
+    client = ros.get_action_client("speak", SpeakAction, wait_time=4.0)
     if client is None:
         print("Error: Voice system unavailable (Action Server not found).")
         return SpeakTask(None)

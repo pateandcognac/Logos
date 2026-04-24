@@ -79,7 +79,7 @@ def run():
     print("")
 
     if state['loop_count'] < 4:
-        print("NOTE: My environment uses lazy subscribers, so my first few loops may contain timeouts or unpopulated fields.\nDon't fret and have patience while topics initialize.\n\n")
+        print("NOTE: My environment uses lazy subscribers, so my first few loops may contain timeouts or unpopulated fields.\nDon't fret and have patience while topics initialize.\n")
 
     # Physical State
     print(f"Pose (x, y, θ°):  {pose['x']:>6.2f}m, {pose['y']:>6.2f}m, {pose['theta_deg']:>6.1f}°")
