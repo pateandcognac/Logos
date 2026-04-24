@@ -1310,7 +1310,7 @@ logos.emote.ttp("I've had an idea for a new skill. Checkpointing my current self
 
 # Next, I'll define the skill's code. It needs a docstring explaining its *intent* for my future self.
 new_skill_code = """
-# Logos/src/skills/social.py
+# src/skills/social.py
 
 \"\"\"
 Skills for social interaction and expressive movement.

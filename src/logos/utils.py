@@ -1,4 +1,4 @@
-# Logos/src/logos/utils.py
+# src/logos/utils.py
 
 """
 Internal and other helper functions.
@@ -236,8 +236,6 @@ def get_box_center(box_2d: List[float]) -> Tuple[float, float]:
     center_x = (x_min + x_max) / 2.0
     return (center_y, center_x)
 
-# Logos/src/logos/utils.py
-# Add to existing file:
 
 def get_top_center(box_2d: List[float], top_fraction: float = 0.15) -> Tuple[float, float]:
     """

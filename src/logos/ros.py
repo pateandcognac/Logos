@@ -1,4 +1,4 @@
-# Logos/src/logos/ros.py
+# src/logos/ros.py
 
 """
 This module handles direct interactions with the ROS system.

@@ -1,4 +1,4 @@
-# Logos/src/logos/_llm_helper.py
+# src/logos/_llm_helper.py
 """
 Helper script that talks to the LLM SDK.
 

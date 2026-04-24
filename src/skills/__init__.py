@@ -1,4 +1,4 @@
-# Logos/src/skills/__init__.py
+# src/skills/__init__.py
 
 """
 My library of learned, complex behaviors. 🧠

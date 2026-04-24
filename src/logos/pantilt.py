@@ -1,4 +1,4 @@
-# Logos/src/logos/pantilt.py
+# src/logos/pantilt.py
 
 """
 Control for the pan/tilt mechanism that orients my camera gaze and laser pointer.

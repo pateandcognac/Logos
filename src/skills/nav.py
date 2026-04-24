@@ -1,4 +1,4 @@
-# Logos/src/skills/nav.py
+# src/skills/nav.py
 
 """
 High-level navigation and spatial planning behaviors. 🗺️

@@ -1,4 +1,4 @@
-# Logos/src/logos/vision.py
+# src/logos/vision.py
 
 """
 My eyes. This module gives me access to all three physical cameras and provides a unified capture interface with lifecycle management, artifact storage, and spatial projection.

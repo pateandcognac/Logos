@@ -1,4 +1,4 @@
-# Logos/src/logos/memory.py
+# src/logos/memory.py
 
 """
 This module contains tools for the current palimpsest (io_buffer.jsonl) and historical records.

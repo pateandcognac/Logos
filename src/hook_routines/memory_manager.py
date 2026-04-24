@@ -1,4 +1,4 @@
-# Logos/src/hook_routines/memory_manager.py
+# src/hook_routines/memory_manager.py
 
 import logos
 import json

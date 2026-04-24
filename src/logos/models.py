@@ -1,4 +1,4 @@
-# Logos/src/logos/models.py
+# src/logos/models.py
 
 """
 Wrappers for interacting with various ML / AI models.

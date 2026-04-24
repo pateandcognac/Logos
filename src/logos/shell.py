@@ -1,4 +1,4 @@
-# Logos/src/logos/shell.py
+# src/logos/shell.py
 
 """
 Helpers for running non-interactive shell commands.

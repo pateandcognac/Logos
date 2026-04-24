@@ -1,4 +1,4 @@
-# Logos/src/logos/emote.py
+# src/logos/emote.py
 
 """
 My voice and performance module. 🎬 This module allows me to using my TTS system and emoji powered animatronic expressions. 🥳

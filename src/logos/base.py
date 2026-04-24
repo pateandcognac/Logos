@@ -1,4 +1,4 @@
-# Logos/src/logos/base.py
+# src/logos/base.py
 
 """
 This module provides access to the Kobuki mobile base. It allows me to read my physical sensors (bumpers, cliffs, battery) and issue raw velocity commands to my wheels.

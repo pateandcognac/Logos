@@ -1,4 +1,4 @@
-# Logos/src/skills/social.py
+# src/skills/social.py
 
 """
 Social and expressive behaviors. 🎭

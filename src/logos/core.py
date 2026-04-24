@@ -1,4 +1,4 @@
-# Logos/src/logos/core.py
+# src/logos/core.py
 
 """
 Core functionality for the Logos API, including verbosity management, cooperative interrupt handling, and dynamic help generation.

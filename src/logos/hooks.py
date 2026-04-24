@@ -1,4 +1,4 @@
-# Logos/src/logos/hooks.py
+# src/logos/hooks.py
 
 """
 This module contains functions for me to introspect and modify my own cognitive hook configurations. Does *not* contain the hook code itself. `logos.hooks.state` is initialized as an empty dict for variable storage. 

@@ -1,4 +1,4 @@
-# Logos/src/logos/nav.py
+# src/logos/nav.py
 
 """
 Map-aware autonomous navigation.

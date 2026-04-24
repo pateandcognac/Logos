@@ -1,4 +1,4 @@
-# Logos/src/logos/leds.py
+# src/logos/leds.py
 
 """
 Control for my RGB LED strips and laser pointer.

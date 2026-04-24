@@ -1,4 +1,4 @@
-# Logos/src/skills/vision.py
+# src/skills/vision.py
 
 """
 High-level visual perception and searching behaviors.

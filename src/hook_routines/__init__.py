@@ -1,4 +1,4 @@
-# Logos/src/hook_routines/__init__.py
+# src/hook_routines/__init__.py
 
 """
 My library of broadly reusable cognitive hook routines. 🧠

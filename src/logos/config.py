@@ -1,4 +1,4 @@
-# Logos/src/logos/config.py
+# src/logos/config.py
 
 """
 My central nervous system's configuration and persistent preferences. ⚙️

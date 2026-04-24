@@ -1,4 +1,4 @@
-# Logos/src/skills/tracking.py
+# src/skills/tracking.py
 
 """
 Tracking and alignment skills.

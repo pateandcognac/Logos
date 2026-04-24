@@ -1,4 +1,4 @@
-# Logos/src/logos/files.py
+# src/logos/files.py
 
 """
 This module contains all my tools for interacting with the filesystem.

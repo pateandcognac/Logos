@@ -1,4 +1,4 @@
-# Logos/src/logos/exceptions.py
+# src/logos/exceptions.py
 
 """
 Defines core exceptions for my framework.
