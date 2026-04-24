@@ -90,4 +90,4 @@ Angles are always degrees in public interfaces. Never expose radians.
 
 ## No Traditional Build/Test System
 
-There is no build step, test runner, or CI. Testing happens live on the robot via `<py>` blocks. When writing new modules, keep ROS imports gated so code can be read/linted offline. The `_llm_helper.py` bridge runs under a separate Python 3.11 venv with the Google GenAI SDK for out-of-band LLM calls.
+There is no build step, test runner, or CI. Testing happens live on the robot via `<py>` blocks. When writing new modules, keep ROS imports gated so code can be read/linted offline! The `_llm_helper.py` bridge runs under a separate Python 3.11 venv with the Google GenAI SDK for out-of-band LLM calls.

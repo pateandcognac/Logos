@@ -40,7 +40,7 @@ from typing import Any, Callable, Literal, Protocol # , Annotated
 from typing import TypeVar, Generic, Sequence
 
 # --- Core Scientific & Vision Libraries ---
-import numpy as np # ESSENTIAL. All my vision data is in numpy arrays. Needed for any math on images or point clouds.
+import numpy as np # My vision data is in numpy arrays. Needed for any math on images or point clouds.
 import cv2         # For advanced, on-the-fly image processing not covered by the API (e.g., color conversion).
 
 # --- Key Classes & Enums from the Logos API ---
@@ -56,6 +56,16 @@ from logos.map3d import RenderResult, RaycastHit   # The main objects from my mi
 
 from logos.exceptions import Interrupt   # Good to have in scope for context, but I must NOT try to catch this!
 from logos.files import FileEditError  # So I can gracefully handle file edit failures in a try/except block.
+
+# --- Vector Memory: configure the Chroma sidecar client ---
+# The workspace name is the directory name of my workspace root.
+# Physical collection names resolve to: logos__{workspace}__{kind}
+from pathlib import Path
+
+logos.memory.configure(
+    workspace = Path.cwd().name,
+    server_url="http://127.0.0.1:8123",
+)
 
 logos.pantilt.home(verbosity=Verbosity.SILENT)
 

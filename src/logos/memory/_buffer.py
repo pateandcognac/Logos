@@ -1,8 +1,8 @@
-# src/logos/memory.py
+# src/logos/memory/_buffer.py
 
 """
-This module contains tools for the current palimpsest (io_buffer.jsonl) and historical records.
-I can use these to summarize past events, recall specific messages, and maintain
+I manage the current palimpsest (io_buffer.jsonl) and historical records.
+I can summarize past events, recall specific messages, and maintain
 a clean and relevant context window for my main cognition.
 """
 
@@ -11,8 +11,8 @@ import json
 import string
 import time
 from pathlib import Path
-from .core import api_call, Verbosity
-from .utils import make_time_id
+from ..core import api_call, Verbosity
+from ..utils import make_time_id
 from typing import List, Optional, Dict, Any
 
 __all__ = ["summarize_io_buffer", "recall", "replace_cell_content", "BUFFER_FILE", "HISTORY_FILE"]
@@ -89,12 +89,12 @@ def summarize_io_buffer(cell_indices: List[int], guidance: str = None):
     for i, group in enumerate(grouped_cell_indices):
         task_ids = [buffer_lines[cell_idx]['id'] for cell_idx in group if cell_idx < len(buffer_lines)]
         if not task_ids: continue # Skip if group is out of bounds
-        
+
         task = {"task_id": i, "msg_ids": task_ids}
         if guidance:
             task["guidance"] = guidance
         summarization_tasks.append(task)
-        
+
         all_msg_ids_in_tasks.update(task_ids)
         max_cell_index = max(max_cell_index, max(group))
 
@@ -106,7 +106,7 @@ def summarize_io_buffer(cell_indices: List[int], guidance: str = None):
     messages_context = buffer_lines[:max_cell_index + 1]
 
     # 3. Dynamically construct the prompt for the LLM
-    
+
     prompt_file_path = os.path.join('.system', 'summarization_prompt.txt')
 
     try:
@@ -116,9 +116,9 @@ def summarize_io_buffer(cell_indices: List[int], guidance: str = None):
         print(f"summarize_io_buffer: CRITICAL ERROR - System prompt file not found at '{prompt_file_path}'.")
         print("Please ensure the file exists and contains the prompt for the summarization agent.")
         return
-        
+
     prompt_tasks_json = json.dumps({"summarization_tasks": summarization_tasks, "messages_context": messages_context}, indent=2)
-    
+
     # Create the dynamic example of the output format
     example_output_tasks = []
     for task in summarization_tasks:
@@ -131,20 +131,20 @@ def summarize_io_buffer(cell_indices: List[int], guidance: str = None):
     full_prompt = f"{system_prompt}\n\n<tasks>\nHere are the tasks and the io_buffer content:\n```json\n{prompt_tasks_json}\n```\n\nYour output will be a single JSON object constructed exactly like this example:\n```json\n{example_output_json}\n```\n\nPlease begin your response now. Thank you!\n</tasks>"
 
     # 4. Call the LLM and parse the response
-    from .models import llm # Local import to avoid circular dependency issues at startup
+    from ..models import llm # Local import to avoid circular dependency issues at startup
     response_str = llm(full_prompt, model_alias='fast', temperature=1.0)
 
     if not response_str:
         print("summarize_io_buffer: Received no response from LLM.")
         return
-    
+
     import re
     try:
         # Clean up potential markdown fences
         match = re.search(r'```(?:json)?\s*(.*?)\s*```', response_str, re.DOTALL)
         if match:
             response_str = match.group(1)
-        
+
         response_data = json.loads(response_str)
         if 'summaries' not in response_data or not isinstance(response_data['summaries'], list):
             raise ValueError("LLM response is missing 'summaries' list.")
@@ -155,7 +155,7 @@ def summarize_io_buffer(cell_indices: List[int], guidance: str = None):
     # 5. Process the summaries and prepare for file writes
     new_summaries_for_log = []
     summaries_by_start_cell = {}
-    
+
     for summary_item in response_data['summaries']:
         task_id = summary_item.get('task_id')
         content = summary_item.get('content')
@@ -164,7 +164,7 @@ def summarize_io_buffer(cell_indices: List[int], guidance: str = None):
         original_task = summarization_tasks[task_id]
         source_ids = original_task['msg_ids']
         start_cell_index = grouped_cell_indices[task_id][0]
-        
+
         new_id = make_time_id(prefix="sum-")
         token_count = len(content) // 5 # Simple estimation
 
@@ -198,7 +198,7 @@ def summarize_io_buffer(cell_indices: List[int], guidance: str = None):
             # This line is not being summarized, so keep it.
             new_buffer_lines.append(buffer_lines[i])
             i += 1
-    
+
     with open(BUFFER_FILE, 'w') as f:
         for line in new_buffer_lines:
             f.write(json.dumps(line) + '\n')
@@ -207,9 +207,9 @@ def summarize_io_buffer(cell_indices: List[int], guidance: str = None):
     with open(SUMMARIES_FILE, 'a') as f:
         for summary in new_summaries_for_log:
             f.write(json.dumps(summary) + '\n')
-            
+
     print(f"Successfully created {len(new_summaries_for_log)} summaries and updated `io_buffer.jsonl`")
-    
+
 
 
 def recall(msg_id: str) -> Optional[str]:
@@ -229,7 +229,7 @@ def recall(msg_id: str) -> Optional[str]:
     if not HISTORY_FILE.exists():
         print(f"recall: History file not found at {HISTORY_FILE}")
         return None
-    
+
     with open(HISTORY_FILE, 'r') as f:
         for line in f:
             try:
@@ -238,7 +238,7 @@ def recall(msg_id: str) -> Optional[str]:
                     return msg.get('content')
             except json.JSONDecodeError:
                 continue # Skip corrupted lines
-    
+
     print(f"recall: Message with id '{msg_id}' not found in history.")
     return None
 
@@ -283,7 +283,6 @@ def replace_cell_content(cell_index: int, new_content: str):
             f.write(json.dumps(line) + '\n')
 
     print(f"Successfully replaced content of cell {cell_index}.")
-
 
 
 # TODO: Helper for adjusting max number of images to show.
