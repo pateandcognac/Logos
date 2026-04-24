@@ -539,10 +539,10 @@ class Map3d:
         self._camera_warmup_s = 0.35
         self._camera_info_wait_s = 2.0
         self._camera_startup_retry_delay_s = 0.35
-        self._camera_startup_extra_timeout_s = 2.5
-        self._camera_unsynced_max_delta_s = 0.35
-        self._camera_unsynced_cache_max_age_s = 1.5
-        self._map_wait_timeout_s = 2.5
+        self._camera_startup_extra_timeout_s = 0.5
+        self._camera_unsynced_max_delta_s = 0.5
+        self._camera_unsynced_cache_max_age_s = 0.5
+        self._map_wait_timeout_s = 1.0
         self._map_startup_retry_delay_s = 0.35
         self._map_startup_extra_timeout_s = 1.0
 
@@ -888,7 +888,7 @@ class Map3d:
             self._floor_visual_dims = None
             self._map_event.set()
 
-    def _wait_for_frame(self, timeout_s: float = 10.0) -> bool:
+    def _wait_for_frame(self, timeout_s: float = 5.0) -> bool:
         return self._frame_event.wait(timeout=timeout_s)
 
     def _wait_for_map(self, timeout_s: float = 3.5) -> bool:
@@ -930,7 +930,7 @@ class Map3d:
             if timeout_s is None else float(timeout_s)
         )
 
-        for attempt in range(5):
+        for attempt in range(3):
             attempt_timeout_s = base_timeout_s
             if attempt > 0:
                 attempt_timeout_s += float(self._map_startup_extra_timeout_s)
@@ -979,7 +979,7 @@ class Map3d:
 
     def _acquire_camera_triple(
         self,
-        timeout_s: float = 10.0,
+        timeout_s: float = 4.0,
         allow_unsynced_fallback: bool = True,
     ) -> Tuple[PointCloud2, Image, CameraInfo, str]:
         cached = self._try_get_recent_synced_triple(self._frame_cache_max_age_s)
@@ -988,7 +988,7 @@ class Map3d:
             return pc_msg, rgb_msg, info_msg, "cached_sync"
 
         last_error: Optional[RuntimeError] = None
-        for attempt in range(5):
+        for attempt in range(3):
             attempt_timeout_s = float(timeout_s)
             if attempt > 0:
                 attempt_timeout_s += float(self._camera_startup_extra_timeout_s)
@@ -1049,7 +1049,7 @@ class Map3d:
 
     def _acquire_camera_triple_once(
         self,
-        timeout_s: float = 10.0,
+        timeout_s: float = 4.0,
         allow_unsynced_fallback: bool = True,
     ) -> Tuple[PointCloud2, Image, CameraInfo, str]:
         """
@@ -3288,8 +3288,8 @@ class Map3d:
         )
 
         # TF can lag on the very first call — retry with short sleeps.
-        tf_max_retries = 5
-        tf_retry_delay_s = 0.4
+        tf_max_retries = 3
+        tf_retry_delay_s = 0.2
         camera_world = look_world = None
         for attempt in range(tf_max_retries):
             try:

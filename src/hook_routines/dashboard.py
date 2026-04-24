@@ -77,11 +77,10 @@ def run():
     print(f"Time:       {time.strftime('%A, %B %d, %Y - %I:%M:%S %p')}")
     print(f"Cycle Count:  {state['loop_count']} | Time Since Last: {_format_time_delta(delta_time)}")
     print("")
-    
-    # Python Memory
-    print(f"Python Env Memory: {current_mem_mb:>6.1f} MB (Δ {delta_mem_mb:>+6.1f} MB)")
-    print("")
-    
+
+    if state['loop_count'] < 4:
+        print("NOTE: My environment uses lazy subscribers, so my first few loops may contain timeouts or unpopulated fields.\nDon't fret and have patience while topics initialize.\n\n")
+
     # Physical State
     print(f"Pose (x, y, θ°):  {pose['x']:>6.2f}m, {pose['y']:>6.2f}m, {pose['theta_deg']:>6.1f}°")
     print(f"    Δ (x, y, θ°): {delta_x:>+6.2f}m, {delta_y:>+6.2f}m, {delta_theta:>+6.1f}°")
@@ -107,6 +106,10 @@ def run():
         
         if len(alerts) > 3:
             print(f"  ... and {len(alerts) - 3} more alert(s).")
+
+    # Python Memory
+    print(f"\nPython Env Memory: {current_mem_mb:>6.1f} MB (Δ {delta_mem_mb:>+6.1f} MB)")
+    print("")
 
     # --- 5. Update State ---
     state['last_time'] = current_time
