@@ -69,9 +69,9 @@ Possible agent-facing RAG helper:
 ```python
 from logos.memory import rag
 
-rag.search_api_help("How do I make Logos speak?")
+rag.search_api_help("How do I speak?")
 rag.search_examples("How do I rotate in place and then speak?")
-rag.semantic_help("How do I dock Logos?")
+rag.semantic_help("How do I use my charging dock?")
 ```
 
 The output of semantic help should be concise and useful for the LLM agent. It should include source names and enough context to act.
@@ -312,10 +312,10 @@ Expected: results include the `say` function docstring with source metadata.
 * **Use Python 3.8-compatible syntax** — no walrus operator, no `match`, no `TypeAlias`, no `X | Y` union syntax.
 * Prefer small modules.
 * Add docstrings to public functions/classes.
-* Use type hints where they improve clarity (`Optional[X]`, `List[X]`, `Union[X, Y]`).
+* Use type hints.
 * Do not make broad abstractions before v1 works.
 
-The Logos API uses first-person comments in `src/`: *"I extract docstrings from my own API modules"* — match that style.
+The Logos API should be commented as though Logos is writing it and owns it, `src/`: *"This extracts docstrings from my own API modules"* — match that style.
 
 ---
 

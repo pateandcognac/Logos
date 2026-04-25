@@ -36,7 +36,7 @@ class Verbosity(Enum):
     DEBUG = 3   # Provide rich, detailed output for troubleshooting.
 
 
-def api_call(default_verbosity: Verbosity = Verbosity.ACK):
+def api_call(default_verbosity: Verbosity = Verbosity.ACK): 
     """
     Decorator for public API functions that have side effects or are "actions" from Logos' POV (movement, I/O, memory changes, etc.). Adds `verbosity` kwarg to decorated functions.
 

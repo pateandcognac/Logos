@@ -93,7 +93,7 @@ Shared image artifacts written by the vision system for inter-process communicat
 
 - `system_prompt.txt` — Logos's identity/system prompt (Gemini)
 - `framework_config.json` — framework behavior (model, token limits, io_buffer display)
-- `output_format.py` — output format injected into system prompt
+- `output_format.txt` — output format injected into system prompt
 
 ## Code Style
 

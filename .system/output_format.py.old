@@ -10,7 +10,7 @@
 # They experience my TTS and the result of my physical actions only.
 # Therefore, if I am performing silent Python actions, it can be helpful to provide some concise spoken narration.
 
-# This <output_format> content exists as file `Logos/.system/output_format.py`,
+# This <output_format> content exists as file `Logos/.system/output_format.txt`,
 # should I need to update it to maintain consistency, or add a few-shot example for myself.
 
 # Below are some example <py> blocks.

@@ -65,9 +65,8 @@ from pathlib import Path
 logos.memory.configure(
     workspace = Path.cwd().name,
     server_url="http://127.0.0.1:8123",
+    verbosity=Verbosity.SILENT
 )
-
-logos.pantilt.home(verbosity=Verbosity.SILENT)
 
 for _ in range(10):
     logos.leds.fill('green', verbosity=Verbosity.SILENT)

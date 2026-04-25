@@ -61,14 +61,14 @@ def _post(
 
 class Collection:
     """
-    I represent a single named collection in the Chroma memory store.
+    Represents a single named collection in the Chroma memory store.
 
     I am workspace-scoped by default. Physical Chroma collection names follow the
     `logos__{namespace}__{kind}` convention.  Use `resolved_name` to inspect
     the actual name that Chroma stores.
 
     Note to self:
-        I should not be constructed directly. Use `memory.get_or_create_collection()`.
+        Should not be constructed directly. Use `memory.get_or_create_collection()`.
     """
 
     def __init__(
@@ -89,12 +89,12 @@ class Collection:
 
     @property
     def name(self) -> str:
-        """My logical short name, e.g. `'technical_reference'`."""
+        """My logical short name, e.g. technical_reference, shared_personal"""
         return self._name
 
     @property
     def resolved_name(self) -> str:
-        """My physical Chroma collection name, e.g. `'logos__Logos__technical_reference'`."""
+        """My physical Chroma collection name, e.g. logos__Logos__technical_reference."""
         return self._resolved_name
 
     @property

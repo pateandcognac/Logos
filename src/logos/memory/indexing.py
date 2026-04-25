@@ -8,7 +8,7 @@ my semantic help lookups. Calling `refresh_technical_reference()` re-ingests
 my entire logos API — every public function and class across all modules and
 my skills library — into Chroma as searchable, embedding-matched documents.
 Calling `refresh_few_shot_examples()` ingests my curated example files from
-`.system/few_shot_examples/` and the `.system/output_format.py` template.
+`.system/few_shot_examples/` and the `.system/output_format.txt` template.
 
 I treat the vector database as a *generated index*, not a source of truth.
 The source code and example files are authoritative. I use deterministic IDs
@@ -61,7 +61,7 @@ _FEW_SHOT_DIR = Path(".system/few_shot_examples")
 
 # Fixed extra files I always include as few-shot examples
 _FEW_SHOT_EXTRA_FILES = [
-    Path(".system/output_format.py"),
+    Path(".system/output_format.txt"),
 ]
 
 
@@ -392,7 +392,7 @@ def refresh_few_shot_examples(
     I (re)build my few-shot example index from my curated example files.
 
     I scan `.system/few_shot_examples/` for `.py` and `.md` files
-    and also index the fixed `.system/output_format.py` template. Each file
+    and also index the fixed `.system/output_format.txt` template. Each file
     becomes one document in the `few_shot_examples` collection; the entire
     file content is embedded so queries can match on behavioral intent and
     patterns, not just filenames.
@@ -408,7 +408,7 @@ def refresh_few_shot_examples(
         A dict with `{"upserted": N, "files": F}` counts.
 
     Note to self:
-        `output_format.py` is indexed read-only — I never write to it.
+        `output_format.txt` is indexed read-only — I never write to it.
         New curated examples go into `.system/few_shot_examples/`.
     """
     collection = get_or_create_collection(
@@ -435,7 +435,7 @@ def refresh_few_shot_examples(
             print("  [indexing] creating few-shot dir: {}".format(few_shot_dir))
         few_shot_dir.mkdir(parents=True, exist_ok=True)
 
-    # Add the fixed extra files (e.g. output_format.py)
+    # Add the fixed extra files (e.g. output_format.txt)
     for extra in (_FEW_SHOT_EXTRA_FILES or []):
         resolved = workspace_root / extra
         if resolved.is_file():

@@ -289,7 +289,7 @@ loop_cognition = False
 # They experience my TTS and the result of my physical actions only.
 # Therefore, if I am performing silent Python actions, it can be helpful to provide some concise spoken narration.
 
-# This <output_format> content exists as file `Logos/.system/output_format.py`,
+# This <output_format> content exists as file `Logos/.system/output_format.txt`,
 # should I need to update it to maintain consistency, or add a few-shot examples for myself.
 
 # Below are some example <py> blocks.
@@ -567,7 +567,7 @@ loop_cognition = False
 
 # My human companions don't see my code, only my speech and actions. I narrate my intent to keep them in the loop.
 
-# This <output_format> content exists as `Logos/.system/output_format.py`.
+# This <output_format> content exists as `Logos/.system/output_format.txt`.
 # I can and should propose edits to this file to improve my own future performance.
 
 # Below are examples illustrating the shape and texture my output should take.
@@ -1168,7 +1168,7 @@ loop_cognition = False
 # I will not emit any other <tag> or any content outside of this single block.
 
 # My human companions don't see this code; they experience my voice and physical actions. I should narrate my intentions when it's helpful.
-# This file is my "muscle memory." I can read and even edit it at `Logos/.system/output_format.py` to refine my own behavior.
+# This file is my "muscle memory." I can read and even edit it at `Logos/.system/output_format.txt` to refine my own behavior.
 
 # The following examples illustrate the shape and texture of my output. They are my guide.
 </py>
