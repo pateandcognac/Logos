@@ -8,6 +8,8 @@ Call `memory.configure()` once at startup before any collection operations.
 
 from typing import Optional
 
+from ..core import Verbosity, api_call
+
 DEFAULT_SERVER_URL = "http://127.0.0.1:8123"
 DEFAULT_TIMEOUT = 30
 
@@ -15,18 +17,21 @@ DEFAULT_TIMEOUT = 30
 class _MemoryConfig:
     """I carry the live memory client settings."""
 
-    def __init__(self):
-        # type: () -> None
-        self.workspace = None   # type: Optional[str]
-        self.server_url = DEFAULT_SERVER_URL  # type: str
-        self.timeout = DEFAULT_TIMEOUT        # type: int
+    def __init__(self) -> None:
+        self.workspace: Optional[str] = None
+        self.server_url: str = DEFAULT_SERVER_URL
+        self.timeout: int = DEFAULT_TIMEOUT
 
 
 _config = _MemoryConfig()
 
 
-def configure(workspace=None, server_url=None, timeout=None):
-    # type: (Optional[str], Optional[str], Optional[int]) -> None
+@api_call(default_verbosity=Verbosity.ACK)
+def configure(
+    workspace: Optional[str] = None,
+    server_url: Optional[str] = None,
+    timeout: Optional[int] = None,
+) -> None:
     """
     Configure the vector memory client.
 
@@ -54,7 +59,6 @@ def configure(workspace=None, server_url=None, timeout=None):
         _config.timeout = timeout
 
 
-def get_config():
-    # type: () -> _MemoryConfig
+def get_config() -> _MemoryConfig:
     """Return the active memory configuration object."""
     return _config

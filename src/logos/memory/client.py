@@ -9,8 +9,9 @@ workspace or server URL on every call.
 """
 
 import requests
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
+from ..core import Verbosity, api_call
 from .config import get_config
 from .collection import Collection
 from .errors import (
@@ -20,8 +21,7 @@ from .errors import (
 )
 
 
-def _resolve_collection_name(name, namespace=None):
-    # type: (str, Optional[str]) -> tuple
+def _resolve_collection_name(name: str, namespace: Optional[str] = None) -> Tuple[str, str]:
     """
     I resolve a logical name to a physical Chroma collection name.
 
@@ -41,8 +41,12 @@ def _resolve_collection_name(name, namespace=None):
     return "logos__{}__{}" .format(ns, name), ns
 
 
-def get_or_create_collection(name, namespace=None, metadata=None):
-    # type: (str, Optional[str], Optional[Dict]) -> Collection
+@api_call(default_verbosity=Verbosity.ACK)
+def get_or_create_collection(
+    name: str,
+    namespace: Optional[str] = None,
+    metadata: Optional[Dict[str, Any]] = None,
+) -> Collection:
     """
     Get or create a named memory collection, scoped to the active workspace.
 
@@ -66,7 +70,7 @@ def get_or_create_collection(name, namespace=None, metadata=None):
     cfg = get_config()
     resolved_name, ns = _resolve_collection_name(name, namespace)
 
-    payload = {"name": resolved_name}  # type: Dict[str, Any]
+    payload: Dict[str, Any] = {"name": resolved_name}
     if metadata:
         payload["metadata"] = metadata
 
@@ -103,8 +107,7 @@ def get_or_create_collection(name, namespace=None, metadata=None):
     )
 
 
-def backend_info():
-    # type: () -> Dict[str, Any]
+def backend_info() -> Dict[str, Any]:
     """
     Return configuration and status from the Logos Chroma sidecar.
 
@@ -128,8 +131,7 @@ def backend_info():
     return resp.json()
 
 
-def health():
-    # type: () -> Dict[str, Any]
+def health() -> Dict[str, Any]:
     """
     Check whether the Logos Chroma sidecar is up and responding.
 

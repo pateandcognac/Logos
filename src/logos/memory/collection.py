@@ -11,6 +11,7 @@ full embedding model and storage config.
 import requests
 from typing import Any, Dict, List, Optional
 
+from ..core import Verbosity, api_call
 from .errors import (
     MemoryCollectionError,
     MemoryRequestError,
@@ -18,8 +19,12 @@ from .errors import (
 )
 
 
-def _post(server_url, url, payload, timeout):
-    # type: (str, str, Dict[str, Any], int) -> Dict[str, Any]
+def _post(
+    server_url: str,
+    url: str,
+    payload: Dict[str, Any],
+    timeout: int,
+) -> Dict[str, Any]:
     """I send a POST to the sidecar and surface failures as typed exceptions."""
     try:
         resp = requests.post(url, json=payload, timeout=timeout)
@@ -66,8 +71,14 @@ class Collection:
         I should not be constructed directly. Use `memory.get_or_create_collection()`.
     """
 
-    def __init__(self, name, resolved_name, workspace, server_url, timeout):
-        # type: (str, str, str, str, int) -> None
+    def __init__(
+        self,
+        name: str,
+        resolved_name: str,
+        workspace: str,
+        server_url: str,
+        timeout: int,
+    ) -> None:
         self._name = name
         self._resolved_name = resolved_name
         self._workspace = workspace
@@ -77,25 +88,21 @@ class Collection:
     # --- transparency helpers ---
 
     @property
-    def name(self):
-        # type: () -> str
+    def name(self) -> str:
         """My logical short name, e.g. `'technical_reference'`."""
         return self._name
 
     @property
-    def resolved_name(self):
-        # type: () -> str
+    def resolved_name(self) -> str:
         """My physical Chroma collection name, e.g. `'logos__Logos__technical_reference'`."""
         return self._resolved_name
 
     @property
-    def workspace(self):
-        # type: () -> str
+    def workspace(self) -> str:
         """The namespace this collection is scoped to."""
         return self._workspace
 
-    def backend_info(self):
-        # type: () -> Dict[str, Any]
+    def backend_info(self) -> Dict[str, Any]:
         """
         Return the sidecar's backend configuration and embedding model details.
 
@@ -116,20 +123,24 @@ class Collection:
 
     # --- internal helpers ---
 
-    def _url(self, endpoint=""):
-        # type: (str) -> str
+    def _url(self, endpoint: str = "") -> str:
         return "{}/collections/{}{}".format(
             self._server_url, self._resolved_name, endpoint
         )
 
-    def _post(self, endpoint, payload):
-        # type: (str, Dict[str, Any]) -> Dict[str, Any]
+    def _post(self, endpoint: str, payload: Dict[str, Any]) -> Dict[str, Any]:
         return _post(self._server_url, self._url(endpoint), payload, self._timeout)
 
     # --- data operations ---
 
-    def upsert(self, ids, documents=None, metadatas=None, embeddings=None):
-        # type: (List[str], Optional[List[str]], Optional[List[Optional[Dict]]], Optional[List[List[float]]]) -> int
+    @api_call(default_verbosity=Verbosity.ACK)
+    def upsert(
+        self,
+        ids: List[str],
+        documents: Optional[List[str]] = None,
+        metadatas: Optional[List[Optional[Dict[str, Any]]]] = None,
+        embeddings: Optional[List[List[float]]] = None,
+    ) -> int:
         """
         Upsert documents into this collection.
 
@@ -144,7 +155,7 @@ class Collection:
         Returns:
             Number of documents upserted.
         """
-        payload = {"ids": ids}  # type: Dict[str, Any]
+        payload: Dict[str, Any] = {"ids": ids}
         if documents is not None:
             payload["documents"] = documents
         if metadatas is not None:
@@ -154,8 +165,14 @@ class Collection:
         result = self._post("/upsert", payload)
         return result.get("upserted_count", len(ids))
 
-    def add(self, ids, documents=None, metadatas=None, embeddings=None):
-        # type: (List[str], Optional[List[str]], Optional[List[Optional[Dict]]], Optional[List[List[float]]]) -> int
+    @api_call(default_verbosity=Verbosity.ACK)
+    def add(
+        self,
+        ids: List[str],
+        documents: Optional[List[str]] = None,
+        metadatas: Optional[List[Optional[Dict[str, Any]]]] = None,
+        embeddings: Optional[List[List[float]]] = None,
+    ) -> int:
         """
         Add documents to this collection.
 
@@ -177,18 +194,18 @@ class Collection:
             documents=documents,
             metadatas=metadatas,
             embeddings=embeddings,
+            verbosity=Verbosity.SILENT,
         )
 
     def query(
         self,
-        query_texts=None,
-        query_embeddings=None,
-        n_results=10,
-        where=None,
-        where_document=None,
-        include=None,
-    ):
-        # type: (Optional[List[str]], Optional[List[List[float]]], int, Optional[Dict], Optional[Dict], Optional[List[str]]) -> Dict[str, Any]
+        query_texts: Optional[List[str]] = None,
+        query_embeddings: Optional[List[List[float]]] = None,
+        n_results: int = 10,
+        where: Optional[Dict[str, Any]] = None,
+        where_document: Optional[Dict[str, Any]] = None,
+        include: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
         """
         Semantic search across this collection.
 
@@ -203,7 +220,7 @@ class Collection:
         Returns:
             Dict with keys `ids`, `documents`, `metadatas`, `distances` — Chroma shape.
         """
-        payload = {"n_results": n_results}  # type: Dict[str, Any]
+        payload: Dict[str, Any] = {"n_results": n_results}
         if query_texts is not None:
             payload["query_texts"] = query_texts
         if query_embeddings is not None:
@@ -218,14 +235,13 @@ class Collection:
 
     def get(
         self,
-        ids=None,
-        where=None,
-        where_document=None,
-        limit=None,
-        offset=None,
-        include=None,
-    ):
-        # type: (Optional[List[str]], Optional[Dict], Optional[Dict], Optional[int], Optional[int], Optional[List[str]]) -> Dict[str, Any]
+        ids: Optional[List[str]] = None,
+        where: Optional[Dict[str, Any]] = None,
+        where_document: Optional[Dict[str, Any]] = None,
+        limit: Optional[int] = None,
+        offset: Optional[int] = None,
+        include: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
         """
         Fetch documents from this collection by ID or metadata filter.
 
@@ -240,7 +256,7 @@ class Collection:
         Returns:
             Dict with keys `ids`, `documents`, `metadatas` — Chroma shape.
         """
-        payload = {}  # type: Dict[str, Any]
+        payload: Dict[str, Any] = {}
         if ids is not None:
             payload["ids"] = ids
         if where is not None:
@@ -255,8 +271,13 @@ class Collection:
             payload["include"] = include
         return self._post("/get", payload)
 
-    def delete(self, ids=None, where=None, where_document=None):
-        # type: (Optional[List[str]], Optional[Dict], Optional[Dict]) -> None
+    @api_call(default_verbosity=Verbosity.ACK)
+    def delete(
+        self,
+        ids: Optional[List[str]] = None,
+        where: Optional[Dict[str, Any]] = None,
+        where_document: Optional[Dict[str, Any]] = None,
+    ) -> None:
         """
         Delete documents from this collection.
 
@@ -265,7 +286,7 @@ class Collection:
             where: Metadata filter for deletion.
             where_document: Document content filter for deletion.
         """
-        payload = {}  # type: Dict[str, Any]
+        payload: Dict[str, Any] = {}
         if ids is not None:
             payload["ids"] = ids
         if where is not None:
@@ -274,8 +295,7 @@ class Collection:
             payload["where_document"] = where_document
         self._post("/delete", payload)
 
-    def __repr__(self):
-        # type: () -> str
+    def __repr__(self) -> str:
         return "Collection(name={!r}, resolved={!r}, workspace={!r})".format(
             self._name, self._resolved_name, self._workspace
         )

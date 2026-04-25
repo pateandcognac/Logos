@@ -8,7 +8,7 @@ my semantic help lookups. Calling `refresh_technical_reference()` re-ingests
 my entire logos API — every public function and class across all modules and
 my skills library — into Chroma as searchable, embedding-matched documents.
 Calling `refresh_few_shot_examples()` ingests my curated example files from
-`hypomnemata/few_shot_examples/` and the `.system/output_format.py` template.
+`.system/few_shot_examples/` and the `.system/output_format.py` template.
 
 I treat the vector database as a *generated index*, not a source of truth.
 The source code and example files are authoritative. I use deterministic IDs
@@ -33,6 +33,7 @@ import subprocess
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+from ..core import Verbosity, api_call
 from .config import get_config
 from .client import get_or_create_collection
 
@@ -66,8 +67,7 @@ _FEW_SHOT_EXTRA_FILES = [
 
 # ─── Private helpers ──────────────────────────────────────────────────
 
-def _get_git_commit():
-    # type: () -> str
+def _get_git_commit() -> str:
     """I try to get the current short git commit hash for provenance metadata."""
     try:
         return subprocess.check_output(
@@ -78,14 +78,12 @@ def _get_git_commit():
         return "unknown"
 
 
-def _content_hash(text):
-    # type: (str) -> str
+def _content_hash(text: str) -> str:
     """I compute a short MD5 hash of document text for cheap change detection."""
     return hashlib.md5(text.encode("utf-8")).hexdigest()[:12]
 
 
-def _truncate(text, max_chars=_MAX_DOC_CHARS):
-    # type: (str, int) -> str
+def _truncate(text: str, max_chars: int = _MAX_DOC_CHARS) -> str:
     """
     I truncate a document to fit within the embedding model's context window.
 
@@ -101,8 +99,7 @@ def _truncate(text, max_chars=_MAX_DOC_CHARS):
     return text[:cut] + "\n... [truncated]"
 
 
-def _workspace_relative(abs_path):
-    # type: (Any) -> str
+def _workspace_relative(abs_path: Any) -> str:
     """I make an absolute path relative to my workspace root (CWD at runtime)."""
     try:
         return str(Path(abs_path).relative_to(Path.cwd()))
@@ -110,8 +107,7 @@ def _workspace_relative(abs_path):
         return str(abs_path)
 
 
-def _safe_signature(obj):
-    # type: (Any) -> str
+def _safe_signature(obj: Any) -> str:
     """I safely extract the signature of a callable as a string."""
     try:
         return str(inspect.signature(obj))
@@ -119,8 +115,7 @@ def _safe_signature(obj):
         return "(...)"
 
 
-def _safe_source_path(obj):
-    # type: (Any) -> str
+def _safe_source_path(obj: Any) -> str:
     """I get the source file of an object as a workspace-relative path."""
     try:
         return _workspace_relative(inspect.getfile(obj))
@@ -128,8 +123,14 @@ def _safe_source_path(obj):
         return ""
 
 
-def _format_technical_doc(module_name, symbol, signature, source_path, docstring, kind="api_docstring"):
-    # type: (str, str, str, str, str, str) -> str
+def _format_technical_doc(
+    module_name: str,
+    symbol: str,
+    signature: str,
+    source_path: str,
+    docstring: str,
+    kind: str = "api_docstring",
+) -> str:
     """
     I build a structured text block for one technical reference entry.
 
@@ -150,8 +151,11 @@ def _format_technical_doc(module_name, symbol, signature, source_path, docstring
     return "\n".join(parts)
 
 
-def _collect_module_entries(mod, mod_name, fallback_source_path):
-    # type: (Any, str, str) -> List[Tuple[str, str, str, str]]
+def _collect_module_entries(
+    mod: Any,
+    mod_name: str,
+    fallback_source_path: str,
+) -> List[Tuple[str, str, str, str]]:
     """
     I extract all public functions and classes from a module.
 
@@ -201,8 +205,7 @@ def _collect_module_entries(mod, mod_name, fallback_source_path):
     return entries
 
 
-def _discover_logos_modules():
-    # type: () -> List[Tuple[str, Any]]
+def _discover_logos_modules() -> List[Tuple[str, Any]]:
     """
     I discover all public logos API modules, including one level of subpackages.
 
@@ -243,8 +246,7 @@ def _discover_logos_modules():
     return result
 
 
-def _discover_skills_modules():
-    # type: () -> List[Tuple[str, Any]]
+def _discover_skills_modules() -> List[Tuple[str, Any]]:
     """
     I discover all public modules from my skills library.
 
@@ -274,8 +276,12 @@ def _discover_skills_modules():
 
 # ─── Public API ───────────────────────────────────────────────────────
 
-def refresh_technical_reference(workspace=None, verbose=True, batch_size=10):
-    # type: (Optional[str], bool, int) -> Dict[str, Any]
+@api_call(default_verbosity=Verbosity.ACK)
+def refresh_technical_reference(
+    workspace: Optional[str] = None,
+    verbose: bool = True,
+    batch_size: int = 10,
+) -> Dict[str, Any]:
     """
     (Re))build my technical reference index from the logos API and skills library.
 
@@ -302,16 +308,20 @@ def refresh_technical_reference(workspace=None, verbose=True, batch_size=10):
         The vector index is a generated artifact — my source files are the
         authoritative source of truth.
     """
-    collection = get_or_create_collection(_TECHNICAL_REFERENCE, namespace=workspace)
+    collection = get_or_create_collection(
+        _TECHNICAL_REFERENCE,
+        namespace=workspace,
+        verbosity=Verbosity.SILENT,
+    )
 
     cfg = get_config()
     active_workspace = workspace or cfg.workspace or "unknown"
     git_commit = _get_git_commit()
     generated_at = datetime.datetime.utcnow().isoformat() + "Z"
 
-    ids = []         # type: List[str]
-    documents = []   # type: List[str]
-    metadatas = []   # type: List[Dict[str, Any]]
+    ids: List[str] = []
+    documents: List[str] = []
+    metadatas: List[Dict[str, Any]] = []
 
     all_modules = _discover_logos_modules() + _discover_skills_modules()
 
@@ -362,6 +372,7 @@ def refresh_technical_reference(workspace=None, verbose=True, batch_size=10):
             ids=ids[i:i + batch_size],
             documents=documents[i:i + batch_size],
             metadatas=metadatas[i:i + batch_size],
+            verbosity=Verbosity.SILENT,
         )
         total_upserted += n
 
@@ -372,8 +383,11 @@ def refresh_technical_reference(workspace=None, verbose=True, batch_size=10):
     return {"upserted": total_upserted, "modules": len(all_modules)}
 
 
-def refresh_few_shot_examples(workspace=None, verbose=True):
-    # type: (Optional[str], bool) -> Dict[str, Any]
+@api_call(default_verbosity=Verbosity.ACK)
+def refresh_few_shot_examples(
+    workspace: Optional[str] = None,
+    verbose: bool = True,
+) -> Dict[str, Any]:
     """
     I (re)build my few-shot example index from my curated example files.
 
@@ -397,7 +411,11 @@ def refresh_few_shot_examples(workspace=None, verbose=True):
         `output_format.py` is indexed read-only — I never write to it.
         New curated examples go into `.system/few_shot_examples/`.
     """
-    collection = get_or_create_collection(_FEW_SHOT_EXAMPLES, namespace=workspace)
+    collection = get_or_create_collection(
+        _FEW_SHOT_EXAMPLES,
+        namespace=workspace,
+        verbosity=Verbosity.SILENT,
+    )
 
     cfg = get_config()
     active_workspace = workspace or cfg.workspace or "unknown"
@@ -405,7 +423,7 @@ def refresh_few_shot_examples(workspace=None, verbose=True):
     generated_at = datetime.datetime.utcnow().isoformat() + "Z"
 
     workspace_root = Path.cwd()
-    candidate_files = []  # type: List[Path]
+    candidate_files: List[Path] = []
 
     # Scan my curated few-shot directory
     few_shot_dir = workspace_root / _FEW_SHOT_DIR
@@ -418,7 +436,7 @@ def refresh_few_shot_examples(workspace=None, verbose=True):
         few_shot_dir.mkdir(parents=True, exist_ok=True)
 
     # Add the fixed extra files (e.g. output_format.py)
-    for extra in _FEW_SHOT_EXTRA_FILES:
+    for extra in (_FEW_SHOT_EXTRA_FILES or []):
         resolved = workspace_root / extra
         if resolved.is_file():
             candidate_files.append(resolved)
@@ -469,7 +487,12 @@ def refresh_few_shot_examples(workspace=None, verbose=True):
             "trust": "curated_example",
         })
 
-    n = collection.upsert(ids=ids, documents=documents, metadatas=metadatas)
+    n = collection.upsert(
+        ids=ids,
+        documents=documents,
+        metadatas=metadatas,
+        verbosity=Verbosity.SILENT,
+    )
 
     if verbose:
         print("refresh_few_shot_examples: upserted {} documents from {} files.".format(
@@ -478,8 +501,11 @@ def refresh_few_shot_examples(workspace=None, verbose=True):
     return {"upserted": n, "files": len(ids)}
 
 
-def refresh_all_reference_indexes(workspace=None, verbose=True):
-    # type: (Optional[str], bool) -> Dict[str, Any]
+@api_call(default_verbosity=Verbosity.ACK)
+def refresh_all_reference_indexes(
+    workspace: Optional[str] = None,
+    verbose: bool = True,
+) -> Dict[str, Any]:
     """
     I refresh both my technical reference and few-shot example indexes in one call.
 
@@ -496,8 +522,16 @@ def refresh_all_reference_indexes(workspace=None, verbose=True):
     """
     if verbose:
         print("=== Refreshing all reference indexes ===")
-    tech = refresh_technical_reference(workspace=workspace, verbose=verbose)
-    few = refresh_few_shot_examples(workspace=workspace, verbose=verbose)
+    tech = refresh_technical_reference(
+        workspace=workspace,
+        verbose=verbose,
+        verbosity=Verbosity.SILENT,
+    )
+    few = refresh_few_shot_examples(
+        workspace=workspace,
+        verbose=verbose,
+        verbosity=Verbosity.SILENT,
+    )
     if verbose:
         print("=== Done. ===")
     return {"technical_reference": tech, "few_shot_examples": few}

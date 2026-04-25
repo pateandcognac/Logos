@@ -11,7 +11,7 @@ import pkgutil
 import importlib
 import functools
 from .exceptions import Interrupt
-from typing import List, Optional, Callable, Any, Union
+from typing import List, Optional, Callable, Any, Union, Tuple
 import time
 
 # This is a global defined by the python_worker_node before my code runs.
@@ -208,6 +208,14 @@ def api_help(
             lines.append(f"{prefix}    pass")
         return lines
 
+    def _logos_module_name(mod: object) -> str:
+        name = getattr(mod, "__name__", "")
+        if name == "logos":
+            return "logos"
+        if name.startswith("logos."):
+            return name
+        return f"logos.{name}"
+
     def _render_module(mod_name: str, mod: object) -> List[str]:
         """Render a full module's constants, classes, and functions."""
         lines = [f"### Module: logos.{mod_name}", f"# {_get_doc_summary(mod)}"]
@@ -258,6 +266,43 @@ def api_help(
                 
         lines.append("") # Spacer
         return lines
+
+    def _iter_public_modules() -> List[Tuple[str, Optional[object], Optional[Exception]]]:
+        """
+        Discover public logos modules, including one level of public submodules.
+
+        Package modules like logos.memory can have their own files with public
+        APIs. I include those child modules so api_help() shows the real tools
+        instead of only the package __init__.py facade.
+        """
+        discovered = []
+
+        for _importer, modname, ispkg in pkgutil.iter_modules(logos.__path__):
+            if modname.startswith("_") or modname in _HIDDEN_MODULES:
+                continue
+
+            try:
+                mod = importlib.import_module(f".{modname}", "logos")
+            except Exception as exc:
+                discovered.append((modname, None, exc))
+                continue
+
+            discovered.append((modname, mod, None))
+
+            if ispkg:
+                pkg_path = getattr(mod, "__path__", [])
+                for _sub_importer, subname, _sub_ispkg in pkgutil.iter_modules(pkg_path):
+                    if subname.startswith("_") or subname in _HIDDEN_MODULES:
+                        continue
+                    child_name = f"{modname}.{subname}"
+                    try:
+                        child_mod = importlib.import_module(f".{child_name}", "logos")
+                    except Exception as exc:
+                        discovered.append((child_name, None, exc))
+                        continue
+                    discovered.append((child_name, child_mod, None))
+
+        return discovered
 
 
     def _indent(text: str, spaces: int) -> str:
@@ -377,11 +422,11 @@ def api_help(
         output.append("# Logos API Full Dump (docstrings + signatures)")
         output.append("Everything inspectable without showing raw source.\n")
 
-        for _importer, modname, _ispkg in pkgutil.iter_modules(logos.__path__):
-            if modname.startswith("_") or modname in _HIDDEN_MODULES:
+        for modname, mod, exc in _iter_public_modules():
+            if exc is not None:
+                output.append(f"### Module: logos.{modname} (Failed to load: {exc})\n")
                 continue
             try:
-                mod = importlib.import_module(f".{modname}", "logos")
                 output.extend(_render_module_dump(modname, mod))
             except Exception as exc:
                 output.append(f"### Module: logos.{modname} (Failed to load: {exc})\n")
@@ -399,11 +444,10 @@ def api_help(
         output.append(f"# Search Results for: '{search}'\n")
         found_something = False
         
-        for _importer, modname, _ispkg in pkgutil.iter_modules(logos.__path__):
-            if modname.startswith("_") or modname in _HIDDEN_MODULES:
+        for modname, mod, exc in _iter_public_modules():
+            if exc is not None:
                 continue
             try:
-                mod = importlib.import_module(f".{modname}", "logos")
                 for name, val in inspect.getmembers(mod):
                     if name.startswith("_"): continue
                     
@@ -423,7 +467,9 @@ def api_help(
     # MODE 2: Detailed help for a specific function/class
     elif obj is not None:
         if inspect.ismodule(obj):
-            output.extend(_render_module(obj.__name__.split('.')[-1], obj))
+            mod_name = _logos_module_name(obj)
+            display_name = mod_name[len("logos."):] if mod_name.startswith("logos.") else mod_name
+            output.extend(_render_module(display_name, obj))
         elif inspect.isclass(obj):
             output.extend(_render_class(obj.__name__, obj))
         elif inspect.isfunction(obj) or inspect.ismethod(obj):
@@ -449,11 +495,11 @@ def api_help(
         output.append("    logos.verbosity(level): Context manager to mute/debug output")
         output.append("")
 
-        for _importer, modname, _ispkg in pkgutil.iter_modules(logos.__path__):
-            if modname.startswith("_") or modname in _HIDDEN_MODULES:
+        for modname, mod, exc in _iter_public_modules():
+            if exc is not None:
+                output.append(f"### Module: logos.{modname} (Failed to load: {exc})\n")
                 continue
             try:
-                mod = importlib.import_module(f".{modname}", "logos")
                 output.extend(_render_module(modname, mod))
             except Exception as exc:
                 output.append(f"### Module: logos.{modname} (Failed to load: {exc})\n")

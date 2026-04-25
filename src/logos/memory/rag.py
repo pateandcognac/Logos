@@ -41,8 +41,7 @@ _FEW_SHOT_EXAMPLES = "few_shot_examples"
 
 # ─── Private helpers ──────────────────────────────────────────────────
 
-def _flatten_results(raw):
-    # type: (Dict[str, Any]) -> List[Dict[str, Any]]
+def _flatten_results(raw: Dict[str, Any]) -> List[Dict[str, Any]]:
     """
     Unpacks Chroma's nested result shape into a flat list of result dicts.
 
@@ -72,8 +71,7 @@ def _flatten_results(raw):
     return results
 
 
-def _format_context_block(results, header):
-    # type: (List[Dict[str, Any]], str) -> str
+def _format_context_block(results: List[Dict[str, Any]], header: str) -> str:
     """
     I format a list of result dicts into a human- and LLM-readable context block.
 
@@ -109,8 +107,11 @@ def _format_context_block(results, header):
 
 # ─── Public API ───────────────────────────────────────────────────────
 
-def search_api_help(query, n_results=5, workspace=None):
-    # type: (str, int, Optional[str]) -> Dict[str, Any]
+def search_api_help(
+    query: str,
+    n_results: int = 5,
+    workspace: Optional[str] = None,
+) -> Dict[str, Any]:
     """
     Queries my technical reference index for API documentation relevant to a question.
 
@@ -145,8 +146,11 @@ def search_api_help(query, n_results=5, workspace=None):
     }
 
 
-def search_examples(query, n_results=5, workspace=None):
-    # type: (str, int, Optional[str]) -> Dict[str, Any]
+def search_examples(
+    query: str,
+    n_results: int = 5,
+    workspace: Optional[str] = None,
+) -> Dict[str, Any]:
     """
     Queries my few-shot example index for curated behavioral examples.
 
@@ -172,8 +176,12 @@ def search_examples(query, n_results=5, workspace=None):
     }
 
 
-def semantic_help(query, n_results=5, workspace=None, include_examples=True):
-    # type: (str, int, Optional[str], bool) -> Dict[str, Any]
+def semantic_help(
+    query: str,
+    n_results: int = 5,
+    workspace: Optional[str] = None,
+    include_examples: bool = True,
+) -> Dict[str, Any]:
     """
     I search both my API docs and my example files to answer a behavioral question.
 
@@ -212,7 +220,7 @@ def semantic_help(query, n_results=5, workspace=None, include_examples=True):
     api_resp = search_api_help(query, n_results=n_results, workspace=workspace)
     api_results = api_resp["results"]
 
-    example_results = []  # type: List[Dict[str, Any]]
+    example_results: List[Dict[str, Any]] = []
     if include_examples:
         ex_resp = search_examples(query, n_results=n_results, workspace=workspace)
         example_results = ex_resp["results"]
