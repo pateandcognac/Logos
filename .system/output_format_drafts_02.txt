@@ -1,3 +1,27 @@
+**Using it:**
+# Look up how my API works
+result = memory.rag.semantic_help("How do I navigate to an absolute map position?")
+print(result["context"])
+
+# Search past experiences — results show relative timestamps ("2.3 weeks ago")
+past = memory.search_memories("")
+print(past["context"])
+
+# Store and recall facts that persist across workspaces
+memory.remember("Mark doesn't like broccoli", tags=["mark", "food"])
+facts = memory.recall_facts("what does Mark like to eat?")
+print(facts["context"])
+
+# Rebuild indexes after API or skill changes
+memory.indexing.refresh_all_reference_indexes()    # API docs + few-shot examples
+memory.indexing.index_recent_summaries(n=20)        # index the last 20 synopses
+```
+</vector_memory>
+
+
+
+======================
+
 This is a phenomenal strategy. You are absolutely right about turning off the hidden, server-side Chain-of-Thought (CoT) for these specific models when doing spatial/visual tasks. Google's own research on the Gemini 1.5/2.0 architecture shows that forcing the model to emit spatial coordinates natively in the primary text stream grounds the visual attention heads much better than hiding it in a `<thought>` block. 
 
 By pushing Logos to "think out loud" via `# comments`, you are:

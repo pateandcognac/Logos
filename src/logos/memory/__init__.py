@@ -1,7 +1,7 @@
 # src/logos/memory/__init__.py
 
 """
-My long-term memory subsystem — both working buffer and persistent vector store.
+My long-term memory subsystem — working buffer, vector store, and personal facts.
 
 I have three layers:
 
@@ -12,9 +12,10 @@ I have three layers:
    my local Python 3.11 sidecar. I use these to store and retrieve knowledge across
    sessions without relying on my context window size.
 
-**3. Reference indexes & RAG** — generated indexes over my logos API and curated example
-   files, queryable via natural language. I use these to look up how to use my own API
-   or find relevant behavioral examples without reading source code directly.
+**3. Reference indexes, RAG, and personal facts** — generated indexes over my logos API,
+   curated example files, and my synopsis history; plus a shared cross-workspace store
+   for durable personal knowledge. I use these to look up my own API, search past
+   experiences, and remember facts that survive workspace and API changes.
 
 Because my main runtime is Python 3.8, the vector client is a thin HTTP compatibility
 layer that forwards requests to the Logos Chroma sidecar (`~/src/logos_chroma_server`),
@@ -22,22 +23,28 @@ which owns the Chroma SDK and Ollama embedding calls.
 
 Typical usage:
 
-    # --- Vector store ---
+    # --- Setup ---
     memory.configure(workspace="Logos", server_url="http://127.0.0.1:8123")
-    col = memory.get_or_create_collection("technical_reference")
-    col.upsert(ids=["say:v1"], documents=["Function say(text) makes me speak."])
-    results = col.query(query_texts=["How do I talk out loud?"], n_results=3)
 
-    # --- Reference indexing ---
-    from logos.memory import indexing
-    indexing.refresh_all_reference_indexes()
-
-    # --- Semantic RAG lookup ---
-    from logos.memory import rag
-    result = rag.semantic_help("How do I navigate to an absolute map position?")
+    # --- Semantic self-help ---
+    result = memory.rag.semantic_help("How do I navigate to an absolute map position?")
     print(result["context"])
 
-Pass `namespace="shared"` to `get_or_create_collection` for cross-workspace memory.
+    # --- Search past synopses ---
+    past = memory.search_memories("chair alignment in Chora")
+    print(past["context"])   # shows "2.3 weeks ago" style timestamps
+
+    # --- Personal facts (shared across workspaces) ---
+    memory.remember("Mark doesn't like broccoli", tags=["mark", "food"])
+    facts = memory.recall_facts("what does Mark like to eat?")
+    print(facts["context"])
+
+    # --- Rebuild indexes ---
+    memory.indexing.refresh_all_reference_indexes()    # API docs + few-shot examples
+    memory.indexing.refresh_summaries_index()           # full synopsis history
+    memory.indexing.index_recent_summaries(n=20)        # incremental: last 20 only
+
+Pass `namespace="shared"` to `get_or_create_collection` for direct cross-workspace access.
 """
 
 # -- Buffer memory (palimpsest tools) --
@@ -76,6 +83,10 @@ __all__ = [
     # Reference indexing & RAG
     "indexing",
     "rag",
+    # Personal facts & memory search (convenience re-exports from rag)
+    "remember",
+    "recall_facts",
+    "search_memories",
     # Errors
     "MemoryError",
     "MemoryServerUnavailable",
@@ -87,3 +98,4 @@ __all__ = [
 
 # -- Reference indexing & RAG helpers (imported last to avoid circular imports) --
 from . import indexing, rag
+from .rag import remember, recall_facts, search_memories

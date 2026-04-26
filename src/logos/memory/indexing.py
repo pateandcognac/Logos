@@ -41,6 +41,8 @@ __all__ = [
     "refresh_technical_reference",
     "refresh_few_shot_examples",
     "refresh_all_reference_indexes",
+    "refresh_summaries_index",
+    "index_recent_summaries",
 ]
 
 # ─── Constants ────────────────────────────────────────────────────────
@@ -48,6 +50,10 @@ __all__ = [
 # Logical collection names (the client resolves these to physical Chroma names)
 _TECHNICAL_REFERENCE = "technical_reference"
 _FEW_SHOT_EXAMPLES = "few_shot_examples"
+_SUMMARIES = "summaries"
+
+# Path to my synopsis log, relative to workspace root (CWD at runtime)
+_SUMMARIES_FILE = Path("state/summaries.jsonl")
 
 # mxbai-embed-large has a 512-token context window (~1500 chars).
 # I truncate documents to this limit before sending them to Ollama.
@@ -499,6 +505,191 @@ def refresh_few_shot_examples(
             n, len(ids)
         ))
     return {"upserted": n, "files": len(ids)}
+
+
+def _read_summaries_jsonl(path: Path) -> List[Dict[str, Any]]:
+    """I read my summaries log and return its entries as a list of dicts."""
+    import json
+    entries: List[Dict[str, Any]] = []
+    if not path.is_file():
+        return entries
+    with path.open(encoding="utf-8") as fh:
+        for line in fh:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                entries.append(json.loads(line))
+            except Exception:
+                continue
+    return entries
+
+
+def _build_summary_docs(
+    entries: List[Dict[str, Any]],
+    active_workspace: str,
+) -> "Tuple[List[str], List[str], List[Dict[str, Any]]]":
+    """
+    I convert a list of summary JSONL entries into parallel id/document/metadata lists
+    ready for a Chroma upsert call.
+    """
+    ids: List[str] = []
+    documents: List[str] = []
+    metadatas: List[Dict[str, Any]] = []
+
+    for entry in entries:
+        entry_id = entry.get("id", "")
+        content = entry.get("content", "")
+        ts = float(entry.get("timestamp", 0.0))
+        token_count = int(entry.get("token_count", 0))
+        source_ids = entry.get("source_ids") or []
+        entry_type = entry.get("type", "summary")
+
+        if not entry_id or not content:
+            continue
+
+        ts_iso = (
+            datetime.datetime.utcfromtimestamp(ts).isoformat() + "Z" if ts else ""
+        )
+
+        ids.append(entry_id)
+        documents.append(_truncate(content))
+        metadatas.append({
+            "workspace": active_workspace,
+            "collection_kind": "summaries",
+            "kind": "summary",
+            "timestamp": ts,
+            "timestamp_iso": ts_iso,
+            "token_count": token_count,
+            "source_ids": ",".join(source_ids) if source_ids else "",
+            "type": entry_type,
+        })
+
+    return ids, documents, metadatas
+
+
+@api_call(default_verbosity=Verbosity.ACK)
+def refresh_summaries_index(
+    workspace: Optional[str] = None,
+    verbose: bool = True,
+    batch_size: int = 10,
+) -> Dict[str, Any]:
+    """
+    I (re)index my complete synopsis history into the `summaries` vector collection.
+
+    I read every entry in `state/summaries.jsonl` and upsert them into the
+    `summaries` collection. Because I use the JSONL `id` field as the document
+    ID, re-running this is safe — existing entries are updated in place.
+
+    For a lightweight incremental update that only indexes the most recent
+    synopses, use `index_recent_summaries(n)` instead.
+
+    Args:
+        workspace:  Override the active workspace namespace.
+        verbose:    If True, I print progress to stdout. Default: True.
+        batch_size: Documents per upsert request. Default: 10.
+
+    Returns:
+        A dict with `{"upserted": N, "total_entries": M}` counts.
+
+    Note to self:
+        I run this after my palimpsest has been summarized to make the new
+        synopsis searchable in `rag.search_memories()`.
+    """
+    collection = get_or_create_collection(
+        _SUMMARIES,
+        namespace=workspace,
+        verbosity=Verbosity.SILENT,
+    )
+    cfg = get_config()
+    active_workspace = workspace or cfg.workspace or "unknown"
+
+    entries = _read_summaries_jsonl(Path.cwd() / _SUMMARIES_FILE)
+    if not entries:
+        if verbose:
+            print("refresh_summaries_index: no entries found in {}.".format(_SUMMARIES_FILE))
+        return {"upserted": 0, "total_entries": 0}
+
+    ids, documents, metadatas = _build_summary_docs(entries, active_workspace)
+
+    total_upserted = 0
+    for i in range(0, len(ids), batch_size):
+        n = collection.upsert(
+            ids=ids[i:i + batch_size],
+            documents=documents[i:i + batch_size],
+            metadatas=metadatas[i:i + batch_size],
+            verbosity=Verbosity.SILENT,
+        )
+        total_upserted += n
+
+    if verbose:
+        print("refresh_summaries_index: upserted {} of {} synopsis entries.".format(
+            total_upserted, len(entries)
+        ))
+    return {"upserted": total_upserted, "total_entries": len(entries)}
+
+
+@api_call(default_verbosity=Verbosity.ACK)
+def index_recent_summaries(
+    n: int = 20,
+    workspace: Optional[str] = None,
+    verbose: bool = True,
+    batch_size: int = 10,
+) -> Dict[str, Any]:
+    """
+    I index the N most recent synopses into the `summaries` vector collection.
+
+    This is my preferred incremental update after a palimpsest summarization —
+    faster than a full `refresh_summaries_index()` because I only re-embed the
+    tail of the log. The upsert is idempotent: synopses already in the index
+    are updated in place, not duplicated.
+
+    Args:
+        n:          Number of most-recent entries to index. Default: 20.
+        workspace:  Override the active workspace namespace.
+        verbose:    If True, I print progress to stdout. Default: True.
+        batch_size: Documents per upsert request. Default: 10.
+
+    Returns:
+        A dict with `{"upserted": N, "selected": S, "total_entries": T}` counts.
+
+    Note to self:
+        I run this at the end of a session or right after `summarize_io_buffer()`.
+        For a one-time full rebuild, use `refresh_summaries_index()` instead.
+    """
+    collection = get_or_create_collection(
+        _SUMMARIES,
+        namespace=workspace,
+        verbosity=Verbosity.SILENT,
+    )
+    cfg = get_config()
+    active_workspace = workspace or cfg.workspace or "unknown"
+
+    all_entries = _read_summaries_jsonl(Path.cwd() / _SUMMARIES_FILE)
+    recent = all_entries[-n:] if len(all_entries) > n else all_entries
+
+    if not recent:
+        if verbose:
+            print("index_recent_summaries: no entries found in {}.".format(_SUMMARIES_FILE))
+        return {"upserted": 0, "selected": 0, "total_entries": 0}
+
+    ids, documents, metadatas = _build_summary_docs(recent, active_workspace)
+
+    total_upserted = 0
+    for i in range(0, len(ids), batch_size):
+        n_up = collection.upsert(
+            ids=ids[i:i + batch_size],
+            documents=documents[i:i + batch_size],
+            metadatas=metadatas[i:i + batch_size],
+            verbosity=Verbosity.SILENT,
+        )
+        total_upserted += n_up
+
+    if verbose:
+        print("index_recent_summaries: upserted {} of last {} synopses ({} total in log).".format(
+            total_upserted, len(recent), len(all_entries)
+        ))
+    return {"upserted": total_upserted, "selected": len(recent), "total_entries": len(all_entries)}
 
 
 @api_call(default_verbosity=Verbosity.ACK)

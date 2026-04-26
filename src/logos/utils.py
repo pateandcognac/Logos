@@ -56,7 +56,7 @@ def base36_encode(number: int, min_length: int = 4) -> str:
 
 def make_time_id(prefix: str = "", now: Optional[datetime] = None) -> str:
     """
-    Generate a time-based, 7-character, base36 ID with optional prefix, e.g. "sum-", "msg-"
+    Generate a time-based, 7-character, base36 ID with optional prefix, e.g. "msg-"
 
     Format: 6 chars of seconds-since-epoch (base36) + 1 char burst sequence.
     Lexicographic sort == chronological sort, including bursts within the

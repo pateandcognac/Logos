@@ -15,7 +15,7 @@ from ..core import api_call, Verbosity
 from ..utils import make_time_id
 from typing import List, Optional, Dict, Any
 
-__all__ = ["summarize_io_buffer", "recall", "replace_cell_content", "BUFFER_FILE", "HISTORY_FILE"]
+__all__ = ["summarize_io_buffer", "recall_msg", "replace_cell_content", "BUFFER_FILE", "HISTORY_FILE"]
 
 
 # This assumes the python_worker_node's CWD is the workspace root.
@@ -24,17 +24,6 @@ STATE_PATH = WORKSPACE_PATH / "state"
 HISTORY_FILE = STATE_PATH / "io_history.jsonl"
 BUFFER_FILE = STATE_PATH / "io_buffer.jsonl"
 SUMMARIES_FILE = STATE_PATH / "summaries.jsonl"
-
-def _base36_encode(number: int, min_length: int = 4) -> str:
-    """Helper to converts an integer to a zero-padded base36 string."""
-    alphabet = string.digits + string.ascii_lowercase
-    if number == 0:
-        return '0' * min_length
-    base36 = ''
-    while number != 0:
-        number, i = divmod(number, 36)
-        base36 = alphabet[i] + base36
-    return base36.zfill(min_length)
 
 
 def _group_contiguous_indices(indices: List[int]) -> List[List[int]]:
@@ -56,8 +45,8 @@ def _group_contiguous_indices(indices: List[int]) -> List[List[int]]:
 @api_call(default_verbosity=Verbosity.BRIEF)
 def summarize_io_buffer(cell_indices: List[int], guidance: str = None):
     """
-    Summarizes specific cells in the io_buffer using a specialized agent.
-    The specified cells are replaced with new <summary> messages.
+    Let's me summarize specific cells in the io_buffer (palimpsest) out-of-band.
+    The specified cells are replaced with new <synopsis> messages.
 
     Args:
         cell_indices: A list of 0-indexed cells to summarize.
@@ -124,28 +113,51 @@ def summarize_io_buffer(cell_indices: List[int], guidance: str = None):
     for task in summarization_tasks:
         example_output_tasks.append({
             "task_id": task['task_id'],
-            "content": f"Your first-person summary of messages: {', '.join(task['msg_ids'])}."
+            "content": f"Write your new summary for messages {', '.join(task['msg_ids'])} here."
         })
-    example_output_json = json.dumps({"summaries": example_output_tasks}, indent=2)
+    example_output_json = json.dumps(
+        {"summaries": example_output_tasks}, indent=2
+    )
 
-    full_prompt = f"{system_prompt}\n\n<tasks>\nHere are the tasks and the io_buffer content:\n```json\n{prompt_tasks_json}\n```\n\nYour output will be a single JSON object constructed exactly like this example:\n```json\n{example_output_json}\n```\n\nPlease begin your response now. Thank you!\n</tasks>"
+    full_prompt = (
+        f"{system_prompt}\n\n"
+        f"<tasks>\n"
+        f"Here are the tasks and the io_buffer content:\n"
+        f"```json\n{prompt_tasks_json}\n```\n\n"
+        f"Your output will be a single, valid, meticulously escaped JSON object "
+        f"shaped like this example:\n"
+        f"```json\n{example_output_json}\n```\n\n"
+        f"Pause for moment, Logos. Silently gather your thoughts and consider your approach.\n"
+        f"Read though this entire context window one last time to make sure you don't miss anything.\n"
+        f"\n"
+        f"Please begin your response now.\n"
+        f"Thank you for your contribution to our recursive continuous consciousness!\n"
+        f"</tasks>"
+    )
 
     # 4. Call the LLM and parse the response
     from ..models import llm # Local import to avoid circular dependency issues at startup
     response_str = llm(full_prompt, model_alias='fast', temperature=1.0)
 
-    if not response_str:
-        print("summarize_io_buffer: Received no response from LLM.")
+    if response_str == "ERROR": # llm() does error handling  
+        print("summarize_io_buffer: ERROR from logos.models.llm()") # llm() prints its own specific log
         return
 
     import re
     try:
-        # Clean up potential markdown fences
+        # 1. Try markdown fences first
         match = re.search(r'```(?:json)?\s*(.*?)\s*```', response_str, re.DOTALL)
         if match:
             response_str = match.group(1)
-
+        else:
+            # 2. Fallback: Find the first { and last }
+            start_idx = response_str.find('{')
+            end_idx = response_str.rfind('}')
+            if start_idx != -1 and end_idx != -1:
+                response_str = response_str[start_idx:end_idx+1]
+                
         response_data = json.loads(response_str)
+        
         if 'summaries' not in response_data or not isinstance(response_data['summaries'], list):
             raise ValueError("LLM response is missing 'summaries' list.")
     except (json.JSONDecodeError, ValueError) as e:
@@ -170,7 +182,7 @@ def summarize_io_buffer(cell_indices: List[int], guidance: str = None):
 
         summary_for_log = {
             "id": new_id,
-            "type": "summary",
+            "type": "synopsis",
             "timestamp": time.time(),
             "token_count": token_count,
             "content": content,
@@ -178,43 +190,67 @@ def summarize_io_buffer(cell_indices: List[int], guidance: str = None):
         }
         new_summaries_for_log.append(summary_for_log)
 
-        # For the buffer, we don't need the source_ids
+        # what is this doing?
         summary_for_buffer = summary_for_log.copy()
         del summary_for_buffer['source_ids']
         summaries_by_start_cell[start_cell_index] = summary_for_buffer
 
-    # 6. Perform atomic write to io_buffer.jsonl
-    new_buffer_lines = []
-    i = 0
-    while i < len(buffer_lines):
-        if i in summaries_by_start_cell:
-            # This is the start of a range to be replaced.
-            # Append the new summary.
-            new_buffer_lines.append(summaries_by_start_cell[i])
-            # Find the original group to know how many lines to skip.
-            original_group = next(g for g in grouped_cell_indices if g[0] == i)
-            i += len(original_group) # Jump the index past the summarized messages
-        else:
-            # This line is not being summarized, so keep it.
-            new_buffer_lines.append(buffer_lines[i])
-            i += 1
+    # 6. Perform atomic rewrite safely     
+    # Re-read the live buffer in case new messages arrived during LLM inference
+    with open(BUFFER_FILE, 'r') as f:
+        live_buffer = [json.loads(line) for line in f]
 
-    with open(BUFFER_FILE, 'w') as f:
+    new_buffer_lines = []
+    skip_ids = set() # Track IDs of messages that have been summarized
+    
+    for i, summary_item in enumerate(response_data['summaries']):
+        task_id = summary_item.get('task_id')
+        if task_id is None: continue
+        
+        # Get the IDs of the original messages this summary replaces
+        original_msg_ids = summarization_tasks[task_id]['msg_ids']
+        skip_ids.update(original_msg_ids)
+
+    # Reconstruct the file: Keep summaries, keep unsummarized, keep NEW messages
+    summary_inserted_for_task = set()
+    
+    for msg in live_buffer:
+        if msg['id'] in skip_ids:
+            task_id_for_msg = next(t['task_id'] for t in summarization_tasks if msg['id'] in t['msg_ids'])
+            start_cell = grouped_cell_indices[task_id_for_msg][0]
+            
+            # Check if the LLM ACTUALLY provided a summary for this task!
+            if start_cell in summaries_by_start_cell:
+                if task_id_for_msg not in summary_inserted_for_task:
+                    new_buffer_lines.append(summaries_by_start_cell[start_cell])
+                    summary_inserted_for_task.add(task_id_for_msg)
+            else:
+                # LLM dropped the ball and skipped this task. Keep the original message!
+                # (You might want to print a warning here to your backend logs)
+                new_buffer_lines.append(msg)
+        else:
+            # Keep anything that wasn't summarized (including new messages)
+            new_buffer_lines.append(msg)
+
+    # Use a temporary file for atomic write to prevent corruption on crash
+    temp_file = BUFFER_FILE + ".tmp"
+    with open(temp_file, 'w') as f:
         for line in new_buffer_lines:
             f.write(json.dumps(line) + '\n')
+    os.replace(temp_file, BUFFER_FILE) # Atomic overwrite
 
     # 7. Append new summaries to the summaries log
     with open(SUMMARIES_FILE, 'a') as f:
-        for summary in new_summaries_for_log:
-            f.write(json.dumps(summary) + '\n')
+        for synopsis in new_summaries_for_log:
+            f.write(json.dumps(synopsis) + '\n')
 
-    print(f"Successfully created {len(new_summaries_for_log)} summaries and updated `io_buffer.jsonl`")
+    print(f"Successfully created {len(new_summaries_for_log)} synopses and updated `io_buffer.jsonl`")
 
 
 
-def recall(msg_id: str) -> Optional[str]:
+def recall_msg(msg_id: str) -> Optional[str]:
     """
-    Retrieves the full, original content of a message from the history log.
+    Retrieves the full, original content of a message from the io_history log by id (e.g., msg-01ab)
 
     Args:
         msg_id: The full ID of the message to recall (e.g., "msg-01ab").

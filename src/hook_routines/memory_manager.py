@@ -47,9 +47,9 @@ def run_policy_check():
             print("Memory Manager: No eligible cells to summarize.")
             return
 
-        for cand in candidates:
+        for cand in candidates: # 'filename' is unique me msg-id handled by backend
             if cand['msg'].get('type') == 'py_result' and cand['msg'].get('filename') in py_map:
-                me_index = py_map[cand['msg']['filename']]
+                me_index = py_map[cand['msg']['filename']] # filename is also used when injecting code into linecache
                 # Find the corresponding 'me' candidate and mark both as paired
                 for me_cand in candidates:
                     if me_cand['cell_index'] == me_index:
@@ -86,7 +86,7 @@ def run_policy_check():
     # 2b. Identify Contiguous Summaries for Recursion
     contiguous_summaries = []
     for i, msg in enumerate(messages):
-        if msg.get('type') == 'summary':
+        if msg.get('type') == 'synopsis':
             contiguous_summaries.append(i)
         else:
             if len(contiguous_summaries) > policy.max_contiguous_summaries:

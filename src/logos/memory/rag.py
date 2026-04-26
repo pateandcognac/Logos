@@ -23,23 +23,95 @@ Typical usage:
         print(r["metadata"]["symbol"], r["distance"])
 """
 
+import datetime
+import time
 from typing import Any, Dict, List, Optional
 
+from ..core import Verbosity, api_call
+from ..utils import make_time_id
 from .client import get_or_create_collection
 
 __all__ = [
     "search_api_help",
     "search_examples",
     "semantic_help",
+    "search_memories",
+    "remember",
+    "recall_facts",
 ]
 
 # ─── Constants ────────────────────────────────────────────────────────
 
 _TECHNICAL_REFERENCE = "technical_reference"
 _FEW_SHOT_EXAMPLES = "few_shot_examples"
+_SUMMARIES = "summaries"
+__COMMON_LOGOS_DB = "koinos_logos"
+_SHARED_NAMESPACE = "shared"
+
+# mxbai-embed-large 512-token context window (~1500 chars)
+_MAX_EMBED_CHARS = 1500
 
 
 # ─── Private helpers ──────────────────────────────────────────────────
+
+def _truncate_embed(text: str) -> str:
+    """I trim a document to fit within the embedding model's context window."""
+    if len(text) <= _MAX_EMBED_CHARS:
+        return text
+    cut = text.rfind("\n", 0, _MAX_EMBED_CHARS)
+    if cut < _MAX_EMBED_CHARS // 2:
+        cut = _MAX_EMBED_CHARS
+    return text[:cut] + "\n... [truncated]"
+
+
+def _relative_time(ts: float) -> str:
+    """
+    I convert a Unix timestamp into a human-friendly relative string.
+
+    I pick the most intuitive unit so the reader never needs to do arithmetic:
+    "45 minutes ago", "3 hours ago", "2.3 weeks ago", "3.2 months ago".
+    """
+    delta = time.time() - ts
+    if delta < 90:
+        return "just now"
+    if delta < 5400:       # < 90 minutes
+        return "{} minutes ago".format(int(delta / 60))
+    if delta < 129600:     # < 36 hours
+        return "{} hours ago".format(int(delta / 3600))
+    if delta < 907200:     # < 10.5 days
+        return "{:.1f} days ago".format(delta / 86400)
+    if delta < 4233600:    # < ~7 weeks
+        return "{:.1f} weeks ago".format(delta / 604800)
+    if delta < 47336400:   # < ~18 months
+        return "{:.1f} months ago".format(delta / 2629800)
+    return "{:.1f} years ago".format(delta / 31557600)
+
+
+def _format_memory_block(results: List[Dict[str, Any]], header: str) -> str:
+    """
+    I format memory results into a readable context block, showing relative timestamps.
+
+    Each entry gets a header with its age ("2.3 weeks ago"), relevance distance,
+    and tags (if any), followed by the full document text.
+    """
+    lines = ["# {}".format(header), ""]
+    for i, r in enumerate(results, 1):
+        meta = r.get("metadata") or {}
+        dist = r.get("distance")
+        dist_str = "{:.3f}".format(dist) if dist is not None else "n/a"
+        ts = meta.get("timestamp")
+        time_str = _relative_time(float(ts)) if ts is not None else "unknown time"
+        tags = meta.get("tags", "")
+
+        lines.append("## [{}] {}  (distance: {})".format(i, time_str, dist_str))
+        if tags:
+            lines.append("tags: {}".format(tags))
+        lines.append("")
+        lines.append(r.get("document", ""))
+        lines.append("")
+
+    return "\n".join(lines)
+
 
 def _flatten_results(raw: Dict[str, Any]) -> List[Dict[str, Any]]:
     """
@@ -242,4 +314,125 @@ def semantic_help(
         "api_results": api_results,
         "example_results": example_results,
         "context": context,
+    }
+
+
+def search_memories(
+    query: str,
+    n_results: int = 5,
+    workspace: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    I search my indexed synopses for past experiences relevant to a query.
+
+    I query the `summaries` collection — the vector-indexed form of my
+    `state/summaries.jsonl` — and return the most semantically similar
+    entries. Results are formatted with relative timestamps ("2.3 weeks ago")
+    so I can immediately situate them in time without mental arithmetic.
+
+    Args:
+        query:     My natural-language question, e.g. "chair placement in Chora".
+        n_results: Maximum number of synopses to return. Default: 5.
+        workspace: Override the configured workspace namespace.
+
+    Returns:
+        A dict with keys `query`, `results`, and `context`.
+
+    Note to self:
+        This searches the *indexed* synopses. If I've written new summaries
+        since the last index run, I should call
+        `memory.indexing.index_recent_summaries()` first.
+    """
+    collection = get_or_create_collection(_SUMMARIES, namespace=workspace)
+    raw = collection.query(query_texts=[query], n_results=n_results)
+    results = _flatten_results(raw)
+    return {
+        "query": query,
+        "results": results,
+        "context": _format_memory_block(results, "Past Experiences: {}".format(query)),
+    }
+
+
+@api_call(default_verbosity=Verbosity.ACK)
+def remember(
+    text: str,
+    tags: Optional[List[str]] = None,
+) -> str:
+    """
+    Stores a fact in my shared cross-workspace memory.
+
+    Writes a single document into the `koinos_logos` collection under the
+    `shared` namespace, which persists across all `~/robot_workspaces/workspaces/`
+    and survives API version changes. Generates a time-based ID and record both a
+    Unix timestamp (for relative-time display) and an ISO string (for readability).
+
+    Args:
+        text: The fact I want to remember, e.g. "Mark likes broccoli".
+        tags: Optional list of category tags, e.g. ["mark", "food"].
+
+    Returns:
+        The generated memory ID (e.g. "mem-1a2b3c4") — I can use this to
+        delete the entry later if I need to with `get_or_create_collection(...)`.
+
+    Note to self:
+        These facts accumulate over time and are never auto-purged.
+        I should be selective — store durable, cross-session facts here,
+        not technical details. Use `recall_facts()` to retrieve them.
+    """
+    now = time.time()
+    mem_id = make_time_id(prefix="mem-")
+    ts_iso = datetime.datetime.utcfromtimestamp(now).isoformat() + "Z"
+    tags_str = ",".join(tags) if tags else ""
+
+    collection = get_or_create_collection(
+        __COMMON_LOGOS_DB,
+        namespace=_SHARED_NAMESPACE,
+        verbosity=Verbosity.SILENT,
+    )
+    collection.upsert(
+        ids=[mem_id],
+        documents=[_truncate_embed(text)],
+        metadatas=[{
+            "timestamp": now,
+            "timestamp_iso": ts_iso,
+            "tags": tags_str,
+        }],
+        verbosity=Verbosity.SILENT,
+    )
+    return mem_id
+
+
+def recall_facts(
+    query: str,
+    n_results: int = 5,
+) -> Dict[str, Any]:
+    """
+    I search my shared personal memory for facts relevant to a query.
+
+    I query the `koinos_logos` collection in the `shared` namespace —
+    the store populated by `remember()`. Results are ranked by semantic
+    similarity and displayed with relative timestamps ("3 days ago").
+
+    Args:
+        query:     My natural-language question, e.g. "what does Mark like to eat?".
+        n_results: Maximum number of facts to return. Default: 5.
+
+    Returns:
+        A dict with keys `query`, `results`, and `context`.
+
+    Note to self:
+        This always searches the `shared` namespace, regardless of which
+        workspace I'm currently running in. That's by design — personal facts
+        are cross-workspace by nature.
+    """
+    collection = get_or_create_collection(
+        __COMMON_LOGOS_DB,
+        namespace=_SHARED_NAMESPACE,
+    )
+    raw = collection.query(query_texts=[query], n_results=n_results)
+    results = _flatten_results(raw)
+    return {
+        "query": query,
+        "results": results,
+        "context": _format_memory_block(results, "Personal Facts: {}".format(query)),
     }

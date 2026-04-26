@@ -100,7 +100,7 @@ def llm(prompt: str, model_alias: str = "fast", temperature: float = 1.0) -> str
 
     if not _llm_config:
         print("LLM config not available.")
-        return ""
+        return "ERROR"
 
     model_name = _llm_config.get("aliases", {}).get(
         model_alias,
@@ -109,7 +109,7 @@ def llm(prompt: str, model_alias: str = "fast", temperature: float = 1.0) -> str
 
     if not WORKER_PATH.exists():
         print(f"Gemini worker script not found at {WORKER_PATH}")
-        return ""
+        return "ERROR"
 
     payload = {
         "prompt": prompt,
@@ -128,29 +128,29 @@ def llm(prompt: str, model_alias: str = "fast", temperature: float = 1.0) -> str
         )
     except Exception as e:
         print(f"Error invoking Gemini worker: {e}")
-        return ""
+        return "ERROR"
 
     if proc.returncode != 0:
         print(
             f"Gemini worker failed with code {proc.returncode}. "
             f"Stderr:\n{proc.stderr}"
         )
-        return ""
+        return "ERROR"
 
     try:
         data = json.loads(proc.stdout)
     except Exception as e:
         print(f"Failed to parse Gemini worker output: {e}\nRaw output:\n{proc.stdout!r}")
-        return ""
+        return "ERROR"
 
     if "error" in data:
         print(f"Gemini worker returned error: {data.get('error')}")
-        return ""
+        return "ERROR"
 
     text = data.get("text", "")
     if not isinstance(text, str):
         print(f"Gemini worker returned non-string text: {text!r}")
-        return ""
+        return "ERROR"
 
     return text
 
