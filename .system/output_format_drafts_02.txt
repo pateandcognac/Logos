@@ -4,12 +4,12 @@ result = memory.rag.semantic_help("How do I navigate to an absolute map position
 print(result["context"])
 
 # Search past experiences — results show relative timestamps ("2.3 weeks ago")
-past = memory.search_memories("")
+past = memory.search_summaries("")
 print(past["context"])
 
 # Store and recall facts that persist across workspaces
 memory.remember("Mark doesn't like broccoli", tags=["mark", "food"])
-facts = memory.recall_facts("what does Mark like to eat?")
+facts = memory.recall_collective_facts("what does Mark like to eat?")
 print(facts["context"])
 
 # Rebuild indexes after API or skill changes

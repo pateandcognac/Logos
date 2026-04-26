@@ -113,7 +113,7 @@ def summarize_io_buffer(cell_indices: List[int], guidance: str = None):
     for task in summarization_tasks:
         example_output_tasks.append({
             "task_id": task['task_id'],
-            "content": f"Write your new summary for messages {', '.join(task['msg_ids'])} here."
+            "content": f"My prose summary for message(s) {', '.join(task['msg_ids'])}. Followed by the \n---\nFunctional Context:\n..."
         })
     example_output_json = json.dumps(
         {"summaries": example_output_tasks}, indent=2
@@ -263,7 +263,7 @@ def recall_msg(msg_id: str) -> Optional[str]:
         or truncated from my main io_buffer.
     """
     if not HISTORY_FILE.exists():
-        print(f"recall: History file not found at {HISTORY_FILE}")
+        print(f"recall_msg: History file not found at {HISTORY_FILE}")
         return None
 
     with open(HISTORY_FILE, 'r') as f:
@@ -275,7 +275,7 @@ def recall_msg(msg_id: str) -> Optional[str]:
             except json.JSONDecodeError:
                 continue # Skip corrupted lines
 
-    print(f"recall: Message with id '{msg_id}' not found in history.")
+    print(f"recall_msg: Message with id '{msg_id}' not found in history.")
     return None
 
 @api_call(default_verbosity=Verbosity.ACK)

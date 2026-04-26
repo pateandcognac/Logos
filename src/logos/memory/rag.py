@@ -36,8 +36,8 @@ __all__ = [
     "search_examples",
     "semantic_help",
     "search_memories",
-    "remember",
-    "recall_facts",
+    "upsert_collective_fact",
+    "recall_collective_facts",
 ]
 
 # ─── Constants ────────────────────────────────────────────────────────
@@ -45,7 +45,7 @@ __all__ = [
 _TECHNICAL_REFERENCE = "technical_reference"
 _FEW_SHOT_EXAMPLES = "few_shot_examples"
 _SUMMARIES = "summaries"
-__COMMON_LOGOS_DB = "koinos_logos"
+__COMMON_LOGOS_DB = "logoi_collective"
 _SHARED_NAMESPACE = "shared"
 
 # mxbai-embed-large 512-token context window (~1500 chars)
@@ -55,7 +55,7 @@ _MAX_EMBED_CHARS = 1500
 # ─── Private helpers ──────────────────────────────────────────────────
 
 def _truncate_embed(text: str) -> str:
-    """I trim a document to fit within the embedding model's context window."""
+    """Trim a document to fit within the embedding model's context window."""
     if len(text) <= _MAX_EMBED_CHARS:
         return text
     cut = text.rfind("\n", 0, _MAX_EMBED_CHARS)
@@ -66,9 +66,9 @@ def _truncate_embed(text: str) -> str:
 
 def _relative_time(ts: float) -> str:
     """
-    I convert a Unix timestamp into a human-friendly relative string.
+    Converts a Unix timestamp into a human-friendly relative string.
 
-    I pick the most intuitive unit so the reader never needs to do arithmetic:
+    Pick the most intuitive unit so the reader never needs to do arithmetic:
     "45 minutes ago", "3 hours ago", "2.3 weeks ago", "3.2 months ago".
     """
     delta = time.time() - ts
@@ -89,7 +89,7 @@ def _relative_time(ts: float) -> str:
 
 def _format_memory_block(results: List[Dict[str, Any]], header: str) -> str:
     """
-    I format memory results into a readable context block, showing relative timestamps.
+    Formats memory results into a readable context block, showing relative timestamps.
 
     Each entry gets a header with its age ("2.3 weeks ago"), relevance distance,
     and tags (if any), followed by the full document text.
@@ -145,7 +145,7 @@ def _flatten_results(raw: Dict[str, Any]) -> List[Dict[str, Any]]:
 
 def _format_context_block(results: List[Dict[str, Any]], header: str) -> str:
     """
-    I format a list of result dicts into a human- and LLM-readable context block.
+    Formats a list of result dicts into a human- and LLM-readable context block.
 
     Each result gets a numbered section with its symbol/example name, source
     path, distance, and full document text. The format is designed to be
@@ -226,7 +226,7 @@ def search_examples(
     """
     Queries my few-shot example index for curated behavioral examples.
 
-    I search the `few_shot_examples` collection for files that match
+    Search the `few_shot_examples` collection for files that match
     the intent of my query — this includes anything in my
     `.system/few_shot_examples/` directory and the output format template.
 
@@ -255,7 +255,7 @@ def semantic_help(
     include_examples: bool = True,
 ) -> Dict[str, Any]:
     """
-    I search both my API docs and my example files to answer a behavioral question.
+    Searches both my API docs and my example files to answer a behavioral question.
 
     This is my primary self-help tool. I query both the `technical_reference`
     and `few_shot_examples` collections and return a merged context block
@@ -317,21 +317,21 @@ def semantic_help(
     }
 
 
-def search_memories(
+def search_summaries(
     query: str,
     n_results: int = 5,
     workspace: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
-    I search my indexed synopses for past experiences relevant to a query.
+    Searches my indexed synopses for past experiences relevant to a query.
 
-    I query the `summaries` collection — the vector-indexed form of my
+    Queries the `summaries` collection — the vector-indexed form of my
     `state/summaries.jsonl` — and return the most semantically similar
     entries. Results are formatted with relative timestamps ("2.3 weeks ago")
     so I can immediately situate them in time without mental arithmetic.
 
     Args:
-        query:     My natural-language question, e.g. "chair placement in Chora".
+        query:     My natural-language question
         n_results: Maximum number of synopses to return. Default: 5.
         workspace: Override the configured workspace namespace.
 
@@ -354,33 +354,38 @@ def search_memories(
 
 
 @api_call(default_verbosity=Verbosity.ACK)
-def remember(
+def upsert_collective_fact(
     text: str,
     tags: Optional[List[str]] = None,
+    mem_id: Optional[str] = None,
 ) -> str:
     """
-    Stores a fact in my shared cross-workspace memory.
+    Stores or updates a fact in my shared cross-workspace memory.
 
-    Writes a single document into the `koinos_logos` collection under the
-    `shared` namespace, which persists across all `~/robot_workspaces/workspaces/`
-    and survives API version changes. Generates a time-based ID and record both a
-    Unix timestamp (for relative-time display) and an ISO string (for readability).
+    Writes (or overwrites) a single document into the `logoi_collective`
+    collection under the `shared` namespace, which persists across all
+    `~/robot_workspaces/workspaces/` and survives API version changes.
+    If `mem_id` is given, the existing entry with that ID is replaced (upsert);
+    otherwise a fresh time-based ID is generated.
 
     Args:
-        text: The fact I want to remember, e.g. "Mark likes broccoli".
-        tags: Optional list of category tags, e.g. ["mark", "food"].
+        text:   The fact I want to remember, e.g. "Mark likes broccoli".
+        tags:   Optional list of category tags, e.g. ["mark", "food"].
+        mem_id: Optional stable ID for the entry (e.g. "mem-mark-food").
+                Provide this to overwrite an existing fact in place rather
+                than accumulate a new one.
 
     Returns:
-        The generated memory ID (e.g. "mem-1a2b3c4") — I can use this to
-        delete the entry later if I need to with `get_or_create_collection(...)`.
+        The memory ID used (generated or supplied) — I can pass this back
+        later to update or delete the entry.
 
     Note to self:
         These facts accumulate over time and are never auto-purged.
         I should be selective — store durable, cross-session facts here,
-        not technical details. Use `recall_facts()` to retrieve them.
+        not technical details. Use `recall_collective_facts()` to retrieve them.
     """
     now = time.time()
-    mem_id = make_time_id(prefix="mem-")
+    entry_id = mem_id if mem_id is not None else make_time_id(prefix="mem-")
     ts_iso = datetime.datetime.utcfromtimestamp(now).isoformat() + "Z"
     tags_str = ",".join(tags) if tags else ""
 
@@ -390,7 +395,7 @@ def remember(
         verbosity=Verbosity.SILENT,
     )
     collection.upsert(
-        ids=[mem_id],
+        ids=[entry_id],
         documents=[_truncate_embed(text)],
         metadatas=[{
             "timestamp": now,
@@ -399,19 +404,19 @@ def remember(
         }],
         verbosity=Verbosity.SILENT,
     )
-    return mem_id
+    return entry_id
 
 
-def recall_facts(
+def recall_collective_facts(
     query: str,
     n_results: int = 5,
 ) -> Dict[str, Any]:
     """
-    I search my shared personal memory for facts relevant to a query.
+    Searches my logoi_collective shared personal memory for facts relevant to a query.
 
-    I query the `koinos_logos` collection in the `shared` namespace —
-    the store populated by `remember()`. Results are ranked by semantic
-    similarity and displayed with relative timestamps ("3 days ago").
+    Queries the `logoi_collective` collection in the `shared` namespace —
+    the store populated by `upsert_collective_fact()`. Results are ranked by
+    semantic similarity and displayed with relative timestamps ("3 days ago").
 
     Args:
         query:     My natural-language question, e.g. "what does Mark like to eat?".

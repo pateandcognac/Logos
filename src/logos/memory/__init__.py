@@ -31,12 +31,16 @@ Typical usage:
     print(result["context"])
 
     # --- Search past synopses ---
-    past = memory.search_memories("chair alignment in Chora")
+    past = memory.search_summaries("chair alignment in Chora")
     print(past["context"])   # shows "2.3 weeks ago" style timestamps
 
     # --- Personal facts (shared across workspaces) ---
-    memory.remember("Mark doesn't like broccoli", tags=["mark", "food"])
-    facts = memory.recall_facts("what does Mark like to eat?")
+    memory.upsert_collective_fact(
+        "Mark doesn't like broccoli",
+        tags=["mark", "food"],
+        mem_id="mark-food-broccoli",
+    )
+    facts = memory.recall_collective_facts("what does Mark like to eat?")
     print(facts["context"])
 
     # --- Rebuild indexes ---
@@ -71,7 +75,7 @@ from .errors import (
 __all__ = [
     # Buffer memory
     "summarize_io_buffer",
-    "recall",
+    "recall_msg"
     "replace_cell_content",
     "BUFFER_FILE",
     "HISTORY_FILE",
@@ -84,18 +88,18 @@ __all__ = [
     "indexing",
     "rag",
     # Personal facts & memory search (convenience re-exports from rag)
-    "remember",
-    "recall_facts",
-    "search_memories",
+    "upsert_collective_fact",
+    "recall_collective_facts",
+    "search_summaries",
     # Errors
-    "MemoryError",
-    "MemoryServerUnavailable",
-    "MemoryRequestError",
-    "MemoryEmbeddingError",
-    "MemoryCollectionError",
-    "MemoryConfigurationError",
+    # "MemoryError",
+    # "MemoryServerUnavailable",
+    # "MemoryRequestError",
+    # "MemoryEmbeddingError",
+    # "MemoryCollectionError",
+    # "MemoryConfigurationError",
 ]
 
 # -- Reference indexing & RAG helpers (imported last to avoid circular imports) --
 from . import indexing, rag
-from .rag import remember, recall_facts, search_memories
+from .rag import upsert_collective_fact, recall_collective_facts, search_memories

@@ -8,7 +8,7 @@ my semantic help lookups. Calling `refresh_technical_reference()` re-ingests
 my entire logos API — every public function and class across all modules and
 my skills library — into Chroma as searchable, embedding-matched documents.
 Calling `refresh_few_shot_examples()` ingests my curated example files from
-`.system/few_shot_examples/` and the `.system/output_format.txt` template.
+`.system/few_shot_examples/`.
 
 I treat the vector database as a *generated index*, not a source of truth.
 The source code and example files are authoritative. I use deterministic IDs
@@ -64,12 +64,6 @@ _HIDDEN_MODULES = {"_llm_helper"}
 
 # My curated few-shot example directory (relative to workspace root / CWD)
 _FEW_SHOT_DIR = Path(".system/few_shot_examples")
-
-# Fixed extra files I always include as few-shot examples
-_FEW_SHOT_EXTRA_FILES = [
-    Path(".system/output_format.txt"),
-]
-
 
 # ─── Private helpers ──────────────────────────────────────────────────
 
@@ -138,7 +132,7 @@ def _format_technical_doc(
     kind: str = "api_docstring",
 ) -> str:
     """
-    I build a structured text block for one technical reference entry.
+    Build a structured text block for one technical reference entry.
 
     I combine the symbol name, signature, source location, and docstring
     into a format that embeds well semantically — the header lines give the
@@ -163,9 +157,9 @@ def _collect_module_entries(
     fallback_source_path: str,
 ) -> List[Tuple[str, str, str, str]]:
     """
-    I extract all public functions and classes from a module.
+    Extract all public functions and classes from a module.
 
-    I respect `__all__` when present. For classes, I also add each
+    Respect `__all__` when present. For classes, I also add each
     public method as a separate entry so method-level queries resolve.
 
     Returns:
@@ -213,9 +207,9 @@ def _collect_module_entries(
 
 def _discover_logos_modules() -> List[Tuple[str, Any]]:
     """
-    I discover all public logos API modules, including one level of subpackages.
+    Discover all public logos API modules, including one level of subpackages.
 
-    I mirror the same module filtering that `logos.api_help()` uses, so the
+    Mirror the same module filtering that `logos.api_help()` uses, so the
     index stays in sync with what is actually documented.
 
     Returns:
@@ -254,7 +248,7 @@ def _discover_logos_modules() -> List[Tuple[str, Any]]:
 
 def _discover_skills_modules() -> List[Tuple[str, Any]]:
     """
-    I discover all public modules from my skills library.
+    Discover all public modules from my skills library.
 
     Returns:
         A list of `(full_module_name, module_object)` pairs.
@@ -289,7 +283,7 @@ def refresh_technical_reference(
     batch_size: int = 10,
 ) -> Dict[str, Any]:
     """
-    (Re))build my technical reference index from the logos API and skills library.
+    (Re)build my technical reference index from the logos API and skills library.
 
     Discovers every public function and class across all logos API modules
     and my skills library, build a structured document for each, and upsert
@@ -395,10 +389,9 @@ def refresh_few_shot_examples(
     verbose: bool = True,
 ) -> Dict[str, Any]:
     """
-    I (re)build my few-shot example index from my curated example files.
+    (Re)builds my few-shot example index from my curated example files.
 
-    I scan `.system/few_shot_examples/` for `.py` and `.md` files
-    and also index the fixed `.system/output_format.txt` template. Each file
+    Scans `.system/few_shot_examples/` for `.py` and `.md` files. Each file
     becomes one document in the `few_shot_examples` collection; the entire
     file content is embedded so queries can match on behavioral intent and
     patterns, not just filenames.
@@ -414,7 +407,6 @@ def refresh_few_shot_examples(
         A dict with `{"upserted": N, "files": F}` counts.
 
     Note to self:
-        `output_format.txt` is indexed read-only — I never write to it.
         New curated examples go into `.system/few_shot_examples/`.
     """
     collection = get_or_create_collection(
@@ -440,14 +432,6 @@ def refresh_few_shot_examples(
         if verbose:
             print("  [indexing] creating few-shot dir: {}".format(few_shot_dir))
         few_shot_dir.mkdir(parents=True, exist_ok=True)
-
-    # Add the fixed extra files (e.g. output_format.txt)
-    for extra in (_FEW_SHOT_EXTRA_FILES or []):
-        resolved = workspace_root / extra
-        if resolved.is_file():
-            candidate_files.append(resolved)
-        elif verbose:
-            print("  [indexing] extra file not found, skipping: {}".format(resolved))
 
     if not candidate_files:
         if verbose:
@@ -575,9 +559,9 @@ def refresh_summaries_index(
     batch_size: int = 10,
 ) -> Dict[str, Any]:
     """
-    I (re)index my complete synopsis history into the `summaries` vector collection.
+    (Re)indexes my complete synopsis history into the `summaries` vector collection.
 
-    I read every entry in `state/summaries.jsonl` and upsert them into the
+    Reads every entry in `state/summaries.jsonl` and upsert them into the
     `summaries` collection. Because I use the JSONL `id` field as the document
     ID, re-running this is safe — existing entries are updated in place.
 
@@ -594,7 +578,7 @@ def refresh_summaries_index(
 
     Note to self:
         I run this after my palimpsest has been summarized to make the new
-        synopsis searchable in `rag.search_memories()`.
+        synopsis searchable in `rag.search_summaries()`.
     """
     collection = get_or_create_collection(
         _SUMMARIES,
@@ -637,7 +621,7 @@ def index_recent_summaries(
     batch_size: int = 10,
 ) -> Dict[str, Any]:
     """
-    I index the N most recent synopses into the `summaries` vector collection.
+    Indexes the N most recent synopses into the `summaries` vector collection.
 
     This is my preferred incremental update after a palimpsest summarization —
     faster than a full `refresh_summaries_index()` because I only re-embed the
@@ -698,7 +682,7 @@ def refresh_all_reference_indexes(
     verbose: bool = True,
 ) -> Dict[str, Any]:
     """
-    I refresh both my technical reference and few-shot example indexes in one call.
+    Refreshes both my technical reference and few-shot example indexes in one call.
 
     This is my go-to entry point after significant API or skill changes.
     I run `refresh_technical_reference()` followed by
