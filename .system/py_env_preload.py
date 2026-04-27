@@ -47,8 +47,7 @@ import cv2         # For advanced, on-the-fly image processing not covered by th
 # By importing these directly, I can use them without the `logos.` prefix,
 # which is great for type checking (`isinstance`) and verbosity control.
 
-from logos.core import Verbosity, verbosity, check_for_interrupt #, everything # The core of my interaction patterns.
-
+from logos.core import Verbosity, verbosity, check_for_interrupt
 from logos.vision import CaptureResult, HudElement   # `CaptureResult` is the main object from my eyes. `HudElement` is for drawing on images.
 from logos.nav import NavTask                      # The handle for all my navigation tasks, lets me check progress.
 from logos.emote import SpeakTask                    # The handle for my voice, lets me choreograph actions with speech.

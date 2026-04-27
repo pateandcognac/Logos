@@ -54,7 +54,7 @@ Pass `namespace="shared"` to `get_or_create_collection` for direct cross-workspa
 # -- Buffer memory (palimpsest tools) --
 from ._buffer import (
     summarize_io_buffer,
-    recall,
+    recall_msg,
     replace_cell_content,
     BUFFER_FILE,
     HISTORY_FILE,
@@ -102,4 +102,4 @@ __all__ = [
 
 # -- Reference indexing & RAG helpers (imported last to avoid circular imports) --
 from . import indexing, rag
-from .rag import upsert_collective_fact, recall_collective_facts, search_memories
+from .rag import upsert_collective_fact, recall_collective_facts, search_summaries

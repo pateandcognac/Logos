@@ -1,7 +1,7 @@
 # src/logos/memory/config.py
 
 """
-I hold the active configuration for the vector memory client.
+Holds the active configuration for the vector memory client.
 
 Call `memory.configure()` once at startup before any collection operations.
 """
@@ -26,7 +26,7 @@ class _MemoryConfig:
 _config = _MemoryConfig()
 
 
-@api_call(default_verbosity=Verbosity.ACK)
+@api_call(default_verbosity=Verbosity.BRIEF)
 def configure(
     workspace: Optional[str] = None,
     server_url: Optional[str] = None,

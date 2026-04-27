@@ -36,6 +36,8 @@ class Verbosity(Enum):
     DEBUG = 3   # Provide rich, detailed output for troubleshooting.
 
 
+
+
 def api_call(default_verbosity: Verbosity = Verbosity.ACK): 
     """
     Decorator for public API functions that have side effects or are "actions" from Logos' POV (movement, I/O, memory changes, etc.). Adds `verbosity` kwarg to decorated functions.
@@ -59,13 +61,9 @@ def api_call(default_verbosity: Verbosity = Verbosity.ACK):
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            # 0. Cooperative interrupt check
             check_for_interrupt()
 
-            # 1. Optional per-call override: func(..., verbosity=Verbosity.SILENT)
             level_override = kwargs.pop("verbosity", None)
-
-            # 2. Determine effective verbosity
             effective_verbosity = (
                 level_override
                 or __logos_verbosity_level__
@@ -74,25 +72,32 @@ def api_call(default_verbosity: Verbosity = Verbosity.ACK):
 
             func_name = func.__name__
 
-            # 3. Pre-execution logging
+            # --- PRE-EXECUTION LOGGING ---
             if effective_verbosity is Verbosity.ACK:
                 print(f"Executing: {func_name}")
+            
             elif effective_verbosity is Verbosity.BRIEF:
-                arg_summary = [repr(a) for a in args]
-                kwarg_summary = [f"{k}={v!r}" for k, v in kwargs.items()]
+                # Use _smart_repr for cleaner logs
+                arg_summary = [_smart_repr(a) for a in args]
+                kwarg_summary = [f"{k}={_smart_repr(v)}" for k, v in kwargs.items()]
                 print(f"Executing: {func_name}({', '.join(arg_summary + kwarg_summary)})")
+            
             elif effective_verbosity is Verbosity.DEBUG:
-                print(f"DEBUG: Calling {func_name} with args={args!r}, kwargs={kwargs!r}")
+                # Even in DEBUG, smart_repr prevents context window blowouts
+                arg_summary = [_smart_repr(a, max_str_len=500) for a in args]
+                kwarg_summary = [f"{k}={_smart_repr(v, max_str_len=1000)}" for k, v in kwargs.items()]
+                print(f"DEBUG: {func_name}({', '.join(arg_summary + kwarg_summary)})")
 
-            # 4. Execute
             try:
                 result = func(*args, **kwargs)
 
-                # 5. Post-execution logging
+                # --- POST-EXECUTION LOGGING ---
                 if effective_verbosity in (Verbosity.ACK, Verbosity.BRIEF, Verbosity.DEBUG):
                     print(f"Success: {func_name}")
+                
                 if effective_verbosity is Verbosity.DEBUG and result is not None:
-                    print(f"DEBUG: {func_name} returned: {result!r}")
+                    # Format the return value too!
+                    print(f"DEBUG: {func_name} returned: {_smart_repr(result)}")
 
                 return result
             except Exception as exc:
@@ -100,7 +105,6 @@ def api_call(default_verbosity: Verbosity = Verbosity.ACK):
                 raise
 
         return wrapper
-
     return decorator
 
 
@@ -508,3 +512,31 @@ def api_help(
     if print_output:
         print(text)
     return text
+
+
+def _smart_repr(val: Any, max_str_len: int = 100) -> str:
+    """
+    A context-aware repr that rounds floats, truncates long strings, 
+    and handles collections recursively. Optimized for LLM readability.
+    """
+    if isinstance(val, float):
+        # 3 decimal places is the 'sweet spot' for ROS (millimeter precision)
+        return f"{val:.3f}"
+    
+    if isinstance(val, str):
+        if len(val) > max_str_len:
+            half = max_str_len // 2
+            return f"'{val[:half]}...{val[-half:]}'"
+        return repr(val)
+
+    if isinstance(val, list):
+        return "[" + ", ".join(_smart_repr(x) for x in val) + "]"
+
+    if isinstance(val, tuple):
+        return "(" + ", ".join(_smart_repr(x) for x in val) + ")"
+
+    if isinstance(val, dict):
+        return "{" + ", ".join(f"{_smart_repr(k)}: {_smart_repr(v)}" for k, v in val.items()) + "}"
+
+    # Fallback for objects, ints, bools, etc.
+    return repr(val)
