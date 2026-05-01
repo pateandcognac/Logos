@@ -33,8 +33,18 @@ The robot's one universal tool. Always available in its Python runtime without i
 | `models.py` | ML/vision inference: `llm()` (out-of-band Gemini call), `yolo11()` (COCO 80-class fast), `yolo_world()` (open-vocab ~8k classes), `yoloe()` (prompted or prompt-free broad detection), `hands()` (MediaPipe gesture recognition) |
 | `sensory.py` | Non-visual senses: ambient audio transcript access via ROS STT node |
 | `nav.py` | Autonomous navigation via `move_base` (absolute) and `turtlebot_actions` (relative) |
-| `memory.py` | io_buffer summarization and recall |
+| `memory/` | io_buffer summarization and semantic vector memory. Sub-modules: `_buffer.py` (palimpsest summarization), `client.py` / `collection.py` (ChromaDB sidecar HTTP client), `config.py` (server URL / workspace config), `errors.py`, `indexing.py` (index builders: technical reference, summaries, etc.), `rag.py` (`semantic_help()`, `search_memories()`, `remember()`, `recall_facts()`) |
 | `leds.py`, `emote.py`, `shell.py`, `files.py`, `ros.py`, `base.py` | Hardware I/O, filesystem, ROS utilities |
+
+### Vector Memory Sidecar (`~/src/logos_chroma_server/`)
+
+The `memory/` package talks to a FastAPI sidecar that owns ChromaDB and Ollama embeddings. The sidecar exists because Python 3.8 (ROS Noetic) cannot import modern `chromadb` — so the sidecar runs under a separate Python 3.11 venv and exposes a thin HTTP API at `http://127.0.0.1:8123`.
+
+- Embedding model: `granite-embedding:30m` (via local Ollama)
+- Persistent storage: `~/.local/share/logos_chroma`
+- Collection naming convention: `logos__{namespace}__{kind}` (e.g. `logos__Logos__technical_reference`)
+- The sidecar is name-agnostic; naming is owned by the client (`indexing.py`)
+- See `~/src/logos_chroma_server/CLAUDE.md` for the sidecar's own docs
 
 ### The `@api_call` Decorator
 
@@ -61,6 +71,7 @@ Instances are configured in `hypomnemata/chora/mind_palace_00.yaml` and managed 
 
 - `io_buffer.jsonl` — the palimpsest (live context window, summarized when it grows large)
 - `io_history.jsonl` — the complete immutable I/O record
+- `summaries.jsonl`— all generated summaries.
 
 ### Configuration (`config/`)
 

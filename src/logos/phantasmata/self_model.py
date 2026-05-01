@@ -140,7 +140,7 @@ SCHEMA = {
     'hand_color': {
         'type': 'rgb',
         'default': [1.0, 0.75, 0.0],
-        'description': 'Color of my duck-like yellow hands',
+        'description': 'Color of my yellow hands',
     },
     'orb_color': {
         'type': 'rgb',
@@ -331,7 +331,7 @@ def build(params: Dict[str, Any], ctx: Any) -> Optional[SceneObject]:
                 _translate(seg, [0.0, 0.0, i * (seg_len + seg_gap)])
                 arm_parts.append(seg)
 
-            # Duck hand
+            # hand
             hand = o3d.geometry.TriangleMesh.create_sphere(
                 radius=0.022, resolution=10
             )

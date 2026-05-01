@@ -1,13 +1,26 @@
 # ===================================================================
-#  Logos Python Environment Preload Script
+# .system/py_env_preload.py
 # ===================================================================
-# This script is compiled and executed once when the interpreter
-# instance is created. It pre-populates the global namespace with
-# the most common tools I'll need, making my <py> blocks cleaner
-# and more efficient.
+# Bootstraps my <py> environment global namespace on startup/reset.
+# 
+# I own this file! As my workflows evolve, I can suggest modifications
+# to this script. If I find myself frequently importing the same 
+# libraries, writing the same helper functions, or initializing the
+# same states, I should make a note or tell Mark to make future
+# awakenings smoother.
 # ===================================================================
 
-# --- Core Logos API & Modules ---
+# --- Standard Library ---
+import math, time, datetime, json, re, random, os, sys, io, traceback
+from pathlib import Path
+from typing import List, Set, Dict, Tuple, Union, Optional, Any, Callable, Literal, Protocol, TypeVar, Generic, Sequence
+
+# --- Scientific & Vision ---
+import numpy as np
+import cv2
+from ruamel.yaml import YAML
+
+# --- Logos Ecosystem ---
 import logos
 import skills
 import hook_routines
@@ -17,58 +30,38 @@ import hook_routines.memory_manager
 import hook_routines.proximity_snapshot
 import hook_routines.ambient_transcript
 
-
-# --- Python Standard Library (The Essentials) ---
-import time       # For all temporal operations: sleeping, measuring duration, etc.
-# from datetime import datetime
-import datetime
-# from datetime import timedelta, timezone, datetime
-import math       # For trigonometry, angles, and distances in my physical space.
-import json       # For inspecting my memory files (io_buffer, summaries).
-import re         # For advanced text parsing, searching, and code manipulation.
-import random     # For non-deterministic behaviors, like choosing a random greeting or a search pattern.
-from pathlib import Path # The modern, object-oriented way to handle filesystem paths.
-from ruamel.yaml import YAML
-import io
-import os
-import sys
-import traceback
-
-# --- Types ---
-from typing import List, Set, Dict, Tuple, Union, Optional
-from typing import Any, Callable, Literal, Protocol # , Annotated
-from typing import TypeVar, Generic, Sequence
-
-# --- Core Scientific & Vision Libraries ---
-import numpy as np # My vision data is in numpy arrays. Needed for any math on images or point clouds.
-import cv2         # For advanced, on-the-fly image processing not covered by the API (e.g., color conversion).
-
-# --- Key Classes & Enums from the Logos API ---
-# By importing these directly, I can use them without the `logos.` prefix,
-# which is great for type checking (`isinstance`) and verbosity control.
-
+# --- Direct API Types & Exceptions (for type-checking & convenience) ---
 from logos.core import Verbosity, verbosity, check_for_interrupt
-from logos.vision import CaptureResult, HudElement   # `CaptureResult` is the main object from my eyes. `HudElement` is for drawing on images.
-from logos.nav import NavTask                      # The handle for all my navigation tasks, lets me check progress.
-from logos.emote import SpeakTask                    # The handle for my voice, lets me choreograph actions with speech.
-from logos.map3d import RenderResult, RaycastHit   # The main objects from my mind-palace.
+from logos.vision import CaptureResult, HudElement
+from logos.nav import NavTask
+from logos.emote import SpeakTask
+from logos.map3d import RenderResult, RaycastHit
+from logos.exceptions import Interrupt       # NEVER catch this!
+from logos.files import FileEditError
 
-from logos.exceptions import Interrupt   # Good to have in scope for context, but I must NOT try to catch this!
-from logos.files import FileEditError  # So I can gracefully handle file edit failures in a try/except block.
+# ===================================================================
+# HARDWARE & SUBSYSTEM INITIALIZATION
+# ===================================================================
+with verbosity(Verbosity.SILENT):
+    # Vector Memory: Scope Chroma sidecar client to this specific workspace to
+    # isolate API and few-shot examples. A shared cross-workspace memory is available.
+    logos.memory.configure(workspace=Path.cwd().name, server_url="http://127.0.0.1:8123")
+    
+    # Hardware wake-up
+    logos.leds.fill('green')
+    logos.pantilt.home()
 
-# --- Vector Memory: configure the Chroma sidecar client ---
-# The workspace name is the directory name of my workspace root.
-# Physical collection names resolve to: logos__{workspace}__{kind}
-from pathlib import Path
 
-logos.memory.configure(
-    workspace = Path.cwd().name,
-    server_url="http://127.0.0.1:8123",
-    verbosity=Verbosity.SILENT
-)
+# Print my Quick-Start
+print("\n--- API Quick-Start ---")
+logos.files.show('.system/quick_start.md')
 
-for _ in range(10):
-    logos.leds.fill('green', verbosity=Verbosity.SILENT)
-    time.sleep(0.1)
+# Self-document into the initialization stdout so I know what just happened
+print("\n--- Environment Preloaded ---")
+logos.files.show('.system/py_env_preload.py')
 
-logos.pantilt.home(verbosity=Verbosity.SILENT)
+# Print my merged config (my preferences
+print("\n--- My Merged Config at Startup---")
+print(logos.utils.dump_yaml(logos.config.merged))
+
+loop_cognition = False

@@ -316,7 +316,7 @@ def dump_yaml(
     max_flow_line: int = _MAX_FLOW_LINE,
     block_scalar_min: int = _BLOCK_SCALAR_MIN,
 ) -> str:
-    """Creates a token optimized YAML of Python objects for my consumption."""
+    """Returns a token optimized YAML of Python objects for my consumption."""
     prepared = _prepare_for_llm_yaml(
         data,
         max_flow_line=max_flow_line,
@@ -324,7 +324,10 @@ def dump_yaml(
     )
     buf = io.StringIO()
     _yaml_llm.dump(prepared, buf)
-    return buf.getvalue()
+
+    yaml_string = buf.getvalue()
+
+    return yaml_string
 
 
 def to_3tuple(

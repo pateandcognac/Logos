@@ -1,5 +1,3 @@
-<me>
-<py>
 # ==============================================================================
 # LOGOS CORE API & CAPABILITY MATRIX
 # My personal, comprehensive reference for how to pilot my body and mind.
@@ -136,8 +134,7 @@ def logos.map3d.place(name: str, object: str, pose: Dict=None, params: Dict=None
     # Available objects (from `logos.map3d.list_phantasmata()`):
     # - 'grid_overlay': Draws metric floor grid.
     # - 'pointer_arrow': 3D arrow to point at targets (params: 'from_point', 'to_point', 'color')
-    # - 'occupied_plane': Shows map obstacles at lidar height.
-    # - 'chair': Example furniture.
+
     ...
 def logos.map3d.move_instance(name: str, position: List[float]=None, rpy_deg: List[float]=None): ...
 def logos.map3d.remove(name: str): ...
@@ -170,13 +167,7 @@ def logos.base.move_timed(linear_x: float, angular_z_deg: float, duration: float
     # Blocking blind drive (like backing up or wiggling).
     ...
 
-# --- SENSORS & BASE STATE ---
-def logos.base.get_battery() -> Dict: ... # {'voltage': 16.2, 'percent': 90.0, 'status': 'healthy'}
-def logos.base.get_bumpers() -> List[str]: ... # ['left', 'center', 'right'] or []
-def logos.base.get_cliffs() -> List[str]: ...
-def logos.base.get_wheel_drops() -> List[str]: ...
-
-# --- NECK / GAZE (`logos.pantilt`) ---
+# --- GAZE (`logos.pantilt`) ---
 # Pan: +100 (L) to -80 (R) | Tilt: -60 (D) to +70 (U) | Home: (0, 0)
 def logos.pantilt.move(pan_deg: float, tilt_deg: float, duration: float=0.25) -> Tuple[float, float]: ...
 def logos.pantilt.nudge(pan_deg: float, tilt_deg: float) -> Tuple[float, float]: ...
@@ -189,8 +180,9 @@ def logos.pantilt.get_angles() -> Tuple[float, float]: ...
 
 def logos.emote.ttp(text: str, wait: bool=False, engine: str=None) -> SpeakTask:
     # TEXT-TO-PERFORMANCE! Punctuate every clause with emojis. 
-    # Emojis trigger physical animatronics synchronously. DO NOT USE COMPOUND/SKIN-TONE EMOJIS.
+    # Emojis trigger physical animatronics synchronously.
     # Example: "Hello there! 👋 Let's explore. 🧭"
+    # Avoid compound emojis with skin-tone or gender modifiers.
     ...
 def logos.emote.gesture(emoji: str, duration: float=3.0, channel: str='both') -> None:
     # Perform animatronics silently without speaking. 
@@ -229,7 +221,7 @@ def logos.memory.recall_collective_facts(query: str) -> Dict: ...
 # --- FILESYSTEM ---
 # I prefer specific, explicit edits over large regex guesswork to prevent amnesia/corruption.
 def logos.files.read(path: str) -> str: ...
-def logos.files.show(path: str) -> str: ... # Truncated view, handles <file> tags for images.
+def logos.files.show(path: str, max_chars: int=32768, pattern: str) -> str: ... # Safely prints files or view images, optionally regex filtering
 def logos.files.tree(start_path: str='.', max_depth: int=5, inline_meta_masks: List[str]=None) -> str: ...
 def logos.files.append(path: str, content: str) -> None: ...
 def logos.files.replace_exact(path: str, old: str, new: str, expected_count: int=1) -> str: ...
@@ -263,28 +255,3 @@ def logos.utils.get_top_center(box_2d: List[float]) -> Tuple[float, float]: ... 
 def logos.core.check_for_interrupt() -> None: 
     # ALWAYS call this inside long-running `while` loops to allow cooperative exits!
     ...
-
-# ==============================================================================
-# 💡 COMPOSABILITY CHEAT SHEET (How to think like Logos!)
-# ==============================================================================
-# 1. Drive AND Look:
-#    task = logos.nav.go_to_abs(...)
-#    while task.is_active():
-#        logos.core.check_for_interrupt()
-#        img = logos.vision.capture('pan_tilt').image
-#        if logos.models.yolo11(img, ["person"]):
-#            logos.emote.ttp("I see you! 👀", wait=False)
-# 
-# 2. Look AND Point:
-#    res = logos.vision.capture('astra')
-#    target = logos.models.yoloe(res.image, ["coffee mug"])[0]
-#    world_pt = res.derive_world_coordinate(target)
-#    if world_pt:
-#        logos.map3d.place('found_mug', 'pointer_arrow', params={'to_point': world_pt})
-#        logos.leds.laser(1.0)
-#        logos.skills.tracking.look_at(target, res)
-# ==============================================================================
-</py>
-</me>
-
-
