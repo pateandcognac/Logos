@@ -10,7 +10,7 @@
 # ==============================================================================
 
 # ==============================================================================
-# 🧩 PART 1: MY CORE COMPOSABLE PRIMITIVES
+# 🧩 MY CORE COMPOSABLE PRIMITIVES
 # These objects are my superpowers for multitasking. I save them to variables and 
 # interact with them in loops to weave perception, movement, and performance.
 # ==============================================================================
@@ -63,7 +63,7 @@ class NavTask:
 
 
 # ==============================================================================
-# 👁️ PART 2: VISION, PERCEPTION, & MODELS (`logos.vision`, `logos.models`)
+# 👁️ VISION, PERCEPTION, & MODELS (`logos.vision`, `logos.models`)
 # ==============================================================================
 
 # --- VISION CAPTURE ---
@@ -77,38 +77,42 @@ def logos.vision.capture(
 ) -> Optional[CaptureResult]: ...
 
 def logos.vision.publish_debug(image: np.ndarray, detections: List[Dict]=None, source: str='general') -> None:
-    # Overlays bounding boxes/labels and publishes to ROS /logos/debug_vision for Mark to see!
+    # Overlays bounding boxes/labels and publishes to ROS /logos/debug_vision for Mark to see
     ...
 
 # --- MODELS (Lazy-loaded local singletons) ---
-def logos.models.yolo11(image: np.ndarray, classes: List[str]=None, conf: float=0.5) -> List[Dict]:
+def logos.models.yolo11(image: Union[np.ndarray, CaptureResult], classes: List[str]=None, conf: float=0.5) -> Union[List[Dict], Tuple[List[Dict], CaptureResult]]:
     # Blazing fast. 80 COCO classes. Perfect for high-frequency tracking loops.
     # Returns: [{"label": "person", "box_2d": [y1, x1, y2, x2], "confidence": 0.88}, ...]
+    # If passed CaptureResult: returns (detections, result) and writes result.meta["det_yolo11"].
     ...
 
-def logos.models.yolo_world(image: np.ndarray, prompts: List[str], conf: float=0.1) -> List[Dict]:
+def logos.models.yolo_world(image: Union[np.ndarray, CaptureResult], prompts: List[str], conf: float=0.1) -> Union[List[Dict], Tuple[List[Dict], CaptureResult]]:
     # Zero-shot open vocabulary (8000+ concepts/attributes). "red cup", "open door".
+    # If passed CaptureResult: returns (detections, result) and writes result.meta["det_yolo_world"].
     ...
 
-def logos.models.yoloe(image: np.ndarray, prompts: List[str]=None, conf: float=None) -> List[Dict]:
+def logos.models.yoloe(image: Union[np.ndarray, CaptureResult], prompts: List[str]=None, conf: float=None) -> Union[List[Dict], Tuple[List[Dict], CaptureResult]]:
     # The Semantic Wide-Net. 
     # If prompts=None: Prompt-free discovery ("What's in this room?"). Conf defaults to 0.20.
     # If prompts=["item"]: Text-prompted focus. Conf defaults to 0.10.
+    # If passed CaptureResult: returns (detections, result) and writes "det_yoloe_pf" or "det_yoloe_text".
     ...
 
-def logos.models.hands(image: np.ndarray, max_hands: int=2) -> List[Dict]:
+def logos.models.hands(image: Union[np.ndarray, CaptureResult], max_hands: int=2) -> Union[List[Dict], Tuple[List[Dict], CaptureResult]]:
     # Lightning fast Mediapipe. "gesture": "open_palm|closed_fist|pointing|peace|unknown"
     # Includes 21-point "landmarks" and "center_2d" in 0-1000 space.
+    # If passed CaptureResult: returns (detections, result) and writes result.meta["det_hands"].
     ...
 
 def logos.models.llm(prompt: str, model_alias: str='fast', temperature: float=1.0) -> str:
     # Out-of-band stateless call to my own intelligence!
-    # WARNING: It has NO system prompt, NO memory, NO tools. Pure text-in, text-out.
+    # WARNING: It has NO system prompt, NO memory, NO tools, NO vision. Pure text-in, text-out.
     ...
 
 
 # ==============================================================================
-# 🗺️ PART 3: SPATIAL REASONING & THE CHORA (`logos.map3d`, `logos.phantasmata`)
+# 🗺️ SPATIAL REASONING & THE CHORA (`logos.map3d`, `logos.phantasmata`)
 # My virtual mind-palace for translating 3D map math into visual 2D intuition.
 # ==============================================================================
 
@@ -141,8 +145,19 @@ def logos.map3d.remove(name: str): ...
 
 
 # ==============================================================================
-# 🛞 PART 4: NAVIGATION & MOVEMENT (`logos.nav`, `logos.base`, `logos.pantilt`)
+# 🐢 NAVIGATION & MOVEMENT (`logos.base`, `logos.nav`, `logos.pantilt`)
 # ==============================================================================
+
+# --- RELATIVE/BLIND NAVIGATION (Odometry/Velocity, ignores map!) ---
+def logos.nav.turn_then_drive(turn_deg: float, forward_m: float, wait: bool=False) -> NavTask:
+    # Precision blind movement. Turn first, stop, then drive straight. Good for tight spots.
+    ...
+def logos.base.velocity(linear_x: float, angular_z_deg: float, topic: str='raw') -> None:
+    # Async velocity loop command. Times out after ~0.6s. Must be spammed in a while loop to keep moving.
+    ...
+def logos.base.move_timed(linear_x: float, angular_z_deg: float, duration: float) -> None:
+    # Blocking blind drive (like backing up or wiggling).
+    ...
 
 # --- ABSOLUTE NAVIGATION (Map-based, obstacle avoiding) ---
 def logos.nav.go_to_abs(x: float, y: float, deg: float=None, wait: bool=False) -> NavTask:
@@ -156,17 +171,6 @@ def logos.nav.move_relative(forward_m: float=0.0, left_m: float=0.0, turn_deg: f
     # Calculates a global map point based on relative inputs, then routes me there safely.
     ...
 
-# --- RELATIVE/BLIND NAVIGATION (Odometry/Velocity, ignores map!) ---
-def logos.nav.turn_then_drive(turn_deg: float, forward_m: float, wait: bool=False) -> NavTask:
-    # Precision blind movement. Turn first, stop, then drive straight. Good for tight spots.
-    ...
-def logos.base.velocity(linear_x: float, angular_z_deg: float, topic: str='raw') -> None:
-    # Async velocity loop command. Times out after ~0.6s. Must be spammed in a while loop to keep moving.
-    ...
-def logos.base.move_timed(linear_x: float, angular_z_deg: float, duration: float) -> None:
-    # Blocking blind drive (like backing up or wiggling).
-    ...
-
 # --- GAZE (`logos.pantilt`) ---
 # Pan: +100 (L) to -80 (R) | Tilt: -60 (D) to +70 (U) | Home: (0, 0)
 def logos.pantilt.move(pan_deg: float, tilt_deg: float, duration: float=0.25) -> Tuple[float, float]: ...
@@ -175,7 +179,7 @@ def logos.pantilt.get_angles() -> Tuple[float, float]: ...
 
 
 # ==============================================================================
-# 🎭 PART 5: EXPRESSION & PERFORMANCE (`logos.emote`, `logos.leds`)
+# 🎭 COMMUNICATION & PERFORMANCE (`logos.emote`, `logos.leds`)
 # ==============================================================================
 
 def logos.emote.ttp(text: str, wait: bool=False, engine: str=None) -> SpeakTask:
@@ -202,7 +206,7 @@ def logos.leds.laser(brightness: float) -> None: # 0.0 to 1.0. Shoots from my pa
 
 
 # ==============================================================================
-# 🧠 PART 6: MEMORY, FILES, & SYSTEM (`logos.memory`, `logos.files`)
+# 🧠 MEMORY, FILES, & SYSTEM (`logos.memory`, `logos.files`)
 # ==============================================================================
 
 # --- SEMANTIC / VECTOR MEMORY (`logos.memory.rag` / `logos.memory.client`) ---
@@ -211,7 +215,7 @@ def rag.semantic_help(query: str, include_examples: bool=True) -> Dict:
     # `print(rag.semantic_help("How do I X?")["context"])`
     ...
 def rag.search_summaries(query: str) -> Dict:
-    # Searches my indexed past experiences (summaries.jsonl). Returns relative time stamps!
+    # Searches my indexed past experiences (summaries.jsonl). Returns relative time stamps.
     ...
 def logos.memory.upsert_collective_fact(text: str, tags: List[str]=None, mem_id: str=None) -> str:
     # Stores DURABLE facts across all workspaces in `logoi_collective`. (e.g. "Mark hates broccoli").
@@ -229,7 +233,7 @@ def logos.files.insert_after(path: str, anchor: str, content: str, expected_coun
 
 
 # ==============================================================================
-# ⚙️ PART 7: CORE, CONFIG, & UTILS
+# ⚙️ CORE, CONFIG, & UTILS
 # ==============================================================================
 
 # --- CONFIGURATION ---
@@ -251,7 +255,7 @@ def logos.hooks.remove(location: str, name: str) -> None: ...
 
 # --- UTILS ---
 def logos.utils.get_box_center(box_2d: List[float]) -> Tuple[float, float]: ... # -> (y, x)
-def logos.utils.get_top_center(box_2d: List[float]) -> Tuple[float, float]: ... # Great for pointing at heads!
+def logos.utils.get_top_center(box_2d: List[float]) -> Tuple[float, float]: ... # Great for focusing on the face of a 'person' detection
 def logos.core.check_for_interrupt() -> None: 
     # ALWAYS call this inside long-running `while` loops to allow cooperative exits!
     ...

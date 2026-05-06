@@ -47,3 +47,17 @@ vision_hook:
     enabled: false
     resolution: [480, 640]
     meta_keys: []
+rag_hook:
+  enabled: true
+  auto_search:
+    enabled: true
+    lookback_cells: 2
+    include_api: true
+    include_examples: true
+    include_summaries: false
+    include_facts: true
+    max_results: 3
+  explicit_queries:
+    api_examples: []    # Logos appends strings here: ["how to use map3d", "crop image"]
+    summaries: []       # ["past experiences with the couch"]
+    facts: []           # ["Mark's favorite color"]

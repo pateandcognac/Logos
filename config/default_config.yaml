@@ -87,3 +87,10 @@ ambient_transcript:
 #    humor: 0.8
 #    other_quality: 0.4
 #    ... 
+
+rag_hook:
+  lookback_cells: 2
+  api_results: 3
+  example_results: 1
+  summary_results: 0
+  fact_results: 8

@@ -21,7 +21,7 @@
 		"temperature": 1.0,
 		"thinking_config": {
 			"include_thoughts": true,
-			"thinking_budget": -1
+			"thinking_budget": 384
 		},
 		"retry_config": {
 			"max_retries": 8,

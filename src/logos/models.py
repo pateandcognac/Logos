@@ -249,6 +249,51 @@ def _get_yoloe_model(prompt_free: bool):
         print(f"models: Failed to load YOLOE {mode} model: {e}")
         return None
 
+def _coerce_image_input(image_or_result: Any) -> Tuple[np.ndarray, Optional[Any]]:
+    """
+    Return the ndarray from either a raw image or a CaptureResult-shaped object.
+
+    I use a duck-typed check here instead of importing CaptureResult so this
+    module stays lightweight and avoids tightening cross-module coupling.
+    """
+    if isinstance(image_or_result, np.ndarray):
+        return image_or_result, None
+
+    capture_image = getattr(image_or_result, "image", None)
+    if isinstance(capture_image, np.ndarray):
+        return capture_image, image_or_result
+
+    raise TypeError(
+        "models: expected a BGR np.ndarray or a CaptureResult-shaped object "
+        "with an .image np.ndarray."
+    )
+
+
+def _with_capture_metadata(
+    capture_result: Optional[Any],
+    meta_key: str,
+    detections: List[Dict[str, Any]],
+) -> Union[List[Dict[str, Any]], Tuple[List[Dict[str, Any]], Any]]:
+    """
+    Attach detections to a CaptureResult-shaped input and preserve old ndarray behavior.
+
+    Returns:
+        If the input was raw image data, just the detection list.
+        If the input was a CaptureResult, `(detections, capture_result)`.
+    """
+    if capture_result is None:
+        return detections
+
+    if hasattr(capture_result, "add_meta"):
+        capture_result.add_meta(**{meta_key: detections})
+    else:
+        meta = getattr(capture_result, "meta", None)
+        if isinstance(meta, dict):
+            meta[meta_key] = detections
+
+    return detections, capture_result
+
+
 def _normalize_yolo_boxes(
     result_boxes: Any,
     model_names: Union[Dict[int, str], List[str], Tuple[str, ...]],
@@ -293,20 +338,28 @@ def _normalize_yolo_boxes(
     return formatted_results
 
 
-def yolo11(image: np.ndarray, classes: Union[List[str], None] = None, conf: float = 0.5, imgsz: int = 320) -> List[Dict[str, Any]]:
+def yolo11(
+    image: Any,
+    classes: Union[List[str], None] = None,
+    conf: float = 0.5,
+    imgsz: int = 320,
+) -> Union[List[Dict[str, Any]], Tuple[List[Dict[str, Any]], Any]]:
     """
         Run inference using the blazing fast YOLO11 Nano model.
         Uses the standard 80 COCO classes (person, chair, cup, dog, etc).
 
         Args:
-            image: A BGR uint8 numpy array (like from logos.vision.capture().image).
+            image: A BGR uint8 numpy array or a CaptureResult from logos.vision.capture().
             classes: Optional list of specific class names to filter by (e.g., ["person"]).
                     If None, returns all detected classes.
             conf: Minimum confidence threshold (0.0 to 1.0).
 
         Returns:
-            A list of detection dictionaries natively formatted for my context window:
+            If image is an ndarray, a list of detection dictionaries:
             [{"label": "person", "box_2d": [y1, x1, y2, x2], "confidence": 0.88, "source": "yolo11"}]
+
+            If image is a CaptureResult, returns `(detections, capture_result)`
+            and annotates `capture_result.meta["det_yolo11"]`.
 
         Note to self:
             The fastest, yet dumbest, . Use this 
@@ -320,21 +373,22 @@ def yolo11(image: np.ndarray, classes: Union[List[str], None] = None, conf: floa
                 if people:
                     # look_at handles the bounding box math and latency compensation automatically!
                     logos.skills.tracking.look_at(people[0], capture_result=scene)
-        """
+    """
     global _yolo11_model
+    image_array, capture_result = _coerce_image_input(image)
     
     try:
         from ultralytics import YOLO
     except ImportError:
         print("models: ultralytics package not installed. Cannot run YOLO11.")
-        return []
+        return _with_capture_metadata(capture_result, "det_yolo11", [])
 
     # Lazy-load singleton
     if _yolo11_model is None:
         # yolo11n.pt will automatically download to current dir if not present
         _yolo11_model = YOLO("yolo11n.pt") 
 
-    img_h, img_w = image.shape[:2]
+    img_h, img_w = image_array.shape[:2]
     
     # Map requested string classes to integer IDs for filtering
     class_ids = None
@@ -347,35 +401,38 @@ def yolo11(image: np.ndarray, classes: Union[List[str], None] = None, conf: floa
                     class_ids.append(k)
 
     # Run inference (verbose=False keeps stdout clean)
-    results = _yolo11_model.predict(source=image, conf=conf, classes=class_ids, verbose=False, imgsz=imgsz)
+    results = _yolo11_model.predict(source=image_array, conf=conf, classes=class_ids, verbose=False, imgsz=imgsz)
     
-    return _normalize_yolo_boxes(
+    detections = _normalize_yolo_boxes(
         result_boxes=results[0].boxes, 
         model_names=_yolo11_model.names, 
         img_h=img_h, 
         img_w=img_w, 
         source_name="yolo11"
     )
+    return _with_capture_metadata(capture_result, "det_yolo11", detections)
 
 
 def yolo_world(
-    image: np.ndarray,
+    image: Any,
     prompts: List[str],
     conf: float = 0.1,
     imgsz: int = 640
-) -> List[Dict[str, Any]]:
+) -> Union[List[Dict[str, Any]], Tuple[List[Dict[str, Any]], Any]]:
     """
     Run inference using the YOLO-World open-vocabulary-ish model. Familiar with about 8000 common objects, concepts, attributes.
 
     Args:
-        image: A BGR uint8 numpy array.
+        image: A BGR uint8 numpy array or a CaptureResult from logos.vision.capture().
         prompts: A list of descriptive strings to search for.
                  (e.g., ["grey backpack", "person wearing red shirt", "coffee mug"]).
         conf: Minimum confidence threshold. Keep this lower (0.05-0.1) for
               novel prompts, as zero-shot confidence is generally lower.
 
     Returns:
-        A list of detection dictionaries natively formatted for my context window.
+        If image is an ndarray, a list of detection dictionaries.
+        If image is a CaptureResult, returns `(detections, capture_result)`
+        and annotates `capture_result.meta["det_yolo_world"]`.
 
     Note to self:
         This model is absolute magic for searching, but slower than yolo11.
@@ -389,23 +446,24 @@ def yolo_world(
                 logos.emote.ttp("I found the blue block! 🟦")
     """
     global _yolo_world_model, _yolo_world_prompt_key
+    image_array, capture_result = _coerce_image_input(image)
 
     try:
         from ultralytics import YOLO
     except ImportError:
         print("models: ultralytics package not installed. Cannot run YOLO-World.")
-        return []
+        return _with_capture_metadata(capture_result, "det_yolo_world", [])
 
     prompt_values = _normalize_prompt_list(prompts)
     if not prompt_values:
         print("models: yolo_world() requires at least one non-empty prompt.")
-        return []
+        return _with_capture_metadata(capture_result, "det_yolo_world", [])
 
     # Lazy-load singleton
     if _yolo_world_model is None:
         _yolo_world_model = YOLO("yolov8s-world.pt")
 
-    img_h, img_w = image.shape[:2]
+    img_h, img_w = image_array.shape[:2]
 
     # Only re-encode prompts if they changed
     prompt_key = tuple(p.lower() for p in prompt_values)
@@ -414,29 +472,30 @@ def yolo_world(
         _yolo_world_prompt_key = prompt_key
 
     results = _yolo_world_model.predict(
-        source=image,
+        source=image_array,
         conf=conf,
         verbose=False,
         imgsz=imgsz,
     )
 
     if not results:
-        return []
+        return _with_capture_metadata(capture_result, "det_yolo_world", [])
 
-    return _normalize_yolo_boxes(
+    detections = _normalize_yolo_boxes(
         result_boxes=results[0].boxes,
         model_names=_yolo_world_model.names,
         img_h=img_h,
         img_w=img_w,
         source_name="yolo_world",
     )
+    return _with_capture_metadata(capture_result, "det_yolo_world", detections)
 
 def yoloe(
-    image: np.ndarray,
+    image: Any,
     prompts: Optional[List[str]] = None,
     conf: Optional[float] = None,
     imgsz: int = 640,
-) -> List[Dict[str, Any]]:
+) -> Union[List[Dict[str, Any]], Tuple[List[Dict[str, Any]], Any]]:
     """
     Run inference using YOLOE, my broad open-vocabulary detector. Can be prompted like yolo-world, or used in a prompt-free mode that returns detections from a huge built-in vocabulary.
 
@@ -452,7 +511,7 @@ def yoloe(
        search specifically for those concepts.
 
     Args:
-        image: A BGR uint8 numpy array (like from logos.vision.capture().image).
+        image: A BGR uint8 numpy array or a CaptureResult from logos.vision.capture().
         prompts: Optional list of target class strings.
                  - None or [] -> prompt-free mode
                  - non-empty list -> text-prompted mode
@@ -463,7 +522,7 @@ def yoloe(
         imgsz: Inference image size. 640 is a good default.
 
     Returns:
-        A list of detection dictionaries natively formatted for my context window:
+        If image is an ndarray, a list of detection dictionaries:
         [
             {
                 "label": "coffee mug",
@@ -472,6 +531,10 @@ def yoloe(
                 "source": "yoloe_pf|yoloe_text"
             }
         ]
+
+        If image is a CaptureResult, returns `(detections, capture_result)`
+        and annotates `capture_result.meta["det_yoloe_pf"]` or
+        `capture_result.meta["det_yoloe_text"]`.
 
     Note to self:
         This is my semantic wide-net.
@@ -507,16 +570,19 @@ def yoloe(
                 logos.vision.publish_debug(scene.image, mugs, source="yoloe")
     """
     global _yoloe_text_prompt_key
+    image_array, capture_result = _coerce_image_input(image)
 
     prompt_values = _normalize_prompt_list(prompts)
     prompt_free = len(prompt_values) == 0
+    source_name = "yoloe_pf" if prompt_free else "yoloe_text"
+    meta_key = "det_" + source_name
 
     if conf is None:
         conf = 0.20 if prompt_free else 0.10
 
     model = _get_yoloe_model(prompt_free=prompt_free)
     if model is None:
-        return []
+        return _with_capture_metadata(capture_result, meta_key, [])
 
     if not prompt_free:
         prompt_key = tuple(p.lower() for p in prompt_values)
@@ -526,13 +592,13 @@ def yoloe(
                 _yoloe_text_prompt_key = prompt_key
             except Exception as e:
                 print(f"models: Failed to set YOLOE text prompts: {e}")
-                return []
+                return _with_capture_metadata(capture_result, meta_key, [])
 
-    img_h, img_w = image.shape[:2]
+    img_h, img_w = image_array.shape[:2]
 
     try:
         results = model.predict(
-            source=image,
+            source=image_array,
             conf=float(conf),
             verbose=False,
             imgsz=imgsz,
@@ -540,18 +606,19 @@ def yoloe(
     except Exception as e:
         mode = "prompt-free" if prompt_free else "text-prompted"
         print(f"models: YOLOE {mode} inference failed: {e}")
-        return []
+        return _with_capture_metadata(capture_result, meta_key, [])
 
     if not results:
-        return []
+        return _with_capture_metadata(capture_result, meta_key, [])
 
-    return _normalize_yolo_boxes(
+    detections = _normalize_yolo_boxes(
         result_boxes=results[0].boxes,
         model_names=model.names,
         img_h=img_h,
         img_w=img_w,
-        source_name="yoloe_pf" if prompt_free else "yoloe_text",
+        source_name=source_name,
     )
+    return _with_capture_metadata(capture_result, meta_key, detections)
 
 # ─── MediaPipe Hands ──────────────────────────────────────────────────
 
@@ -585,16 +652,19 @@ def _recognize_gesture(landmarks: List[List[int]]) -> str:
         
     return "unknown"
 
-def hands(image: np.ndarray, max_hands: int = 2) -> List[Dict[str, Any]]:
+def hands(
+    image: Any,
+    max_hands: int = 2,
+) -> Union[List[Dict[str, Any]], Tuple[List[Dict[str, Any]], Any]]:
     """
     Detect hands and interpret basic gestures using MediaPipe.
     
     Args:
-        image: A BGR uint8 numpy array.
+        image: A BGR uint8 numpy array or a CaptureResult from logos.vision.capture().
         max_hands: Maximum number of hands to track.
 
     Returns:
-        A list of natively formatted detection dictionaries:
+        If image is an ndarray, a list of natively formatted detection dictionaries:
         [
             {
                 "handedness": "Right", 
@@ -606,18 +676,22 @@ def hands(image: np.ndarray, max_hands: int = 2) -> List[Dict[str, Any]]:
             }
         ]
 
+        If image is a CaptureResult, returns `(detections, capture_result)`
+        and annotates `capture_result.meta["det_hands"]`.
+
     Note to self:
         This model is extremely fast. Use it to read human intent!
         Gestures recognized: 'open_palm', 'closed_fist', 'pointing', 'peace', 'unknown'.
         [y, x] coordinates are normalized 0-1000 for compatibility with existing tools.
     """
     global _mp_hands_model
+    image_array, capture_result = _coerce_image_input(image)
     
     try:
         import mediapipe as mp
     except ImportError:
         print("models: mediapipe package not installed. Cannot run hand tracking.")
-        return []
+        return _with_capture_metadata(capture_result, "det_hands", [])
 
     # Lazy-load singleton
     if _mp_hands_model is None:
@@ -630,14 +704,14 @@ def hands(image: np.ndarray, max_hands: int = 2) -> List[Dict[str, Any]]:
         )
 
     # MediaPipe expects RGB
-    rgb_image = image[:, :, ::-1] # Faster than cv2.cvtColor
-    img_h, img_w = image.shape[:2]
+    rgb_image = image_array[:, :, ::-1] # Faster than cv2.cvtColor
+    img_h, img_w = image_array.shape[:2]
     
     results = _mp_hands_model.process(rgb_image)
     
     formatted_results = []
     if not results.multi_hand_landmarks:
-        return formatted_results
+        return _with_capture_metadata(capture_result, "det_hands", formatted_results)
 
     for hand_landmarks, handedness in zip(results.multi_hand_landmarks, results.multi_handedness):
         # Convert normalized 0.0-1.0 floats to Logos 0-1000 [y, x] integers
@@ -675,4 +749,4 @@ def hands(image: np.ndarray, max_hands: int = 2) -> List[Dict[str, Any]]:
             "landmarks": landmarks_0_1000
         })
 
-    return formatted_results
+    return _with_capture_metadata(capture_result, "det_hands", formatted_results)

@@ -8,20 +8,6 @@
       print("\n---\nEphemera:")
       print(logos.hooks.show('ephemera'))
 
-  - name: api_ref
-    description: My core API reference (signatures and one-liners) from `logos.api_help()`.
-    enabled: true
-    code: |
-      print("--- API Reference ---")
-      logos.api_help(print_output=True)
-
-  - name: skills_ref
-    description: My self-created skills reference (signatures and one-liners) from `skills.skills_help()`.
-    enabled: true
-    code: |
-      print("--- Skills Reference ---")
-      skills.skills_help()
-
   - name: my_workspace
     description: Shows the CWD and output of `logos.files.tree(**logos.config.merged.tree)`.
     enabled: true
@@ -30,6 +16,13 @@
       print("--- My Workspace ---")
       print(f"CWD: {Path.cwd()}")
       print(logos.files.tree(**logos.config.merged.tree))
+
+  - name: skills_ref
+    description: My self-created skills reference (signatures and one-liners) from `skills.skills_help()`.
+    enabled: true
+    code: |
+      print("--- Skills Reference ---")
+      skills.skills_help()
 
   - name: proximity_snapshot
     description: 360-degree-ish visual sweep of the floor around me, captured 

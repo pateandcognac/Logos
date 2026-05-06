@@ -4,6 +4,8 @@ import time
 import os
 from typing import Dict, Any, List, Optional
 import logos
+import hook_routines.memory_manager as mm
+
 
 def _format_time_delta(seconds: float) -> str:
     """Converts a duration in seconds to a human-readable string (e.g., '1m 15s')."""
@@ -116,3 +118,7 @@ def run():
     state['last_pose'] = pose
     state['last_batt'] = batt
     state['last_mem_mb'] = current_mem_mb
+
+    # Fire off memory policy check
+    print("\nChecking palimpsest against memory_manager policy...")
+    mm.run_policy_check()

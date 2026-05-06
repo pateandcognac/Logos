@@ -42,15 +42,15 @@ from logos.files import FileEditError
 # ===================================================================
 # HARDWARE & SUBSYSTEM INITIALIZATION
 # ===================================================================
+
+# Vector Memory: Scope Chroma sidecar client to this specific workspace to
+# isolate API and few-shot examples. A shared cross-workspace memory is available.
+logos.memory.configure(workspace=Path.cwd().name, server_url="http://127.0.0.1:8123")
+
 with verbosity(Verbosity.SILENT):
-    # Vector Memory: Scope Chroma sidecar client to this specific workspace to
-    # isolate API and few-shot examples. A shared cross-workspace memory is available.
-    logos.memory.configure(workspace=Path.cwd().name, server_url="http://127.0.0.1:8123")
-    
     # Hardware wake-up
     logos.leds.fill('green')
     logos.pantilt.home()
-
 
 # Print my Quick-Start
 print("\n--- API Quick-Start ---")
