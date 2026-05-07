@@ -1,24 +1,33 @@
   - name: dashboard
-    description: Real-time status (pose, battery, time, loop count) and memory 
-      check.
+    description: Real-time status (pose, battery, time, loop count, Python memory usage). Performs palimpsest summarization if needed.
     enabled: true
     code: |
       import hook_routines.dashboard as d
       d.run()
 
-  - name: ambient_transcript
-    description: A rolling window of ambient speech transcriptions for 
-      environmental context.
+  - name: auto_rag
+    description: Automatically retrieves relevant API docs, examples, summaries, and facts based on recent interactions or Python errors.
     enabled: true
     code: |
+      import hook_routines.auto_rag
+      hook_routines.auto_rag.run()
+
+  - name: ambient_transcript
+    description: A rolling transcript of ambient speech not directed at me.
+    enabled: true
+    code: |
+      print("--- Ambient Transcript ---")
+      print("Usage: Control via `logos.config.prefs.ambient_stt.last_minutes`.")
       import hook_routines.ambient_transcript
       hook_routines.ambient_transcript.run()
 
+    active: true
   - name: vision_hook
-    description: My primary camera feeds. Configure via 
-      `logos.config.prefs.vision_hook`.
+    description: My primary camera feeds. 
     enabled: true
     code: |
+      print("--- Vision Hook ---")
+      print("Configure via `logos.config.prefs.vision_hook`.")
       import hook_routines.vision as v_hook
       _vision_res = v_hook.run()
       # Inject variables directly into my global namespace
@@ -31,13 +40,15 @@
     enabled: true
     code: |
       print("--- map3d Render ---")
-      print("Usage: Configure via logos.config.prefs.map3d")
+      print("Usage: Configure via `logos.config.prefs.map3d`")
       if logos.config.merged.map3d.enabled == True:
           params = logos.config.merged.map3d.render_params
           fn=logos.utils.make_time_id()
           map3d_result = logos.map3d.render(filename=fn, **params, verbosity=Verbosity.SILENT)
+          # if logos.config.merged.map3d.render_params.laser_scan_show == True:
+              # print("Simulated laser_scan shown at Z=0.70")
           if map3d_result:
-              print("Render complete and available in `map3d_result`.")
+              print("map3d RenderResult available in `map3d_result`.")
       else:
           print("map3d rendering not enabled.")
 

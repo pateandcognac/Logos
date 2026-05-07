@@ -88,9 +88,10 @@ ambient_transcript:
 #    other_quality: 0.4
 #    ... 
 
-rag_hook:
+auto_rag_hook:
   lookback_cells: 2
-  api_results: 3
-  example_results: 1
-  summary_results: 0
-  fact_results: 8
+  n_results:  
+    api_refs: 3
+    examples: 1
+    summaries: 0
+    facts: 5

@@ -17,6 +17,13 @@
       print(f"CWD: {Path.cwd()}")
       print(logos.files.tree(**logos.config.merged.tree))
 
+  - name: quick_start_ref
+    description: A curated quick start guide to my API.
+    enabled: true
+    code: |
+      print("--- API Quick Start ---")
+      logos.files.show(".system/quick_start.md")
+
   - name: skills_ref
     description: My self-created skills reference (signatures and one-liners) from `skills.skills_help()`.
     enabled: true
@@ -26,7 +33,7 @@
 
   - name: proximity_snapshot
     description: 360-degree-ish visual sweep of the floor around me, captured 
-      from top_down and pan_tilt, and stitched into a single image. Updates are gated by pose and time to reduce 
+      from top_down and pan_tilt, and stitched into a quad image. Updates are gated by pose and time to reduce 
       latency and maintain KV cache.
     enabled: true
     code: |

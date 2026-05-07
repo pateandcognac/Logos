@@ -5,15 +5,15 @@
       import hook_routines.dashboard as d
       d.run()
 
-  - name: rag_context
-    description: Automatically surfaces relevant API docs, examples, and memories based on recent input. Modify behavior with `logos.config.prefs.rag_hook`
+  - name: auto_rag
+    description: Subconscious retrieval of APIs, examples, and facts based on my recent immediate context.
     enabled: true
     code: |
-        import hook_routines.rag_context as rc
-        rc.run()
+      import hook_routines.auto_rag
+      hook_routines.auto_rag.run()
 
   - name: ambient_transcript
-    description: A rolling transcript of ambient speech not directed at me.
+    description: A rolling transcript of ambient speech.
     enabled: true
     code: |
       print("--- Ambient Transcript ---")

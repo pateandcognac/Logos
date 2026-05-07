@@ -29,6 +29,7 @@ import hook_routines.dashboard
 import hook_routines.memory_manager
 import hook_routines.proximity_snapshot
 import hook_routines.ambient_transcript
+import hook_routines.auto_rag
 
 # --- Direct API Types & Exceptions (for type-checking & convenience) ---
 from logos.core import Verbosity, verbosity, check_for_interrupt
@@ -52,16 +53,12 @@ with verbosity(Verbosity.SILENT):
     logos.leds.fill('green')
     logos.pantilt.home()
 
-# Print my Quick-Start
-print("\n--- API Quick-Start ---")
-logos.files.show('.system/quick_start.md')
-
 # Self-document into the initialization stdout so I know what just happened
 print("\n--- Environment Preloaded ---")
 logos.files.show('.system/py_env_preload.py')
 
 # Print my merged config (my preferences
-print("\n--- My Merged Config at Startup---")
+print("\n--- My Merged Config at Startup ---")
 print(logos.utils.dump_yaml(logos.config.merged))
 
 loop_cognition = False

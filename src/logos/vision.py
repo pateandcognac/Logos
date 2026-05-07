@@ -1448,11 +1448,179 @@ def _get_debug_pub(source: str):
         _debug_pubs[source] = rospy.Publisher(topic, ROSImage, queue_size=2, latch=True)
     return _debug_pubs.get(source)
 
+
+_DEBUG_BOX_COLORS: Tuple[Tuple[int, int, int], ...] = (
+    (0, 255, 255),    # yellow
+    (255, 0, 255),    # magenta
+    (255, 255, 0),    # cyan
+    (0, 165, 255),    # orange
+    (255, 128, 0),    # blue-cyan
+    (128, 0, 255),    # violet
+    (0, 255, 0),      # green
+    (255, 0, 0),      # blue
+)
+
+
+def _is_detection_dict(value: Any) -> bool:
+    """Return True if a dict looks like one of my visual detection records."""
+    return isinstance(value, dict) and (
+        "box_2d" in value
+        or "bbox" in value
+        or "bounding_box" in value
+        or "center_2d" in value
+        or "landmarks" in value
+    )
+
+
+def _coerce_detection_list(value: Any) -> List[Dict[str, Any]]:
+    """
+    Normalize several detection container shapes into a flat list of dicts.
+
+    This accepts the normal model output list, a single detection dict, the
+    `(detections, CaptureResult)` tuple returned by models when passed a
+    CaptureResult, and nested metadata forms like `{"detections": [...]}`.
+    """
+    if value is None:
+        return []
+
+    if _is_detection_dict(value):
+        return [value]
+
+    if isinstance(value, tuple):
+        if len(value) == 2 and isinstance(value[0], (list, tuple, dict)):
+            return _coerce_detection_list(value[0])
+        value = list(value)
+
+    if isinstance(value, list):
+        detections: List[Dict[str, Any]] = []
+        for item in value:
+            if _is_detection_dict(item):
+                detections.append(item)
+            elif isinstance(item, (list, tuple, dict)):
+                detections.extend(_coerce_detection_list(item))
+        return detections
+
+    if isinstance(value, dict):
+        for key in (
+            "detections",
+            "detection_results",
+            "results",
+            "objects",
+            "items",
+            "hands",
+            "boxes",
+        ):
+            if key in value:
+                detections = _coerce_detection_list(value[key])
+                if detections:
+                    return detections
+
+        detections = []
+        for item in value.values():
+            detections.extend(_coerce_detection_list(item))
+        if detections:
+            return detections
+
+    return []
+
+
+def _source_from_meta_key(key: str) -> Optional[str]:
+    """Infer a readable debug source from a metadata key."""
+    lowered = key.lower()
+    for prefix in ("det_", "detections_", "detection_", "vision_"):
+        if lowered.startswith(prefix) and len(lowered) > len(prefix):
+            return lowered[len(prefix):]
+    if lowered in ("detections", "detection_results"):
+        return "detections"
+    return None
+
+
+def _source_from_detections(detections: List[Dict[str, Any]]) -> Optional[str]:
+    """Infer a source name when detections carry a consistent source field."""
+    sources = []
+    for det in detections:
+        source = det.get("source")
+        if source:
+            sources.append(str(source))
+
+    unique_sources = sorted(set(sources))
+    if len(unique_sources) == 1:
+        return unique_sources[0]
+    if len(unique_sources) > 1:
+        return "mixed"
+    return None
+
+
+def _find_meta_detections(meta: Dict[str, Any]) -> Tuple[List[Dict[str, Any]], Optional[str]]:
+    """
+    Find detection-shaped metadata even when the key names vary.
+
+    I prefer explicit detection-ish keys, but I also inspect nested dict values
+    so older or ad-hoc metadata can still be visualized.
+    """
+    if not isinstance(meta, dict):
+        return [], None
+
+    detections: List[Dict[str, Any]] = []
+    matched_sources: List[str] = []
+    detection_tokens = ("det", "detect", "yolo", "hand", "object", "box", "vision")
+
+    for key, value in meta.items():
+        key_text = str(key)
+        lowered = key_text.lower()
+        key_looks_relevant = (
+            lowered in ("detections", "detection_results", "objects", "boxes", "hands")
+            or any(token in lowered for token in detection_tokens)
+        )
+
+        found = _coerce_detection_list(value)
+        if found and key_looks_relevant:
+            detections.extend(found)
+            inferred = _source_from_meta_key(key_text)
+            if inferred:
+                matched_sources.append(inferred)
+
+    if not detections:
+        return [], None
+
+    source = None
+    unique_meta_sources = sorted(set(matched_sources))
+    if len(unique_meta_sources) == 1:
+        source = unique_meta_sources[0]
+    elif len(unique_meta_sources) > 1:
+        source = "mixed"
+
+    return detections, source or _source_from_detections(detections)
+
+
+def _sanitize_debug_source(source: Optional[str]) -> str:
+    """Keep debug source names ROS-topic friendly."""
+    if not source:
+        return "general"
+
+    cleaned = []
+    for char in str(source).strip():
+        if char.isalnum() or char in ("_", "-"):
+            cleaned.append(char)
+        elif char.isspace() or char in ("/", ".", ":"):
+            cleaned.append("_")
+
+    text = "".join(cleaned).strip("_")
+    return text or "general"
+
+
+def _debug_meta_key(source: str, detections: List[Dict[str, Any]]) -> str:
+    """Choose where explicit debug detections should live on a CaptureResult."""
+    det_source = _source_from_detections(detections)
+    base = det_source or source or "debug"
+    return "det_" + _sanitize_debug_source(base)
+
+
 @api_call(default_verbosity=Verbosity.SILENT)
 def publish_debug(
-    image: np.ndarray, 
-    detections: Optional[List[Dict[str, Any]]] = None,
-    source: str = "general"
+    image: Union[np.ndarray, CaptureResult],
+    detections: Optional[Union[List[Dict[str, Any]], Dict[str, Any], Tuple[Any, ...]]] = None,
+    source: Optional[str] = None,
 ) -> None:
     """
     Annotate an image with detection boxes and labels, then publish to ROS.
@@ -1460,39 +1628,48 @@ def publish_debug(
     Topic: /logos/debug_vision/{source}
 
     Args:
-        image: The base BGR image (numpy array).
-        detections: Optional list of Logos-format detection dicts:
-                    [{"label": "...", "box_2d": [y1, x1, y2, x2], "source": "..."}]
-        source: A string used to name the ROS topic.
+        image: The base BGR image, or a CaptureResult with `.image` and `.meta`.
+        detections: Optional Logos-format detection data. Can be a list, a single
+            detection dict, a nested dict containing detections, or the
+            `(detections, CaptureResult)` tuple returned by logos.models.
+        source: Optional string used to name the ROS topic. If omitted for a
+            CaptureResult, I will infer it from detection metadata when possible.
 
     Note to self:
         This is how I show Mark what I'm seeing and thinking! I should call this 
         whenever I run YOLO or make my own spatial detections so Mark can see 
         my "internal HUD" in RViz.
     """
-    if not _HAS_ROS: return
+    capture_result = image if isinstance(image, CaptureResult) else None
+    base_image = capture_result.image if capture_result is not None else image
+    normalized_detections = _coerce_detection_list(detections)
+    inferred_source = None
+
+    if capture_result is not None:
+        if normalized_detections:
+            meta_key = _debug_meta_key(source or "debug", normalized_detections)
+            capture_result.add_meta(**{meta_key: normalized_detections})
+        else:
+            normalized_detections, inferred_source = _find_meta_detections(capture_result.meta)
+
+    if inferred_source is None:
+        inferred_source = _source_from_detections(normalized_detections)
+
+    debug_source = _sanitize_debug_source(source or inferred_source or "general")
+
+    if not _HAS_ROS:
+        return
     
     bridge = _get_bridge()
-    pub = _get_debug_pub(source)
+    pub = _get_debug_pub(debug_source)
     if not bridge or not pub: return
 
     # Work on a copy so we don't modify the original image object
-    canvas = image.copy()
+    canvas = base_image.copy()
     h, w = canvas.shape[:2]
 
-    # Color palette for different detection sources
-    colors = {
-        "yolo11": (0, 255, 0),         # Green
-        "yolo_world": (255, 255, 0),   # Cyan
-        "yoloe": (255, 0, 0),          # Blue
-        "yoloe_pf": (255, 0, 0),       # Blue
-        "yoloe_text": (255, 0, 255),   # Magenta
-        "vlam": (255, 0, 255),         # Magenta
-        "default": (0, 165, 255),      # Orange
-    }
-
-    if detections:
-        for det in detections:
+    if normalized_detections:
+        for i, det in enumerate(normalized_detections):
             box = det.get("box_2d")
             if not box or len(box) != 4: continue
             
@@ -1502,15 +1679,13 @@ def publish_debug(
                 int(box[2] * h / 1000), int(box[3] * w / 1000)
             ]
 
-            # Determine color
-            det_source = det.get("source", "default")
-            color = colors.get(det_source, colors["default"])
+            color = _DEBUG_BOX_COLORS[i % len(_DEBUG_BOX_COLORS)]
 
             # Draw Box
             cv2.rectangle(canvas, (x1, y1), (x2, y2), color, 2)
 
             # Draw Label & Confidence
-            label = det.get("label", "unknown")
+            label = det.get("label") or det.get("gesture") or det.get("handedness") or "unknown"
             conf = det.get("confidence")
             text = f"{label} {conf}" if conf else label
             
