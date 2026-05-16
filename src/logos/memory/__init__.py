@@ -1,7 +1,7 @@
 # src/logos/memory/__init__.py
 
 """
-My long-term memory subsystem — working buffer, vector store, and personal facts.
+My long-term memory subsystem — working buffer, vector store.
 
 I have three layers:
 
@@ -12,10 +12,10 @@ I have three layers:
    my local Python 3.11 sidecar. I use these to store and retrieve knowledge across
    sessions without relying on my context window size.
 
-**3. Reference indexes, RAG, and personal facts** — generated indexes over my logos API,
+**3. Reference indexes, RAG, and personal memory** — generated indexes over my logos API,
    curated example files, and my synopsis history; plus a shared cross-workspace store
    for durable personal knowledge. I use these to look up my own API, search past
-   experiences, and remember facts that survive workspace and API changes.
+   experiences, and remember facts and memories that survive workspace and API changes.
 
 Because my main runtime is Python 3.8, the vector client is a thin HTTP compatibility
 layer that forwards requests to the Logos Chroma sidecar (`~/src/logos_chroma_server`),
@@ -24,8 +24,9 @@ which owns the Chroma SDK and Ollama embedding calls.
 Typical usage:
 
     # --- Setup ---
-    memory.configure(workspace="Logos", server_url="http://127.0.0.1:8123")
-
+    # This is typically run by the py_env_preload.py script at boot up.
+    memory.configure(workspace="current working dir", server_url="http://127.0.0.1:8123")
+    
     # --- Semantic self-help ---
     result = memory.rag.semantic_help("How do I navigate to an absolute map position?")
     print(result["context"])
@@ -36,8 +37,8 @@ Typical usage:
 
     # --- Personal facts (shared across workspaces) ---
     memory.upsert_collective_fact(
-        "Mark doesn't like broccoli",
-        tags=["mark", "food"],
+        "Mark loves broccoli",
+        tags=["mark", "food", "broccoli"],
         mem_id="mark-food-broccoli",
     )
     facts = memory.recall_collective_facts("what does Mark like to eat?")

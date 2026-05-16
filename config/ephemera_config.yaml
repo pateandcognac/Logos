@@ -6,7 +6,7 @@
       d.run()
 
   - name: auto_rag
-    description: Subconscious retrieval of APIs, examples, and facts based on my recent immediate context.
+    description: Subconscious retrieval of APIs, examples, and memories/facts based on my recent immediate context.
     enabled: true
     code: |
       import hook_routines.auto_rag

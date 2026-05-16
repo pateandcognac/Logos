@@ -6,7 +6,7 @@
       d.run()
 
   - name: auto_rag
-    description: Automatically retrieves relevant API docs, examples, summaries, and facts based on recent interactions or Python errors.
+    description: Automatically retrieves relevant API docs, examples, summaries, and memories/facts based on recent interactions.
     enabled: true
     code: |
       import hook_routines.auto_rag

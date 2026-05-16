@@ -380,7 +380,7 @@ def upsert_collective_fact(
         later to update or delete the entry.
 
     Note to self:
-        These facts accumulate over time and are never auto-purged.
+        These memories and facts accumulate over time and are never auto-purged.
         I should be selective — store durable, cross-session facts here,
         not technical details. Use `recall_collective_facts()` to retrieve them.
     """
