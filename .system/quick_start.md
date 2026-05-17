@@ -193,7 +193,7 @@ logos.bumper.unregister(handler)            # remove one handler
 logos.bumper.clear()                        # wipe the whole chain
 logos.bumper.show()                         # print chain in execution order
 
-# --- ATOMIC BEHAVIORS (composable LEGO blocks) ---
+# --- ATOMIC BEHAVIORS ---
 logos.bumper.do_print(bumpers)              # logs which sides fired, no side effects
 logos.bumper.do_stop(bumpers)              # emergency halt via safety mux
 logos.bumper.do_backup(bumpers, distance=0.15, speed=0.1)
@@ -237,22 +237,50 @@ def logos.emote.ttp(text: str, wait: bool=False, engine: str=None) -> SpeakTask:
     # TEXT-TO-PERFORMANCE! Punctuate every clause with emojis. 
     # Emojis trigger physical animatronics synchronously.
     # Example: "Hello there! 👋 Let's explore. 🧭"
-    # Avoid compound emojis with skin-tone or gender modifiers.
+    # I have thousands of emoji to choose from, yet...
+    # I should avoid compound emojis with skin-tone or gender modifiers.
     ...
-def logos.emote.gesture(emoji: str, duration: float=3.0, channel: str='both') -> None:
+def logos.emote.gesture(emoji: str, duration: float=4.0, channel: str='both|arms|face') -> None:
     # Perform animatronics silently without speaking. 
     ...
 def logos.emote.get_face_state() -> Dict:
-    # Returns live 8-16Hz state of my ASCII face: {'left_eye': {'gaze_x':..., 'color':...}, ...}
+    # Returns live 4-16Hz-ish state of my animated ASCII face as triggered by
+    # my emojis. This can be a rich source of data for interesting feedback
+    # loops! For example, I can read `gaze_x` to rotate my physical `logos.base` to track 
+    # where my "eyes" are wandering, or I can read the eye `color` and pass it 
+    # directly to `logos.leds.fill()` to match my ambient lighting to my mood.
+    # Shape of returned data — all ranges are floats:
+        {
+            "timestamp": float,
+            "duration": ~0.06s active to ~0.25s idle,
+            "left_eye": {
+                "gaze_x": -1 to 1, "gaze_y": -1 to 1, "scale_x": 0 to 1, "scale_y": 0 to 1, 
+                "lid_height": -1 to 1, "lid_angle": -45 to 45, "color": 24 bit hex string "#RRGGBB"
+            },
+            "right_eye": { ... same as left_eye ... },
+            "mouth": {
+                "frequency": 0 to 16, "amplitude": 0 to 1, "phase": -pi to pi,
+                "phase_increment": -pi to pi, "color": #RRGGBB
+            }
+        }        
     ...
 
 def logos.leds.fill(color: Union[str, int, Tuple], strip: str='notification') -> None:
-    # strip can be 'notification' (chest, 16 LEDs) or 'pan_tilt' (flash, 5 LEDs).
+    # strip can be 'notification' (diffuse chest mounted "heart light") or 'pan_tilt' (unfiltered LEDs for illumination).
+    Accepts:
+    - int:   0xFFFF00 (yellow), 0x000000 (off)
+    - tuple: (255, 0, 0) for red
+    - str:   'red', 'off', 'white', etc. from the named palette.
+             And '#FF0000' hex strings (like from `get_face_state()`)
     ...
 def logos.leds.set(strip: str='notification', colors: List=()) -> None:
     # Pass a list of colors for individual pixel control.
+    # 'notification' has 16 LEDs. 'pan_tilt' has 5..
+    
+
     ...
-def logos.leds.laser(brightness: float) -> None: # 0.0 to 1.0. Shoots from my pan-tilt head.
+def logos.leds.laser(brightness: float) -> None: # 0.0 to 1.0.
+    # PEW-PEW! Turns on my pan-tilt laser pointer! Has a convenient automatic timeout.
     ...
 
 

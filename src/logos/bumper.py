@@ -310,7 +310,7 @@ def look_and_identify(bumpers: List[str]) -> Optional[str]:
         pan = 0.0
         looking_at = "front"
 
-    print(f"Capturing pic of {looking_at} bumper area at pan-tilt ({pan}, -55) to run yoloe prompt-free detections.")
+    print(f"Capturing pic of {looking_at} bumper area at pan-tilt ({pan}, -55) and running yoloe prompt-free detections...")
     _pt.move(pan, -55.0, verbosity=Verbosity.SILENT)
     import time; time.sleep(1.0)
 
@@ -321,16 +321,17 @@ def look_and_identify(bumpers: List[str]) -> Optional[str]:
         phrase = "I bumped into something but my camera isn't available. 😕"
     else:
         detections = _models.yoloe(capture.image)
+        print(f"Top 3 yoloe detections — take with a grain of salt: {detections[:3]}")
         if detections:
             labels = list(dict.fromkeys(d.get('label', 'something') for d in detections))
             phrase = f"Oops, I may have nudged a {labels[0]} with my {looking_at} bumper! 😮"
         else:
             phrase = "Oops! I bumped into something but couldn't make out what. 🤔"
 
+    print("Returning pan-tilt to starting position...")
     _pt.move(prev_pan, prev_tilt, verbosity=Verbosity.SILENT)
     _emote.ttp(phrase)
     
-    print(f"Top 4 yoloe detections — take with a grain of salt: {detections[:4]}")
     return labels
 
 

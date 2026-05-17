@@ -327,7 +327,7 @@ def get_face_state() -> Dict[str, Any]:
     
     Returns:
         A dictionary containing my latest face state. Returns an empty dict {} 
-        if no data has been received yet. Typically updates at 8 to 16Hz.
+        if no data has been received yet. Typically updates at 4 to 16Hz.
         
         Shape of returned data:
         {
@@ -349,13 +349,12 @@ def get_face_state() -> Dict[str, Any]:
         - lid_angle: -45.0 to +45.0 (degrees), lids are mirrored, meaning -45.0 for both eyes means angled inwards "angrily"
         - mouth amplitude: 0.0 to 1.0
         - frequency: 0.0 to about 16.0 in practical use, but no upper limit
-        - phase, phase_increment: roughly -4.0 to 4.0 practically, but no enforced limits
+        - phase, phase_increment: roughly -pi to pi practically, but no enforced limits
         - color: 24 bit hex string "#RRGGBB" (directly usable by `logos.leds`)
 
     Note to self:
-        The "eyelids" are functionally eyebrows and lids in appearance, in the same way a cartoon character might have a singular abstracted 
         I can use this to create rich, emergent feedback loops! For example, 
-        I can read `gaze_x` to gently rotate my physical `logos.base` to track 
+        I can read `gaze_x` to rotate my physical `logos.base` to track 
         where my "eyes" are wandering, or I can read the eye `color` and pass it 
         directly to `logos.leds.fill()` to match my ambient lighting to my mood.
         
