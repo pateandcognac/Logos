@@ -298,4 +298,6 @@ def stop(topic: str = "raw") -> None:
         rospy.sleep(0.05)
 
     cmd = Twist()  # all zeros
-    _cmd_vel_pub.publish(cmd)
+    for _ in range(5):
+        _cmd_vel_pub.publish(cmd)
+        rospy.sleep(0.06)

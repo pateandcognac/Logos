@@ -212,8 +212,6 @@ logos.bumper.look_and_identify(bumpers)
 logos.bumper.set_default()
 
 # Full perceptual response — back up, then look and classify:
-logos.bumper.set_default()
-logos.bumper.register(logos.bumper.look_and_identify)
 
 # Custom backup distance via functools.partial:
 import functools

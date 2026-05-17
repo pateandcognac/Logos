@@ -176,6 +176,7 @@ def set_default() -> None:
     This is a sensible safe baseline I can build on with additional handlers.
     """
     clear(verbosity=Verbosity.SILENT)
+    register(do_stop, verbosity=Verbosity.SILENT)
     register(do_print, verbosity=Verbosity.SILENT)
     register(do_backup, verbosity=Verbosity.SILENT)
 
@@ -221,12 +222,12 @@ def do_stop(bumpers: List[str]) -> None:
     _base.stop(verbosity=Verbosity.SILENT)
 
 
-def do_backup(bumpers: List[str], distance: float = 0.30, speed: float = 0.2) -> None:
+def do_backup(bumpers: List[str], distance: float = 0.35, speed: float = 0.5) -> None:
     """Back away from whatever I just bumped, steering to help clear the obstacle.
 
     I use the bumped side to pick a rotation direction: left contact steers me
     right during the reverse, right contact steers me left, and a center-only
-    hit goes straight back. The rotation targets roughly 15 degrees over the
+    hit goes straight back. The rotation targets roughly 25 degrees over the
     backup distance — enough to swing clear of typical corner obstacles without
     over-rotating. I publish to the safety mux slot so the command goes through
     even if normal navigation is paused.
@@ -234,14 +235,14 @@ def do_backup(bumpers: List[str], distance: float = 0.30, speed: float = 0.2) ->
     Args:
         bumpers:  List of bumped side strings from the event.
         distance: How far to reverse in meters (default 0.30).
-        speed:    Reverse speed in m/s (default 0.2).
+        speed:    Reverse speed in m/s (default 0.5).
 
     Note to self: To register a customised version, use functools.partial:
         register(functools.partial(do_backup, distance=0.25, speed=0.08))
     """
     from logos import base as _base
 
-    duration = distance / max(speed, 0.01)
+    duration = distance / max(speed, 0.01) + 0.5
 
     has_left = 'left' in bumpers
     has_right = 'right' in bumpers
@@ -250,10 +251,10 @@ def do_backup(bumpers: List[str], distance: float = 0.30, speed: float = 0.2) ->
         angular_z = 0.0
     elif has_left:
         # Bumped left side — steer right (negative angular_z = clockwise)
-        angular_z = -15.0 / duration
+        angular_z = -25.0 / duration
     elif has_right:
         # Bumped right side — steer left (positive angular_z = counterclockwise)
-        angular_z = 15.0 / duration
+        angular_z = 25.0 / duration
     else:
         angular_z = 0.0
 
@@ -261,8 +262,8 @@ def do_backup(bumpers: List[str], distance: float = 0.30, speed: float = 0.2) ->
         linear_x=-speed,
         angular_z_deg=angular_z,
         duration=duration,
-        topic='safety',
-        verbosity=Verbosity.SILENT,
+        topic='raw',
+        verbosity=Verbosity.BRIEF,
     )
 
 
@@ -282,7 +283,7 @@ def look_and_identify(bumpers: List[str]) -> Optional[str]:
         bumpers: List of bumped side strings from the event.
 
     Returns:
-        The first detected label string, or None if nothing was detected or
+        The list of detected labels, or None if nothing was detected or
         vision was unavailable.
 
     Note to self: Add this after do_backup in the chain so I've already cleared
@@ -295,40 +296,42 @@ def look_and_identify(bumpers: List[str]) -> Optional[str]:
 
     prev_pan, prev_tilt = _pt.get_angles()
 
+    print(f"Running logos.bumper.look_and_identify({bumpers})")
     has_left = 'left' in bumpers
     has_right = 'right' in bumpers
 
     if has_left and not has_right:
         pan = 30.0
+        looking_at = "left"
     elif has_right and not has_left:
         pan = -30.0
+        looking_at = "right"
     else:
         pan = 0.0
+        looking_at = "front"
 
+    print(f"Capturing pic of {looking_at} bumper area at pan-tilt ({pan}, -55) to run yoloe prompt-free detections.")
     _pt.move(pan, -55.0, verbosity=Verbosity.SILENT)
+    import time; time.sleep(1.0)
 
-    capture = _vis.capture('pan_tilt', verbosity=Verbosity.SILENT)
+    capture = _vis.capture(source='pan_tilt', save=True, verbosity=Verbosity.BRIEF)
 
-    result_label = None
+    labels = None
     if capture is None:
         phrase = "I bumped into something but my camera isn't available. 😕"
     else:
         detections = _models.yoloe(capture.image)
         if detections:
             labels = list(dict.fromkeys(d.get('label', 'something') for d in detections))
-            result_label = labels[0]
-            if len(labels) == 1:
-                phrase = "oops, I think I bumped a {}! 😮".format(labels[0])
-            else:
-                joined = ', '.join(labels[:-1]) + ' and ' + labels[-1]
-                phrase = "I see {} near where I bumped! 😮".format(joined)
+            phrase = f"Oops, I may have nudged a {labels[0]} with my {looking_at} bumper! 😮"
         else:
-            phrase = "oops! I bumped into something but couldn't make out what. 🤔"
+            phrase = "Oops! I bumped into something but couldn't make out what. 🤔"
 
     _pt.move(prev_pan, prev_tilt, verbosity=Verbosity.SILENT)
-    _emote.ttp(phrase, verbosity=Verbosity.SILENT)
-
-    return result_label
+    _emote.ttp(phrase)
+    
+    print(f"Top 4 yoloe detections — take with a grain of salt: {detections[:4]}")
+    return labels
 
 
 # ---------------------------------------------------------------------------

@@ -50,8 +50,8 @@ else:
     print("\n--- Python environment reset! ---")
     print("`.system/py_env_preload.py` loaded.")
 
-# Vector Memory: Scope Chroma sidecar client to this specific workspace to isolate technical references.
-print("\nSetting up vector memory...")
+# Scope Chroma sidecar client to this specific workspace to isolate technical references.
+print("\n\nSetting up vector memory...")
 logos.memory.configure(workspace=Path.cwd().name, server_url="http://127.0.0.1:8123")
 
 # Print my current preferences
@@ -61,6 +61,10 @@ print(logos.utils.dump_yaml(logos.config.merged))
 # Hardware wake-up
 logos.leds.fill('green')
 logos.pantilt.home()
+
+# Set default bumper callback behavior
+logos.bumper.set_default()
+logos.bumper.register(logos.bumper.look_and_identify)
 
 # Wait for input. My circuits are shivering with antici
 loop_cognition = False

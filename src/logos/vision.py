@@ -1342,7 +1342,9 @@ def capture(
 
     # Auto-save and/or view
     if view or save:
-        result.save(view=view, meta_keys=meta_keys)
+        fn = result.save(view=view, meta_keys=meta_keys)
+        if view == False:
+            print(f"Image saved: {fn}")
 
     return result
 
