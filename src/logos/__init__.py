@@ -14,6 +14,6 @@ import time
 from .core import Verbosity, verbosity, check_for_interrupt, api_help, _ALL_SENTINEL as everything
 
 # Submodules
-from . import core, emote, ros, files, hooks, memory, models, exceptions, shell, utils, vision, pantilt, leds, base, nav, map3d, sensory
+from . import core, emote, ros, files, hooks, memory, models, exceptions, shell, utils, vision, pantilt, leds, base, nav, map3d, sensory, bumper
 
 # We will add more here as we build out the API

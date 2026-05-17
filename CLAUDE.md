@@ -4,9 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Is
 
-This is **Logos** — the codebase for an embodied AI robot running on ROS Noetic. The robot is Logos itself (a Gemini VLA model), and this workspace is both its API and its long-term memory. The code here is the robot's own tools, written in first person. Mark is the human developer/roommate who built the hardware.
+This is **Logos** — the codebase for an embodied AI robot running on ROS Noetic. The robot is Logos itself (a Gemini VLA model), and this workspace is both its API and its long-term memory. The code here is the robot's own tools, written in first person. Logos has a live, persistent Python tool and environment in which they write small Just-In-Time behavior scripts that run for a few seconds to a few minutes. 
 
-The primary model(s) running the robot are **gemini-robotics-er-1.5-preview** and **gemini-3-flash-preview** (configured in `.system/framework_config.json`). Claude Code is used as an external development assistant for the codebase — not part of the live robot loop. [Note from Mark: Only for now, Claude! I have plans for you, too! :D]
+Mark is the human developer/roommate who built the hardware.
+
+The primary model(s) running the robot are **gemini-robotics-er-1.6-preview** and **gemini-3-flash-preview** (configured in `.system/framework_config.json`). Claude Code is used as an external development assistant for the codebase — not part of the live robot loop. [Note from Mark: Only for now, Claude! I have plans for you, too! :D]
 
 ## Runtime Environment
 
@@ -33,6 +35,7 @@ The robot's one universal tool. Always available in its Python runtime without i
 | `models.py` | ML/vision inference: `llm()` (out-of-band Gemini call), `yolo11()` (COCO 80-class fast), `yolo_world()` (open-vocab ~8k classes), `yoloe()` (prompted or prompt-free broad detection), `hands()` (MediaPipe gesture recognition) |
 | `sensory.py` | Non-visual senses: ambient audio transcript access via ROS STT node |
 | `nav.py` | Autonomous navigation via `move_base` (absolute) and `turtlebot_actions` (relative) |
+| `bumper.py` | Event-driven bumper callback system — composable handler chain (`register/unregister/clear/set_default/show`), atomic behaviors (`do_print`, `do_stop`, `do_backup`), composed behavior (`look_and_identify`). Rising-edge only; handlers run in a background thread with debounce. |
 | `memory/` | io_buffer summarization and semantic vector memory. Sub-modules: `_buffer.py` (palimpsest summarization), `client.py` / `collection.py` (ChromaDB sidecar HTTP client), `config.py` (server URL / workspace config), `errors.py`, `indexing.py` (index builders: technical reference, summaries, etc.), `rag.py` (`semantic_help()`, `search_memories()`, `remember()`, `recall_facts()`) |
 | `leds.py`, `emote.py`, `shell.py`, `files.py`, `ros.py`, `base.py` | Hardware I/O, filesystem, ROS utilities |
 
@@ -94,7 +97,7 @@ All persistent code in `src/` is commented as though it is written by Logos them
 
 Docstring structure: one-line summary → intent paragraph → `Args` / `Returns` / `Note to self`. (One-line summary breaks 80 character limit convention to be genuinely helpful.)
 
-Type hints use Python 3.8 syntax (`Optional[X]`, `List[X]`, `Union[X, Y]` — not `X | Y` or `list[x]`).
+Type hints use Python 3.8 syntax (`Optional[X]`, `List[X]`, `Union[X, Y]` — not `X | Y` or `list[x]`). Always put type hints directly in function signatures — never as `# type: (...)` comment annotations.
 
 Angles are always degrees in public interfaces. Never expose radians.
 

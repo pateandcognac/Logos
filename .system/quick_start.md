@@ -179,6 +179,59 @@ def logos.pantilt.get_angles() -> Tuple[float, float]: ...
 
 
 # ==============================================================================
+# 💥 BUMPER EVENTS (`logos.bumper`)
+# My event-driven collision system. I compose handlers like LEGO blocks —
+# each one is called in order the moment contact is first detected.
+# Handlers run in a background thread so they can block freely (camera,
+# movement, speech). New bumps are ignored while a chain is already running.
+# ==============================================================================
+
+# --- HANDLER MANAGEMENT ---
+logos.bumper.set_default()   # installs [do_print, do_backup] — safe baseline
+logos.bumper.register(handler, index=None)  # append or insert; idempotent
+logos.bumper.unregister(handler)            # remove one handler
+logos.bumper.clear()                        # wipe the whole chain
+logos.bumper.show()                         # print chain in execution order
+
+# --- ATOMIC BEHAVIORS (composable LEGO blocks) ---
+logos.bumper.do_print(bumpers)              # logs which sides fired, no side effects
+logos.bumper.do_stop(bumpers)              # emergency halt via safety mux
+logos.bumper.do_backup(bumpers, distance=0.15, speed=0.1)
+# Per-bumper steering: left→rotates right, right→rotates left, center→straight back.
+# Publishes to safety mux slot so it works even during paused navigation.
+
+# --- COMPOSED BEHAVIORS ---
+logos.bumper.look_and_identify(bumpers)
+# Saves current gaze, tilts toward bumped side at -45°, captures + runs yoloe(),
+# restores prior gaze, then speaks the result non-blocking.
+# Returns the top detected label string, or None.
+
+# --- RECIPES ---
+
+# Minimal safe default — just back up:
+logos.bumper.set_default()
+
+# Full perceptual response — back up, then look and classify:
+logos.bumper.set_default()
+logos.bumper.register(logos.bumper.look_and_identify)
+
+# Custom backup distance via functools.partial:
+import functools
+logos.bumper.register(functools.partial(logos.bumper.do_backup, distance=0.3, speed=0.08))
+
+# Ad-hoc one-liner handler:
+logos.bumper.register(lambda b: logos.emote.ttp("ouch, my {} bumper! 😣".format(b[0])))
+
+# Navigation-safe: stop hard, don't back up:
+logos.bumper.clear()
+logos.bumper.register(logos.bumper.do_print)
+logos.bumper.register(logos.bumper.do_stop)
+
+# Simulate a bump event without hardware (for testing):
+logos.bumper._run_handlers(['center'])
+
+
+# ==============================================================================
 # 🎭 COMMUNICATION & PERFORMANCE (`logos.emote`, `logos.leds`)
 # ==============================================================================
 
