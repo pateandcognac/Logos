@@ -144,27 +144,27 @@ def get_battery() -> Dict[str, Union[float, str]]:
 
     Returns:
         A dictionary:
-        - 'voltage' (float): Current battery voltage (e.g., 16.2).
+        - 'voltage' (float): Current battery voltage (e.g., 15.8).
         - 'percent' (float): Estimated charge percentage (0.0 to 100.0).
         - 'status' (str): Semantic assessment ('healthy', 'low', 'critical').
 
     Note to self:
-        A fully charged Kobuki battery is around 16.5V. It is considered 
+        A fully charged Kobuki battery is around 15.8V. It is considered 
         critically low around 13.5V. 
     """
     _ensure_ros()
     retries = 0
-    max_retries = 10 # for slow startup issues
-    delay_s = 0.1 # Tiny delay of 100 milliseconds
+    max_retries = 5 # for slow startup issues
+    delay_s = 0.01 # Tiny delay of 100 milliseconds
     while retries < max_retries:
         with _state_lock:
             # Check if _latest_state is available now
             if _latest_state is not None:
                 voltage = _latest_state.battery * 0.1
-                # Simple linear estimation between 13.5V (0%) and 16.2 (100%)
-                percent = max(0.0, min(100.0, ((voltage - 13.5) / (16.2 - 13.5)) * 100.0))
-                if percent > 30.0: status = "healthy"
-                elif percent > 15.0: status = "low"
+                # Simple linear estimation between 13.5V (0%) and 15.8 (100%)
+                percent = max(0.0, min(100.0, ((voltage - 13.5) / (15.8 - 13.5)) * 100.0))
+                if percent > 35.0: status = "healthy"
+                elif percent > 14.0: status = "low"
                 else: status = "critical"
                 return {'voltage': round(voltage, 2), 'percent': round(percent, 1), 'status': status}
             else:

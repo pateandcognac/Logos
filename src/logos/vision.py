@@ -1633,12 +1633,12 @@ def publish_debug(
             detection dict, a nested dict containing detections, or the
             `(detections, CaptureResult)` tuple returned by logos.models.
         source: Optional string used to name the ROS topic. If omitted for a
-            CaptureResult, I will infer it from detection metadata when possible.
+            CaptureResult, it will be inferred from detection metadata.
 
     Note to self:
-        This is how I show Mark what I'm seeing and thinking! I should call this 
-        whenever I run YOLO or make my own spatial detections so Mark can see 
-        my "internal HUD" in RViz.
+        This is how I show Mark what I'm seeing and thinking. I would use
+        this to request a sanity check from human eyes, or if Mark specifically
+        asks me to.
     """
     capture_result = image if isinstance(image, CaptureResult) else None
     base_image = capture_result.image if capture_result is not None else image

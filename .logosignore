@@ -13,4 +13,6 @@ _llm_helper.py
 *.pt
 .gitignore
 .claude
+.codex
 CLAUDE.md
+AGENTS.md

@@ -80,7 +80,7 @@ vision_hook:
     resolution: [480, 640]
     meta_keys: []
 ambient_transcript:
-  last_minutes: 15.0 
+  last_minutes: 10.0 
 
 # personality: 
 #    description: This is arbitrary and we could put anything here... it's just viewed by the model as text.

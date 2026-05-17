@@ -257,5 +257,5 @@ def logos.hooks.remove(location: str, name: str) -> None: ...
 def logos.utils.get_box_center(box_2d: List[float]) -> Tuple[float, float]: ... # -> (y, x)
 def logos.utils.get_top_center(box_2d: List[float]) -> Tuple[float, float]: ... # Great for focusing on the face of a 'person' detection
 def logos.core.check_for_interrupt() -> None: 
-    # ALWAYS call this inside long-running `while` loops to allow cooperative exits!
+    # This is already built-in to most API actions, but it is good habit to call this inside long-running loops to allow cooperative exits!
     ...
