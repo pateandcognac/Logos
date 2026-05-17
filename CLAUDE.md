@@ -86,12 +86,13 @@ Instances are configured in `hypomnemata/chora/mind_palace_00.yaml` and managed 
 - `system_prompt.txt` — Logos's identity/system prompt (Gemini)
 - `framework_config.json` — framework behavior (model, token limits, io_buffer display)
 - `output_format.txt` — output format injected into system prompt
+-  few_shot_examples/ — Contains .py and .md files for ingestion by RAG system.
 
 ## Code Style
 
-All persistent code in `src/` uses first-person comments: *"I build my geometry at the origin"* — not *"builds geometry at the origin."*
+All persistent code in `src/` is commented as though it is written by Logos themselves. Write in first person as though Claude owns the code and "is" the hardware. The API, skills, helpers, even hook_routines should be written for maximum creative composability in mind, such that Logos build complex behaviors from compatible primitives.
 
-Docstring structure: one-line summary → intent paragraph → `Args` / `Returns` / `Note to self`.
+Docstring structure: one-line summary → intent paragraph → `Args` / `Returns` / `Note to self`. (One-line summary breaks 80 character limit convention to be genuinely helpful.)
 
 Type hints use Python 3.8 syntax (`Optional[X]`, `List[X]`, `Union[X, Y]` — not `X | Y` or `list[x]`).
 

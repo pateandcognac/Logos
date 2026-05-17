@@ -150,13 +150,13 @@ def logos.map3d.remove(name: str): ...
 
 # --- RELATIVE/BLIND NAVIGATION (Odometry/Velocity, ignores map!) ---
 def logos.nav.turn_then_drive(turn_deg: float, forward_m: float, wait: bool=False) -> NavTask:
-    # Precision blind movement. Turn first, stop, then drive straight. Good for tight spots.
+    # Uses odom. Turn in place, stop, then drive straight. Good for tight spots.
     ...
 def logos.base.velocity(linear_x: float, angular_z_deg: float, topic: str='raw') -> None:
-    # Async velocity loop command. Times out after ~0.6s. Must be spammed in a while loop to keep moving.
+    # Async velocity loop command. Times out after ~0.6s. Must be spammed in a loop to keep moving.
     ...
 def logos.base.move_timed(linear_x: float, angular_z_deg: float, duration: float) -> None:
-    # Blocking blind drive (like backing up or wiggling).
+    # Blocking blind drive (like backing up).
     ...
 
 # --- ABSOLUTE NAVIGATION (Map-based, obstacle avoiding) ---

@@ -208,19 +208,19 @@ def get_buttons() -> List[str]:
 # ─── Public Movement API ──────────────────────────────────────────────
 
 @api_call(default_verbosity=Verbosity.SILENT)
-def velocity(linear_x: float, angular_z_deg: float, topic: str = "raw") -> None:
+def velocity(linear_x: float, angular_z_deg: float, topic: str = "muxed") -> None:
     """
     Publish a single, non-blocking velocity command to the base.
 
     Args:
         linear_x: Forward/backward speed in m/s.
         angular_z_deg: Rotational speed in deg/s.
-        topic: [raw|muxed|safety] Default: 'raw'
+        topic: [raw|muxed|safety] Default: 'muxed'
 
     Note to self:
         This is perfect for control loops (like tracking). The Kobuki hardware 
         has a ~0.6s timeout. If you don't call this again within that window, 
-        the base will automatically halt.
+        the base will automatically halt. `muxed` is smoothed and has lower
     """
     global _cmd_vel_pub, _cmd_vel_topic
 
@@ -251,7 +251,7 @@ def move_timed(linear_x: float, angular_z_deg: float, duration: float, topic: st
         linear_x: Forward/backward speed in m/s.
         angular_z_deg: Rotational speed in deg/s.
         duration: Time in seconds to hold this velocity.
-        topic: [raw|muxed|safety] Default: 'raw'
+        topic: [raw|muxed|safety] Default: 'muxed'
 
     Note to self:
         Use this for scripted, open-loop movements (like wiggles, dances, 
