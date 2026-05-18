@@ -54,5 +54,7 @@ auto_rag_hook:
     examples: 1
     summaries: 0
     facts: 5
-ambient_transcript:
-  last_minutes: 10.0 
+ambient_audio:
+  last_minutes:
+    speech: 10
+    classifier: 1

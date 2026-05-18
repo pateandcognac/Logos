@@ -12,16 +12,14 @@
       import hook_routines.auto_rag
       hook_routines.auto_rag.run()
 
-  - name: ambient_transcript
-    description: A rolling transcript of ambient speech.
+  - name: ambient_audio
+    description: Rolling ambient speech transcript + background audio classification.
     enabled: true
     code: |
-      print("--- Ambient Transcript ---")
-      print("Usage: Control via `logos.config.prefs.ambient_stt.last_minutes`.")
-      import hook_routines.ambient_transcript
-      hook_routines.ambient_transcript.run()
-
-    active: true
+      print("--- Ambient Audio ---")
+      print("Usage: Control via `logos.config.prefs.ambient_audio.last_minutes.speech/classifier`.")
+      import hook_routines.ambient_audio
+      hook_routines.ambient_audio.run()
   - name: vision_hook
     description: My primary camera feeds. 
     enabled: true
