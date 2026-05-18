@@ -26,7 +26,7 @@ import hook_routines.workbench
 import hook_routines.dashboard
 import hook_routines.memory_manager
 import hook_routines.proximity_snapshot
-import hook_routines.ambient_transcript
+import hook_routines.ambient_audio
 import hook_routines.auto_rag
 
 # --- Direct API Types & Exceptions (for type-checking & convenience) ---

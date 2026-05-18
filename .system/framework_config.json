@@ -12,16 +12,16 @@
 	"main_model": {
 		"_model": "gemma-4-26b-a4b-it",
 		"_model": "gemma-4-31b-it",
-		"model": "gemini-robotics-er-1.6-preview",
+		"_model": "gemini-robotics-er-1.6-preview",
 		"_model": "gemini-3.1-flash-lite-preview",
-		"_model": "gemini-3-flash-preview",
+		"model": "gemini-3-flash-preview",
 		"_model": "gemini-2.5-pro",
 		"_model": "gemini-2.5-flash",
 		"_model": "gemini-2.5-flash-lite",
 		"temperature": 1.0,
 		"thinking_config": {
 			"include_thoughts": true,
-			"thinking_budget": 256
+			"thinking_budget": 128
 		},
 		"retry_config": {
 			"max_retries": 8,

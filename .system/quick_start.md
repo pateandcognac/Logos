@@ -288,7 +288,10 @@ def logos.leds.laser(brightness: float) -> None: # 0.0 to 1.0.
 # 🧠 MEMORY, FILES, & SYSTEM (`logos.memory`, `logos.files`)
 # ==============================================================================
 
-# --- SEMANTIC / VECTOR MEMORY (`logos.memory.rag` / `logos.memory.client`) ---
+# --- SEMANTIC / VECTOR MEMORY (`logos.memory.indexing|rag|client`) ---
+def indexing.refresh_all_reference_indexes() 
+    # Builds RAG technical reference from source code.
+
 def rag.semantic_help(query: str, include_examples: bool=True) -> Dict:
     # Self-help! Queries my API docs & few-shot examples. 
     # `print(rag.semantic_help("How do I X?")["context"])`

@@ -1251,7 +1251,7 @@ def capture(
                 top_down:  (480, 640)
                 astra:     (480, 640)
             For webcams, requesting >1280x960 triggers the high-res capture
-            tier (2592x1944 native, downscaled to target).
+            tier (1944x2592 native, downscaled to target).
         view: If True, automatically save and print a <file> tag so the
             image appears in my context window.
         save: If True, save to ipc directory (without viewing).

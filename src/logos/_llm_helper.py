@@ -40,9 +40,9 @@ def main() -> None:
     model_name = payload.get("model_name", "gemini-flash-latest")
     temperature = float(payload.get("temperature", 1.0))
 
-    api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+    api_key = os.environ.get("FREE_GEMINI_API_KEY") or os.environ.get("PAID_GOOGLE_API_KEY")
     if not api_key:
-        json.dump({"error": "GEMINI_API_KEY / GOOGLE_API_KEY not set"}, sys.stdout)
+        json.dump({"error": "LOGOS_API_KEY not set"}, sys.stdout)
         return
 
     try:

@@ -3432,7 +3432,7 @@ class Map3d:
 
         return result
 
-    @api_call(default_verbosity=Verbosity.ACK)
+    # @api_call(default_verbosity=Verbosity.ACK)
     def raycast(
         self,
         render: Union[RenderResult, str],
@@ -3563,7 +3563,7 @@ def render(*args, **kwargs) -> RenderResult:
     return get_map3d().render(*args, **kwargs)
 
 
-@api_call(default_verbosity=Verbosity.ACK)
+# @api_call(default_verbosity=Verbosity.ACK)
 def raycast(*args, **kwargs) -> RaycastHit:
     return get_map3d().raycast(*args, **kwargs)
 

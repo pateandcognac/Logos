@@ -233,7 +233,7 @@ def summarize_io_buffer(cell_indices: List[int], guidance: str = None):
             new_buffer_lines.append(msg)
 
     # Use a temporary file for atomic write to prevent corruption on crash
-    temp_file = BUFFER_FILE + ".tmp"
+    temp_file = BUFFER_FILE.with_suffix(BUFFER_FILE.suffix + ".tmp")
     with open(temp_file, 'w') as f:
         for line in new_buffer_lines:
             f.write(json.dumps(line) + '\n')

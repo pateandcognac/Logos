@@ -45,7 +45,7 @@ vision_hook:
     meta_keys: [pan_tilt_degs]
   top_down:
     enabled: false
-    resolution: [480, 640]
+    resolution: [960, 1280]
     meta_keys: []
 auto_rag_hook:
   lookback_cells: 2
@@ -56,5 +56,5 @@ auto_rag_hook:
     facts: 5
 ambient_audio:
   last_minutes:
-    speech: 10
-    classifier: 1
+    speech: 3
+    classifier: 3

@@ -173,7 +173,7 @@ def track_step(
         face_state = logos.emote.get_face_state()
         if face_state:
             gaze_x = face_state.get("left_eye", {}).get("gaze_x", 0.0)
-            target_heading_deg += (-gaze_x * 10.0)
+            target_heading_deg += (-gaze_x * 30.0)
 
     # 5. Execute Base Movement
     turn_speed = target_heading_deg * 0.03
