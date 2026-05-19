@@ -3,35 +3,36 @@
 """
 Tracking and alignment skills.
 
-These behaviors translate spatial detections into physical motor commands, 
+These behaviors translate spatial detections into physical motor commands,
 allowing me to maintain "eye contact" or follow targets with my base.
 """
 
 from typing import Dict, List, Tuple, Union, Any, Optional
 import time
 import math
+import numpy as np
 import logos
-from skills.vision import smart_detect
 from logos.vision import CaptureResult
 import logos.utils
 
-# A tiny global state to coast through YOLO flicker
+# Tiny global state to coast through YOLO flicker
 _tracking_state = {
     "last_seen_time": 0.0,
-    "last_depth": 1.0,
+    "last_depth": 1.5,
+    "last_turn_speed": 0.0,
 }
 
 def look_at(
-    target: Union[Dict[str, Any], List[Dict[str, Any]], List[float], Tuple[float, float]], 
-    capture_result: Optional[CaptureResult] = None, 
-    duration: float = 0.25, 
+    target: Union[Dict[str, Any], List[Dict[str, Any]], List[float], Tuple[float, float]],
+    capture_result: Optional[CaptureResult] = None,
+    duration: float = 0.25,
     steps: int = 5
 ) -> None:
     """
     Aim the pan-tilt head at a detection, bounding box, or point.
-    
-    If a capture_result is provided, uses its saved metadata to calculate 
-    the offset perfectly, compensating for any hardware movement that 
+
+    If a capture_result is provided, uses its saved metadata to calculate
+    the offset perfectly, compensating for any hardware movement that
     occurred during image processing.
 
     Args:
@@ -45,7 +46,7 @@ def look_at(
     if not resolved_point:
         print("look_at: Could not resolve target into a [y, x] point. Skipping.")
         return
-        
+
     target_y, target_x = resolved_point
 
     # 2. Convert 0-1000 pixel coordinates to fraction from center (-0.5 to 0.5)
@@ -54,7 +55,7 @@ def look_at(
 
     # Always use the pan_tilt camera's FOV for these calculations
     fov_h, fov_v = logos.vision.FOV["pan_tilt"]
-    
+
     # 3. Angular offset: how far from image center in degrees
     # Pan:  object right in image (+x_frac) → pan right (negative)
     # Tilt: object above in image (-y_frac) → tilt up (positive)
@@ -63,11 +64,11 @@ def look_at(
 
     # 4. Determine our reference angles (Latency Compensation)
     ref_pan, ref_tilt = None, None
-    
+
     if capture_result and capture_result.pan_tilt_degs:
         # Use the angles from the exact millisecond the frame was grabbed
         ref_pan, ref_tilt = capture_result.pan_tilt_degs
-        
+
     if ref_pan is None or ref_tilt is None:
         # Fallback to current live angles
         ref_pan, ref_tilt = logos.pantilt.get_angles()
@@ -77,114 +78,145 @@ def look_at(
 
     # 5. Move!
     logos.pantilt.move(
-        new_pan, new_tilt, 
-        duration=duration, steps=steps, 
+        new_pan, new_tilt,
+        duration=duration, steps=steps,
         verbosity=logos.Verbosity.SILENT
     )
 
 def track_step(
     target: str = "person",
-    drive: bool = True,
-    couple_eyes: bool = True,
-    target_dist: float = 1.0,
+    drive: bool = False,
+    target_dist: float = 0.66,
+    align_gain: float = 2.0,
+    eye_scale: float = 30.0,
+    max_turn: float = 30.0,
+    look_deadband: float = 100.0,
 ) -> bool:
     """
-    A single tick of a highly composable sensor-fusion tracking loop.
-    
-    Fuses Astra (Source of Truth), Pan-Tilt (Scout), and Eyes (Flavor) into 
-    smooth base movements. Also handles Pan-Tilt head tracking automatically.
-    This function contains no blocking sleep calls.
+    A single non-blocking tick of a composable tracking loop.
+
+    Detects the target in the pan-tilt camera, steers the pan-tilt onto it,
+    then uses the resulting pan angle as the base rotation error — the
+    further I'm looking sideways, the more I spin my body to re-center.
+    When not driving, animatronic eye gaze is coupled into the rotation so
+    my body organically follows where my animnated eyes wander. When driving,
+    Astra depth keeps me at the desired standoff distance.
 
     Args:
-        target: The YOLO/World target to track.
+        target: COCO class name to track (e.g. "person").
         drive: If True, moves forward/back to maintain `target_dist`.
-               If False, only rotates base/head to follow.
-        couple_eyes: If True, animatronic gaze influences base rotation.
-        target_dist: Desired distance in meters.
+               Eye coupling is automatically disabled while driving.
+        target_dist: Desired standoff distance in metres (drive=True only).
+        align_gain: Base rotation gain — deg/s per degree of pan error.
+        eye_scale: How many degrees of base rotation one unit of gaze_x produces.
+        max_turn: Hard clamp on turn speed in deg/s.
+        look_deadband: How far (in 0-1000 image units) the detection center
+                       must be from the frame center before look_at() fires.
+                       Keeps the pan-tilt servo from hunting when the target
+                       is already roughly centered.
 
     Returns:
-        True if the target was seen recently, False if completely lost.
+        True if the target was seen recently, False if the coast window expired.
+
+    Note to self:
+        Drop this in a tight loop with a short sleep (0.05s). The Kobuki watchdog
+        will auto-stop the base if my loop hangs for more than ~0.6s, so there is
+        no need for an explicit stop on exit — just let the loop end.
     """
     global _tracking_state
     now = time.time()
-    
-    # 1. Grab both cameras (Capture entire result so we have metadata)
-    pt_res = logos.vision.capture('pan_tilt')
-    astra_res = logos.vision.capture('astra')
-    
-    # 2. Track with Head (Pan-Tilt)
-    if pt_res and pt_res.image is not None:
-        pt_dets = smart_detect(pt_res.image, target)
-        if pt_dets:
-            # Fast, non-blocking tick using latency compensation!
-            look_at(pt_dets[0], capture_result=pt_res, duration=0.0, steps=1)
-            
-            # Nudge logic if target's top edge is too close to the top of the frame
-            y1 = pt_dets[0].get("box_2d", [0, 0, 0, 0])[0]
-            if pt_dets[0].get("label") == "person" and y1 < 50:
-                logos.pantilt.nudge(0, 3)
-    
-    # 3. Track with Base (Astra + Head Fusion)
-    target_heading_deg = 0.0
     drive_speed = 0.0
     turn_speed = 0.0
-    
-    if astra_res and astra_res.image is not None:
-        astra_dets = smart_detect(astra_res.image, target)
-        
-        if astra_dets:
-            _tracking_state["last_seen_time"] = now
-            
-            # --- ROTATION CALCULATION ---
-            box = astra_dets[0]["box_2d"]
-            center_x = (box[1] + box[3]) / 2.0
-            error_frac = 0.5 - (center_x / 1000.0) 
-            astra_fov_h = logos.vision.FOV["astra_rgb"][0]
-            target_heading_deg = error_frac * astra_fov_h
-            
-            # --- DRIVE CALCULATION ---
-            if drive and astra_res.depth_points is not None:
-                world_pt = astra_res.derive_world_coordinate(box)
-                if world_pt:
-                    pose = logos.ros.get_pose()
-                    dist = math.hypot(world_pt[0] - pose['x'], world_pt[1] - pose['y'])
-                    _tracking_state["last_depth"] = dist
-                    
-                    dist_error = dist - target_dist
-                    drive_speed = dist_error * 0.4 
-                    drive_speed = max(-0.2, min(0.3, drive_speed))
 
-        else:
-            # Astra lost them. Are they around the corner? Let's check the head!
-            current_pan, _ = logos.pantilt.get_angles()
-            
-            if abs(current_pan) > 15.0:
-                target_heading_deg = current_pan
-                
-            # Coasting logic for drive
-            if now - _tracking_state["last_seen_time"] < 1.0:
-                dist_error = _tracking_state["last_depth"] - target_dist
-                drive_speed = (dist_error * 0.4) * 0.5 
-            else:
-                return False
+    # ── 1. Detect on pan-tilt ────────────────────────────────────────────
+    pt_res = logos.vision.capture('pan_tilt')
+    pt_dets = []
+    if pt_res is not None:
+        pt_dets, pt_res = logos.models.yolo11(pt_res, classes=[target])
 
-    # 4. Add Eye Coupling "Flavor"
-    if couple_eyes:
-        face_state = logos.emote.get_face_state()
-        if face_state:
-            gaze_x = face_state.get("left_eye", {}).get("gaze_x", 0.0)
-            target_heading_deg += (-gaze_x * 30.0)
+    if pt_dets:
+        _tracking_state["last_seen_time"] = now
 
-    # 5. Execute Base Movement
-    turn_speed = target_heading_deg * 0.03
-    turn_speed = max(-40.0, min(40.0, turn_speed)) 
+        # ── 2. Pan angle IS the base rotation error ──────────────────────
+        # Read the pan angle first so we have the pre-look_at reference.
+        # After look_at the servo will point at the target — that updated
+        # angle is how far the target sits from dead-ahead on my body axis.
+        _, cx = logos.utils.get_box_center(pt_dets[0]["box_2d"])
+        x_err = abs(cx - 500.0)  # 0-500 range; 500 = half-frame off-center
 
-    # Publish single velocity command (Kobuki watchdog will stop us if loop hangs)
+        # Only move the head when the person is meaningfully off-center.
+        # Skipping small corrections prevents the servo from hunting/oscillating
+        # while the base is already rotating to catch up.
+        if x_err > look_deadband:
+            look_at(pt_dets[0], capture_result=pt_res, duration=0.05, steps=1)
+
+        pan_deg, _ = logos.pantilt.get_angles()
+        if abs(pan_deg) >= 1.0:
+            turn_speed = pan_deg * align_gain
+
+        # ── 3. Eye coupling (only when not driving) ──────────────────────
+        # Direct gaze_x → rotation mapping. eye_scale sets how many deg/s
+        # one full unit of gaze produces. No velocity feedback needed here —
+        # gaze is a slow-drift signal, not a fast correction.
+        if not drive:
+            face = logos.emote.get_face_state()
+            if face:
+                gaze_x = face.get("left_eye", {}).get("gaze_x", 0.0)
+                # gaze_x > 0 = eyes drift right → rotate right = negative angular_z
+                turn_speed += gaze_x * eye_scale
+
+        # ── 4. Drive: Astra depth sampling ──────────────────────────────
+        if drive:
+            astra_res = logos.vision.capture('astra')
+            if astra_res is not None:
+                astra_dets, astra_res = logos.models.yolo11(astra_res, classes=[target])
+                if astra_dets and astra_res.depth_points is not None:
+                    box = astra_dets[0]["box_2d"]
+                    cy, cx = logos.utils.get_box_center(box)
+                    H, W = astra_res.depth_points.shape[:2]
+                    py = int(max(0, min(H - 1, cy / 1000.0 * H)))
+                    px = int(max(0, min(W - 1, cx / 1000.0 * W)))
+                    # Sample a patch around detection center; filter out invalid zeros
+                    r = 5
+                    patch_z = astra_res.depth_points[
+                        max(0, py - r):py + r + 1,
+                        max(0, px - r):px + r + 1,
+                        2
+                    ]
+                    valid = patch_z[patch_z > 0.1]
+                    if len(valid) > 0:
+                        depth_m = float(np.median(valid))
+                        _tracking_state["last_depth"] = depth_m
+                        dist_error = depth_m - target_dist
+                        if abs(dist_error) >= 0.015:
+                            # drive_speed = max(-0.18, min(0.28, dist_error * 1.0))
+                            drive_speed = max(-0.28, min(0.4, dist_error * 1.0))
+
+        # time.sleep(0.15)
+
+
+    else:
+        # ── 5. Lost-target handling ──────────────────────────────────────
+        elapsed = now - _tracking_state["last_seen_time"]
+        if elapsed > 2.5:
+            # Coast window expired — signal the loop to stop
+            logos.base.velocity(
+                linear_x=0.0, angular_z_deg=0.0, topic="raw",
+                verbosity=logos.Verbosity.SILENT
+            )
+            return False
+        # Still within the coast window: decay the last known turn so we
+        # keep rotating gently in the direction we last saw the target
+        turn_speed = _tracking_state["last_turn_speed"] * 1.8
+
+    # ── 6. Clamp, cache, and publish ─────────────────────────────────────
+    turn_speed = max(-max_turn, min(max_turn, turn_speed))
+    _tracking_state["last_turn_speed"] = turn_speed
+
     logos.base.velocity(
-        linear_x=drive_speed, 
-        angular_z_deg=turn_speed, 
+        linear_x=drive_speed,
+        angular_z_deg=turn_speed,
         topic="raw",
-        verbosity=logos.Verbosity.SILENT
+        verbosity=logos.Verbosity.SILENT,
     )
-    
     return True

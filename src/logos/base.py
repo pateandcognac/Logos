@@ -17,13 +17,15 @@ try:
     import rospy
     from kobuki_msgs.msg import SensorState
     from geometry_msgs.msg import Twist
+    from nav_msgs.msg import Odometry
     _HAS_ROS = True
 except ImportError:
     _HAS_ROS = False
 
 __all__ = [
-    "get_bumpers", "get_cliffs", "get_wheel_drops", 
+    "get_bumpers", "get_cliffs", "get_wheel_drops",
     "get_battery", "get_charger_state", "get_buttons",
+    "get_odom",
     "velocity", "move_timed", "stop"
 ]
 
@@ -32,6 +34,9 @@ __all__ = [
 _latest_state: Optional['SensorState'] = None
 _state_lock = threading.Lock()
 _ros_initialized = False
+
+_latest_odom: Optional['Odometry'] = None
+_odom_lock = threading.Lock()
 
 _cmd_vel_pub: Optional['rospy.Publisher'] = None
 _cmd_vel_topic: Optional[str] = None
@@ -64,8 +69,14 @@ def _sensor_cb(msg):
     with _state_lock:
         _latest_state = msg
 
+def _odom_cb(msg):
+    """Callback for the /odom topic."""
+    global _latest_odom
+    with _odom_lock:
+        _latest_odom = msg
+
 def _ensure_ros():
-    """Lazily initializes the SensorState subscriber."""
+    """Lazily initializes the SensorState and odometry subscribers."""
     global _ros_initialized
     if not _HAS_ROS or _ros_initialized:
         return
@@ -74,6 +85,13 @@ def _ensure_ros():
         "/mobile_base/sensors/core",
         SensorState,
         _sensor_cb,
+        queue_size=1,
+    )
+
+    rospy.Subscriber(
+        "/odom",
+        Odometry,
+        _odom_cb,
         queue_size=1,
     )
 
@@ -203,6 +221,45 @@ def get_buttons() -> List[str]:
     with _state_lock:
         if _latest_state is None: return []
         return _parse_bitmask(_latest_state.buttons, _BUTTON_MAP)
+
+def get_odom() -> Dict[str, float]:
+    """
+    Read my current odometric pose and velocity from the /odom topic.
+
+    Returns:
+        A dictionary:
+        - 'x' (float): Position along the odom X axis in metres.
+        - 'y' (float): Position along the odom Y axis in metres.
+        - 'yaw' (float): Heading in degrees (0 = forward at startup, + = left).
+        - 'linear_x' (float): Current forward velocity in m/s.
+        - 'angular_z_deg' (float): Current rotational velocity in deg/s.
+        All fields are 0.0 if no odometry message has arrived yet.
+
+    Note to self:
+        Odometry drifts — treat x/y as a relative displacement reference, not
+        an absolute world position. Reset to zero whenever I re-dock or
+        whenever nav resets the odom frame. The yaw convention matches the
+        `velocity()` angular_z_deg sign: positive turns me left (CCW).
+    """
+    _ensure_ros()
+    with _odom_lock:
+        if _latest_odom is None:
+            return {'x': 0.0, 'y': 0.0, 'yaw': 0.0, 'linear_x': 0.0, 'angular_z_deg': 0.0}
+
+        pos = _latest_odom.pose.pose.position
+        q   = _latest_odom.pose.pose.orientation
+        # Yaw from quaternion (rotation around Z axis)
+        yaw_rad = math.atan2(
+            2.0 * (q.w * q.z + q.x * q.y),
+            1.0 - 2.0 * (q.y * q.y + q.z * q.z)
+        )
+        return {
+            'x':             round(pos.x, 4),
+            'y':             round(pos.y, 4),
+            'yaw':           round(math.degrees(yaw_rad), 2),
+            'linear_x':      round(_latest_odom.twist.twist.linear.x, 4),
+            'angular_z_deg': round(math.degrees(_latest_odom.twist.twist.angular.z), 2),
+        }
 
 
 # ─── Public Movement API ──────────────────────────────────────────────
