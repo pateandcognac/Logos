@@ -10,7 +10,7 @@ map3d:
   enabled: true 
   render_params:
     resolution: [1000, 1000]
-    camera_pos_relative: [-1.5, -1.0, 2.0]
+    camera_pos_relative: [-1.0, -1.0, 2.0]
     look_at_relative: [1.0, 0.0, 0.35]
     include_robot: true
     view: true

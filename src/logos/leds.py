@@ -18,6 +18,7 @@ from std_msgs.msg import Int32MultiArray, UInt8
 from .core import api_call, Verbosity
 from typing import Dict, List, Optional, Sequence, Tuple, Union
 import time
+import webcolors
 
 __all__ = ["set", "fill", "off", "laser", "STRIPS"]
 
@@ -31,24 +32,6 @@ STRIPS: Dict[str, dict] = {
 }
 
 _LASER_TOPIC = "/pan_tilt/laser"
-
-# Named color palette for convenience
-_NAMED_COLORS: Dict[str, int] = {
-    "off":     0x000000,
-    "white":   0xFFFFFF,
-    "red":     0xFF0000,
-    "green":   0x00FF00,
-    "blue":    0x0000FF,
-    "yellow":  0xFFFF00,
-    "cyan":    0x00FFFF,
-    "magenta": 0xFF00FF,
-    "orange":  0xFF8000,
-    "purple":  0x8000FF,
-    "warm":    0xFFB060,
-    "indigo":  0x560591,
-    "lime":    0xBFFF00,
-    "gold":    0xAAAA00,
-}
 
 
 # ─── Lazy Publishers ──────────────────────────────────────────────────
@@ -82,7 +65,13 @@ def _get_laser_pub() -> rospy.Publisher:
 # ─── Color Normalization ─────────────────────────────────────────────
 
 # Color type: hex int, RGB tuple, or named string
-ColorValue = Union[int, Tuple[int, int, int], str]
+ColorValue = Union[int, Tuple[int, int, int], List[int], str]
+
+
+def _rgb_to_int(rgb: Sequence[int]) -> int:
+    """Convert 8-bit RGB channels to my 24-bit Arduino color integer."""
+    r, g, b = [max(0, min(255, int(c))) for c in rgb]
+    return (r << 16) | (g << 8) | b
 
 
 def _normalize_color(color: ColorValue) -> int:
@@ -92,8 +81,8 @@ def _normalize_color(color: ColorValue) -> int:
     Accepts:
         - int:   0xFF0000 (red), 0x000000 (off)
         - tuple: (255, 0, 0) for red
-        - str:   'red', 'off', 'white', etc. from the named palette.
-                 Also accepts '#FF0000' hex strings.
+        - str:   CSS color names from webcolors, 'off', and hex strings
+                 like '#FF0000', '#F00', 'FF0000', or 'F00'.
     """
     if isinstance(color, int):
         return color & 0xFFFFFF
@@ -101,23 +90,31 @@ def _normalize_color(color: ColorValue) -> int:
     if isinstance(color, (tuple, list)):
         if len(color) != 3:
             raise ValueError(f"RGB tuple must have 3 elements, got {len(color)}")
-        r, g, b = [max(0, min(255, int(c))) for c in color]
-        return (r << 16) | (g << 8) | b
+        return _rgb_to_int(color)
 
     if isinstance(color, str):
-        # Check named palette first
         lower = color.lower().strip()
-        if lower in _NAMED_COLORS:
-            return _NAMED_COLORS[lower]
-        # Try hex string like '#FF0000' or 'FF0000'
-        hex_str = lower.lstrip("#")
-        if len(hex_str) == 6:
-            try:
-                return int(hex_str, 16)
-            except ValueError:
-                pass
+        if lower == "off":
+            return 0x000000
+
+        # webcolors wants the leading '#', while my API has historically
+        # accepted bare RGB hex strings too.
+        hex_candidate = lower
+        if not hex_candidate.startswith("#") and len(hex_candidate) in (3, 6):
+            hex_candidate = "#" + hex_candidate
+
+        try:
+            return _rgb_to_int(webcolors.hex_to_rgb(hex_candidate))
+        except ValueError:
+            pass
+
+        try:
+            return _rgb_to_int(webcolors.name_to_rgb(lower.replace(" ", "")))
+        except ValueError:
+            pass
+
         raise ValueError(
-            f"Unknown color '{color}'. Named options: {list(_NAMED_COLORS.keys())}"
+            f"Unknown color '{color}'. Use a CSS color name, 'off', or RGB hex."
         )
 
     raise TypeError(f"Unsupported color type: {type(color)}")
@@ -142,7 +139,7 @@ def set(
         strip: Which strip to address. Defaults to 'notification'.
         colors: A sequence of color values, one per LED. Length must match
             the strip's LED count, or be shorter (remaining LEDs unchanged).
-            Each element can be a hex int, RGB tuple, or named color string.
+            Each element can be a hex int, RGB tuple, or CSS color name.
 
     Note to self:
         Use this for per-LED patterns, animations, or gradients.

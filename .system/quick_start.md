@@ -270,7 +270,7 @@ def logos.leds.fill(color: Union[str, int, Tuple], strip: str='notification') ->
     Accepts:
     - int:   0xFFFF00 (yellow), 0x000000 (off)
     - tuple: (255, 0, 0) for red
-    - str:   'red', 'off', 'white', etc. from the named palette.
+    - str:   CSS color names, plus 'off'.
              And '#FF0000' hex strings (like from `get_face_state()`)
     ...
 def logos.leds.set(strip: str='notification', colors: List=()) -> None:
