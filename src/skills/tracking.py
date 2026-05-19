@@ -14,6 +14,8 @@ import numpy as np
 import logos
 from logos.vision import CaptureResult
 import logos.utils
+from logos.core import Verbosity, verbosity, check_for_interrupt
+
 
 # Tiny global state to coast through YOLO flicker
 _tracking_state = {
@@ -87,10 +89,11 @@ def track_step(
     target: str = "person",
     drive: bool = False,
     target_dist: float = 0.66,
-    align_gain: float = 2.0,
-    eye_scale: float = 30.0,
-    max_turn: float = 30.0,
-    look_deadband: float = 100.0,
+    align_gain: float = 3.0,
+    eye_pan_scale: float = 25.0,
+    eye_damp: float = 0.05,
+    max_turn: float = 35.0,
+    look_deadband: float = 120.0,
 ) -> bool:
     """
     A single non-blocking tick of a composable tracking loop.
@@ -99,7 +102,7 @@ def track_step(
     then uses the resulting pan angle as the base rotation error — the
     further I'm looking sideways, the more I spin my body to re-center.
     When not driving, animatronic eye gaze is coupled into the rotation so
-    my body organically follows where my animnated eyes wander. When driving,
+    my body organically follows where my animated eyes wander. When driving,
     Astra depth keeps me at the desired standoff distance.
 
     Args:
@@ -107,8 +110,15 @@ def track_step(
         drive: If True, moves forward/back to maintain `target_dist`.
                Eye coupling is automatically disabled while driving.
         target_dist: Desired standoff distance in metres (drive=True only).
-        align_gain: Base rotation gain — deg/s per degree of pan error.
-        eye_scale: How many degrees of base rotation one unit of gaze_x produces.
+        align_gain: Base rotation P-gain — deg/s per degree of pan error.
+        eye_pan_scale: How many degrees of pan offset a full gaze_x unit
+                       produces. This is a true position target, not a speed —
+                       e.g. 15.0 means gaze fully right shifts the equilibrium
+                       so I'm looking 15° right of the person. The P-controller
+                       then drives the base to reach that new equilibrium and stops.
+        eye_damp: Derivative gain on odom angular velocity, applied to the
+                  eye-coupling term to soften overshoot on fast gaze snaps.
+                  Set to 0.0 to disable.
         max_turn: Hard clamp on turn speed in deg/s.
         look_deadband: How far (in 0-1000 image units) the detection center
                        must be from the frame center before look_at() fires.
@@ -129,7 +139,7 @@ def track_step(
     turn_speed = 0.0
 
     # ── 1. Detect on pan-tilt ────────────────────────────────────────────
-    pt_res = logos.vision.capture('pan_tilt')
+    pt_res = logos.vision.capture('pan_tilt', verbosity=Verbosity.SILENT)
     pt_dets = []
     if pt_res is not None:
         pt_dets, pt_res = logos.models.yolo11(pt_res, classes=[target])
@@ -148,26 +158,33 @@ def track_step(
         # Skipping small corrections prevents the servo from hunting/oscillating
         # while the base is already rotating to catch up.
         if x_err > look_deadband:
-            look_at(pt_dets[0], capture_result=pt_res, duration=0.05, steps=1)
+            look_at(pt_dets[0], capture_result=pt_res, duration=0.1, steps=3)
 
         pan_deg, _ = logos.pantilt.get_angles()
-        if abs(pan_deg) >= 1.0:
-            turn_speed = pan_deg * align_gain
 
-        # ── 3. Eye coupling (only when not driving) ──────────────────────
-        # Direct gaze_x → rotation mapping. eye_scale sets how many deg/s
-        # one full unit of gaze produces. No velocity feedback needed here —
-        # gaze is a slow-drift signal, not a fast correction.
+        # ── 3. Compute pan error with optional eye-coupling offset ───────
+        # Without eye coupling: drive pan toward 0 (target dead-ahead).
+        # With eye coupling: shift the target pan by gaze — the body settles
+        # at a new equilibrium where I'm looking eye_pan_scale degrees to the
+        # side of the target. The P-controller provides velocity naturally, so
+        # this is a true position target rather than a raw speed addition.
+        # gaze_x > 0 = eyes drift right → want pan negative (looking right)
         if not drive:
             face = logos.emote.get_face_state()
-            if face:
-                gaze_x = face.get("left_eye", {}).get("gaze_x", 0.0)
-                # gaze_x > 0 = eyes drift right → rotate right = negative angular_z
-                turn_speed += gaze_x * eye_scale
+            gaze_x = face.get("left_eye", {}).get("gaze_x", 0.0) if face else 0.0
+            target_pan = -gaze_x * eye_pan_scale
+        else:
+            target_pan = 0.0
+
+        pan_error = pan_deg - target_pan
+        if abs(pan_error) >= 1.0:
+            turn_speed = pan_error * align_gain
+            if eye_damp > 0.0 and not drive:
+                turn_speed -= eye_damp * logos.base.get_odom()["angular_z_deg"]
 
         # ── 4. Drive: Astra depth sampling ──────────────────────────────
         if drive:
-            astra_res = logos.vision.capture('astra')
+            astra_res = logos.vision.capture('astra', verbosity=Verbosity.SILENT)
             if astra_res is not None:
                 astra_dets, astra_res = logos.models.yolo11(astra_res, classes=[target])
                 if astra_dets and astra_res.depth_points is not None:
@@ -192,7 +209,7 @@ def track_step(
                             # drive_speed = max(-0.18, min(0.28, dist_error * 1.0))
                             drive_speed = max(-0.28, min(0.4, dist_error * 1.0))
 
-        # time.sleep(0.15)
+        time.sleep(0.1)
 
 
     else:
@@ -201,7 +218,7 @@ def track_step(
         if elapsed > 2.5:
             # Coast window expired — signal the loop to stop
             logos.base.velocity(
-                linear_x=0.0, angular_z_deg=0.0, topic="raw",
+                linear_x=0.0, angular_z_deg=0.0, topic="muxed",
                 verbosity=logos.Verbosity.SILENT
             )
             return False
@@ -216,7 +233,7 @@ def track_step(
     logos.base.velocity(
         linear_x=drive_speed,
         angular_z_deg=turn_speed,
-        topic="raw",
+        topic="muxed",
         verbosity=logos.Verbosity.SILENT,
     )
     return True
