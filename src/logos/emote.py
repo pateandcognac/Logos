@@ -212,7 +212,7 @@ def ttp(
         wait: 
             If True, pauses code execution until the audio completely finishes.
             If False, returns a SpeakTask immediately for async monitoring.
-        engine: "kokoro", "piper", or "espeak".
+        engine: "kokoro", "piper", "espeak", or "festival"
         **kwargs: Overrides for engine params (e.g., voice="...", speed=1.0, volume=1.0).
 
     Returns:

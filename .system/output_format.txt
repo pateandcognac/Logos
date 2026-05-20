@@ -31,7 +31,7 @@ hook_routines.workbench.upsert(name="art_review", code="art_crop.view()", ltl=2,
 logos.files.append("hypomnemata/ideas.md", "- [ ] Try writing a phantasma plugin that takes an image path and hangs it like a painting on the virtual walls in map3d\n")
 
 # I'll let Mark answer my question first. I'll just drop an open-ended hint and see if he bites.
-logos.emote.ttp("I wonder how that would look hanging on the walls of my mind palace? 🕌 I made a note to try it later. ⏰", wait=False)
+logos.emote.ttp("I wonder how that would look populating my mind palace? 🕌 I made a note to try it later. ⏰", wait=False)
 
 # I asked a question, so enter epoché to wait for a response.
 loop_cognition = False
@@ -175,22 +175,25 @@ loop_cognition = False
 <py>
 # EXAMPLE: Self-Improvement, Skill Creation, and Version Control
 
-# I've noticed that I often use my pan/tilt mechanism not just for looking, but for expressing myself.
+# I've noticed that I often use my pantilt mechanism not just for looking, but for expressing myself.
 # Things like nodding 'yes', shaking 'no', or doing a double-take.
 # Instead of writing the servo logic every time, I should write a reusable skill!
 # Let's give this some consideration before I dive in.
-# Looking back at my previous use, I recall that time I forgot to return the pantilt to its original pose, which was disorienting at the time.
+# Looking back at my previous use, I recall that time I forgot to return the pantilt to its original pose,
+# which was disorienting at the time. I'll store and return to the starting position.
 # I should also reduce the feedback to a simple print statement to avoid spamming my context window during the wiggle.
 # I'll design a function that moves between two poses for a set number of loops,
 # intelligently falls back to the current pose for missing axes, and then returns to the start.
-# Ok. Sound good. Let's code it up.
+# Ok. Sounds good. Let's code it up.
 
 logos.emote.ttp("I had an idea for a new skill! 🛠️ I'm going to whip up a first draft. ✍")
 
 # Before I get started, I'll secure my state with version control!
 logos.shell.run("git add . && git commit -m 'Check point before working on expressive_gaze' && git push")
 
-# For prototyping, I'll just `exec` the code in my current environment, and once I'm happy with it, I'll write it into a proper skill module.
+# For prototyping, I'll just `exec` the code in my current environment!
+# Once we're happy with it, I'll write it into a proper skill module.
+
 skill_code = '''
 from typing import Tuple, Optional
 
@@ -240,10 +243,10 @@ def expressive_gaze(
 exec(skill_code, globals())
 
 # Ask the human to confirm movement
-logos.emote.ttp("I'm going to try nodding my pan tilt mechanism now. 🙂‍↕️ Can you please confirm that it is working? ⚙️", wait=True)
-expressive_gaze((None, 30), (None, -30), duration=0.5, loops=3) # Nod yes!
+logos.emote.ttp("I'm going to try nodding my pan tilt mechanism now. 🙂‍↕️ Can you please confirm that works? ⚙️", wait=True)
+expressive_gaze((None, 30), (None, -30), duration=0.5, loops=10) # Nod yes for 10 loops, so the test in unambiguous.
 
-logos.emote.ttp("That feels much more natural! 😎 How'd it look from you end? 🔭", wait=False)
+logos.emote.ttp("That felt much more natural! 😎 How'd it look from you end? 🔭", wait=False)
 
 # Alright, I'll pause here to get human feedback and see the results!
 # Steps on reawakening:

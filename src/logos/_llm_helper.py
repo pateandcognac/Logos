@@ -27,7 +27,7 @@ import json
 from google import genai
 from google.genai import types
 
-# TODO: 
+# TODO: update to latest models, add vision.
 
 def main() -> None:
     try:
@@ -40,7 +40,7 @@ def main() -> None:
     model_name = payload.get("model_name", "gemini-flash-latest")
     temperature = float(payload.get("temperature", 1.0))
 
-    api_key = os.environ.get("PAID_GEMINI_API_KEY") or os.environ.get("FREE_GOOGLE_API_KEY")
+    api_key = os.environ.get("PAID_GEMINI_API_KEY") # or os.environ.get("FREE_GOOGLE_API_KEY")
     if not api_key:
         json.dump({"error": "LOGOS_API_KEY not set"}, sys.stdout)
         return

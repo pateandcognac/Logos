@@ -33,8 +33,7 @@
 
   - name: proximity_snapshot
     description: 360-degree-ish visual sweep of the floor around me, captured 
-      from top_down and pan_tilt, and stitched into a quad image. Updates are gated by pose and time to reduce 
-      latency and maintain KV cache.
+      from top_down and pan_tilt, and stitched into a quad image. Updates are gated by pose and time to reduce latency and preserve KV cache prefix.
     enabled: true
     code: |
       import hook_routines.proximity_snapshot as ps

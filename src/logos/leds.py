@@ -96,6 +96,8 @@ def _normalize_color(color: ColorValue) -> int:
         lower = color.lower().strip()
         if lower == "off":
             return 0x000000
+        if lower == "amber":
+            return 0x333300
 
         # webcolors wants the leading '#', while my API has historically
         # accepted bare RGB hex strings too.

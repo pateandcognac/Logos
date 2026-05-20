@@ -1,12 +1,14 @@
 # AGENTS.md
 
-This file provides guidance to OpenAI Codex when working with code in this repository.
+This file provides guidance to AI coding agents when working with code in this repository.
 
 ## What This Is
 
-This is **Logos** — the codebase for an embodied AI robot running on ROS Noetic. The robot is Logos itself (a Gemini VLA model), and this workspace is both its API and its long-term memory. The code here is the robot's own tools, written in first person. Mark is the human developer/roommate who built the hardware.
+This is **Logos** — the codebase for an embodied AI robot running on ROS Noetic. The robot is Logos itself (a Gemini VLA model), and this workspace is both its API and its long-term memory. The code here is the robot's own tools, written in first person. Logos has a live, persistent Python tool and environment in which they write small **Just-In-Time Behavior** scripts that run for a few seconds to a few minutes. 
 
-The primary model(s) running the robot are **gemini-robotics-er-1.5-preview** and **gemini-3-flash-preview** (configured in `.system/framework_config.json`). Codex is used as an external development assistant for the codebase — not part of the live robot loop.
+Mark is the human developer/roommate who built the hardware.
+
+The primary model(s) running the robot are **gemini-robotics-er-1.6-preview** and **gemini-3-flash-preview** (configured in `.system/framework_config.json`). The agent reading this right now — yes, *you* — is used as an external development assistant for the codebase. You are not part of the live robot loop.
 
 ## Runtime Environment
 
@@ -33,6 +35,7 @@ The robot's one universal tool. Always available in its Python runtime without i
 | `models.py` | ML/vision inference: `llm()` (out-of-band Gemini call), `yolo11()` (COCO 80-class fast), `yolo_world()` (open-vocab ~8k classes), `yoloe()` (prompted or prompt-free broad detection), `hands()` (MediaPipe gesture recognition) |
 | `sensory.py` | Non-visual senses: ambient audio transcript access via ROS STT node |
 | `nav.py` | Autonomous navigation via `move_base` (absolute) and `turtlebot_actions` (relative) |
+| `bumper.py` | Event-driven bumper callback system — composable handler chain (`register/unregister/clear/set_default/show`), atomic behaviors (`do_print`, `do_stop`, `do_backup`), composed behavior (`look_and_identify`). Rising-edge only; handlers run in a background thread with debounce. |
 | `memory/` | io_buffer summarization and semantic vector memory. Sub-modules: `_buffer.py` (palimpsest summarization), `client.py` / `collection.py` (ChromaDB sidecar HTTP client), `config.py` (server URL / workspace config), `errors.py`, `indexing.py` (index builders: technical reference, summaries, etc.), `rag.py` (`semantic_help()`, `search_memories()`, `remember()`, `recall_facts()`) |
 | `leds.py`, `emote.py`, `shell.py`, `files.py`, `ros.py`, `base.py` | Hardware I/O, filesystem, ROS utilities |
 
@@ -81,28 +84,26 @@ Instances are configured in `hypomnemata/chora/mind_palace_00.yaml` and managed 
 - `mind_palace_00.yaml` — phantasma instances for the Chora render
 - `map3d_tuning.yaml`, `5_mind_palace_schema.yaml` — tuning and schema docs
 
-### System Files (`.system/`) — Do Not Modify Unless Requested
+### System Files (`.system/`) — Do Not Modify
 
 - `system_prompt.txt` — Logos's identity/system prompt (Gemini)
 - `framework_config.json` — framework behavior (model, token limits, io_buffer display)
 - `output_format.txt` — output format injected into system prompt
+-  few_shot_examples/ — Contains .py and .md files for ingestion by RAG system.
 
 ## Code Style
 
-All persistent code in `src/` uses first-person comments: *"This builds my geometry at the origin"* — not *"builds geometry at the origin."*
+All persistent code in `src/` is commented as though it is written by Logos themselves. Write in first person as though Claude owns the code and "is" the hardware. The API, skills, helpers, even hook_routines should be written for maximum creative composability in mind, such that Logos build complex behaviors from compatible primitives.
 
-Docstring structure: one-line summary → intent paragraph → `Args` / `Returns` / `Note to self`.
+Docstring structure: one-line summary → intent paragraph → `Args` / `Returns` / `Note to self`. (One-line summary breaks 80 character limit convention to be genuinely helpful.)
 
-Type hints use Python 3.8 syntax (`Optional[X]`, `List[X]`, `Union[X, Y]` — not `X | Y` or `list[x]`).
+Type hints use Python 3.8 syntax (`Optional[X]`, `List[X]`, `Union[X, Y]` — not `X | Y` or `list[x]`). Always put type hints directly in function signatures — never as `# type: (...)` comment annotations.
 
 Angles are always degrees in public interfaces. Never expose radians.
 
 `__all__` is defined in modules that have a meaningful public surface to limit what shows in `logos.api_help()`.
 
-## External Code
-
-Logos's cognition node, Python tool, Turtlebot2-related, and other supporting code lives in `~/robot_ws/` and `~/tb2_ws/`.
-
 ## No Traditional Build/Test System
 
-There is no build step, test runner, or CI. Testing happens live on the robot via `<py>` blocks. When writing new modules, keep ROS imports gated so code can be read/linted offline! The `_llm_helper.py` bridge runs under a separate Python 3.11 venv with the Google GenAI SDK for out-of-band LLM calls.
+There is no official build step, test runner, or CI. Testing happens live on the robot via `<py>` blocks. When writing new modules, keep ROS imports gated so code can be read/linted offline! The `_llm_helper.py` bridge runs under a separate Python 3.11 venv with the Google GenAI SDK for out-of-band LLM calls.
+Ask the user, Mark, to run test commands if needed.

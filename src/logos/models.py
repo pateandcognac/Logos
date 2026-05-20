@@ -625,11 +625,15 @@ def yoloe(
 def _recognize_gesture(landmarks: List[List[int]]) -> str:
     """
     A lightweight, math-based heuristic to recognize basic hand gestures.
+    
     Calculates if a finger is 'open' by checking if its tip is further 
     from the wrist (landmark 0) than its PIP joint.
     """
     def dist(i, j):
         return math.hypot(landmarks[i][0] - landmarks[j][0], landmarks[i][1] - landmarks[j][1])
+    
+    # Reference length of the palm (wrist to middle MCP)
+    palm_size = max(dist(0, 9), 1.0)
     
     # Finger indices: [Tip, PIP]
     # Thumb uses MCP (2) instead of PIP for better distance heuristics
@@ -642,13 +646,47 @@ def _recognize_gesture(landmarks: List[List[int]]) -> str:
     }
     
     opens = sum(fingers_open.values())
+    main_opens = sum([fingers_open["index"], fingers_open["middle"], fingers_open["ring"], fingers_open["pinky"]])
     
-    if opens == 5: return "open_palm"
-    if opens == 0: return "closed_fist"
-    if fingers_open["index"] and not fingers_open["middle"] and not fingers_open["ring"] and not fingers_open["pinky"]:
-        return "pointing"
+    # 1. OK Gesture: Index and thumb tips touching (or very close), others open
+    if dist(4, 8) < 0.25 * palm_size and fingers_open["middle"] and fingers_open["ring"] and fingers_open["pinky"]:
+        return "ok"
+        
+    # 2. Peace Gesture: Index and Middle open, Ring and Pinky closed
     if fingers_open["index"] and fingers_open["middle"] and not fingers_open["ring"] and not fingers_open["pinky"]:
         return "peace"
+        
+    # 3. Pointing: Index open, Middle, Ring, Pinky closed (Thumb can be either)
+    if fingers_open["index"] and not fingers_open["middle"] and not fingers_open["ring"] and not fingers_open["pinky"]:
+        # Vector from index MCP (5) to index TIP (8)
+        dy = landmarks[8][0] - landmarks[5][0]
+        dx = landmarks[8][1] - landmarks[5][1]
+        if abs(dx) > abs(dy):
+            return "pointing_right" if dx > 0 else "pointing_left"
+        else:
+            return "pointing_down" if dy > 0 else "pointing_up"
+            
+    # 4. Thumbs Up / Down: Thumb open, all other 4 fingers closed
+    if fingers_open["thumb"] and not fingers_open["index"] and not fingers_open["middle"] and not fingers_open["ring"] and not fingers_open["pinky"]:
+        # Vector from thumb MCP (2) to thumb TIP (4)
+        dy = landmarks[4][0] - landmarks[2][0]
+        dx = landmarks[4][1] - landmarks[2][1]
+        if abs(dy) > abs(dx):
+            return "thumbs_up" if dy < 0 else "thumbs_down"
+            
+    # 5. Hand Up / Hand Down / Open Palm: At least 3 main fingers open
+    if main_opens >= 3:
+        # Hand orientation vector from Wrist (0) to Middle MCP (9)
+        palm_dy = landmarks[9][0] - landmarks[0][0]
+        palm_dx = landmarks[9][1] - landmarks[0][1]
+        if abs(palm_dy) > abs(palm_dx):
+            return "hand_down" if palm_dy > 0 else "hand_up"
+        else:
+            return "open_palm"
+            
+    # 6. Closed Fist: All fingers closed
+    if opens == 0:
+        return "closed_fist"
         
     return "unknown"
 
@@ -669,7 +707,7 @@ def hands(
             {
                 "handedness": "Right", 
                 "confidence": 0.98,
-                "gesture": "open_palm|closed_fist|pointing|peace|unknown",
+                "gesture": "pointing_up|pointing_down|pointing_left|pointing_right|hand_up|hand_down|thumbs_up|thumbs_down|peace|ok|open_palm|closed_fist|unknown",
                 "box_2d": [y_min, x_min, y_max, x_max], 
                 "center_2d": [y, x],
                 "landmarks": [[y, x], [y, x], ...] # 21 points
@@ -681,7 +719,7 @@ def hands(
 
     Note to self:
         This model is extremely fast. Use it to read human intent!
-        Gestures recognized: 'open_palm', 'closed_fist', 'pointing', 'peace', 'unknown'.
+        Gestures recognized: 'open_palm', 'closed_fist', 'pointing_up', 'pointing_down', 'pointing_left', 'pointing_right', 'hand_up', 'hand_down', 'thumbs_up', 'thumbs_down', 'peace', 'ok', 'unknown'.
         [y, x] coordinates are normalized 0-1000 for compatibility with existing tools.
     """
     global _mp_hands_model

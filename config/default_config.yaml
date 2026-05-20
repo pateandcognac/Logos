@@ -24,6 +24,11 @@ tts:
     voice: "en-us+m3"
     speed: 0.9
     volume: 0.9
+  festival_params:
+    voice: "us2_mbrola"
+    speed: 1.00
+    volume: 1.0
+
 
 map3d:
   phantasmata_dir: "src/logos/phantasmata"
@@ -48,7 +53,7 @@ memory_policy:
   max_cells: 48
   max_tokens: 32768
   untouchable_tail: 16
-  summarizable_types: ["human", "me", "py_result", "human_stt", "system"]
+  summarizable_types: ["human", "me", "py_result", "py_async", "human_stt", "system"]
   age_weight: 0.75
   size_weight: 0.25
   min_cells_to_summarize: 16
@@ -81,8 +86,8 @@ vision_hook:
     meta_keys: []
 ambient_audio:
   last_minutes:
-    speech: 10
-    classifier: 1
+    speech: 2
+    classifier: 3
 
 # personality: 
 #    description: This is arbitrary and we could put anything here... it's just viewed by the model as text.

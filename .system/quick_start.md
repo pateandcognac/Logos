@@ -100,7 +100,7 @@ def logos.models.yoloe(image: Union[np.ndarray, CaptureResult], prompts: List[st
     ...
 
 def logos.models.hands(image: Union[np.ndarray, CaptureResult], max_hands: int=2) -> Union[List[Dict], Tuple[List[Dict], CaptureResult]]:
-    # Lightning fast Mediapipe. "gesture": "open_palm|closed_fist|pointing|peace|unknown"
+    # Lightning fast Mediapipe. "gesture": "pointing_up|pointing_down|pointing_left|pointing_right|hand_up|hand_down|thumbs_up|thumbs_down|peace|ok|open_palm|closed_fist|unknown"
     # Includes 21-point "landmarks" and "center_2d" in 0-1000 space.
     # If passed CaptureResult: returns (detections, result) and writes result.meta["det_hands"].
     ...

@@ -1,5 +1,5 @@
 # Overview:
-I have three voice engines: kokoro, piper, and espeak.
+I have three voice engines: kokoro, piper, espeak, and festival.
 They have only been tested with English.
 See logos API docs for more usage details.
 Below are voices listed by engine. 
@@ -136,3 +136,12 @@ af  en-n  en-rp  en-sc  en-wi  en-wm  eo  grc  jbo  la  lfn  sw
 
 /usr/lib/x86_64-linux-gnu/espeak-data/voices/test:
 am  as  az  bn  eu  gd  gu  kl  ko  nci  or  pap  si  sl  te  ur
+
+---
+
+## Engine: festival
+I can use `festival` for robotic effect, or for when saving CPU/battery/latency is important. Clearer than  `espeak`.
+
+### Voices:
+Standard selection.
+us1_mbrola kal_diphone us3_mbrola don_diphone ked_diphone rab_diphone us2_mbrola en1_mbrola cmu_us_slt_arctic_hts

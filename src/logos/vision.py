@@ -1467,6 +1467,8 @@ def _is_detection_dict(value: Any) -> bool:
     """Return True if a dict looks like one of my visual detection records."""
     return isinstance(value, dict) and (
         "box_2d" in value
+        or "box_3d" in value
+        or "point" in value
         or "bbox" in value
         or "bounding_box" in value
         or "center_2d" in value
@@ -1618,6 +1620,208 @@ def _debug_meta_key(source: str, detections: List[Dict[str, Any]]) -> str:
     return "det_" + _sanitize_debug_source(base)
 
 
+def _coerce_debug_vector(value: Any, length: int) -> Optional[List[float]]:
+    """Convert a detection vector to floats when it has the expected shape."""
+    if value is None:
+        return None
+
+    if isinstance(value, np.ndarray):
+        value = value.tolist()
+
+    if not isinstance(value, (list, tuple)) or len(value) != length:
+        return None
+
+    try:
+        return [float(v) for v in value]
+    except (TypeError, ValueError):
+        return None
+
+
+def _debug_detection_label(det: Dict[str, Any]) -> str:
+    """Build the short label I draw next to a debug detection."""
+    label = det.get("label")
+    if not label:
+        gesture = det.get("gesture")
+        handedness = det.get("handedness")
+        if gesture and handedness:
+            label = f"{handedness} hand: {gesture}"
+        elif gesture:
+            label = gesture
+        elif handedness:
+            label = handedness
+        else:
+            label = "unknown"
+            
+    conf = det.get("confidence")
+    if conf is None:
+        return str(label)
+    try:
+        return f"{label} {float(conf):.2f}"
+    except (TypeError, ValueError):
+        return f"{label} {conf}"
+
+
+def _debug_norm_to_pixel(y: float, x: float, h: int, w: int) -> Tuple[int, int]:
+    """Map my normalized [y, x] space to clamped image pixels."""
+    py = int(round(y * h / 1000.0))
+    px = int(round(x * w / 1000.0))
+    py = max(0, min(h - 1, py))
+    px = max(0, min(w - 1, px))
+    return py, px
+
+
+def _debug_draw_label(
+    canvas: np.ndarray,
+    text: str,
+    x: int,
+    y: int,
+    color: Tuple[int, int, int],
+) -> None:
+    """Draw a small readable label without taking much of the image."""
+    h, w = canvas.shape[:2]
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    font_scale = 0.5
+    thickness = 1
+    (tw, th), baseline = cv2.getTextSize(text, font, font_scale, thickness)
+    pad = 3
+
+    x = max(pad, min(w - tw - pad, x))
+    y = max(th + pad, min(h - baseline - pad, y))
+
+    cv2.rectangle(
+        canvas,
+        (x - pad, y - th - pad),
+        (x + tw + pad, y + baseline + pad),
+        (0, 0, 0),
+        cv2.FILLED,
+    )
+    cv2.putText(canvas, text, (x, y), font, font_scale, color, thickness, cv2.LINE_AA)
+
+
+def _debug_draw_point(
+    canvas: np.ndarray,
+    point: List[float],
+    label: Optional[str],
+    color: Tuple[int, int, int],
+    radius: int = 5,
+) -> None:
+    """Draw one normalized [y, x] point with a crosshair."""
+    h, w = canvas.shape[:2]
+    py, px = _debug_norm_to_pixel(point[0], point[1], h, w)
+    cv2.circle(canvas, (px, py), radius, color, 2, cv2.LINE_AA)
+    cv2.line(canvas, (px - radius - 3, py), (px + radius + 3, py), color, 1, cv2.LINE_AA)
+    cv2.line(canvas, (px, py - radius - 3), (px, py + radius + 3), color, 1, cv2.LINE_AA)
+    if label:
+        _debug_draw_label(canvas, label, px + radius + 4, py - radius - 4, color)
+
+
+def _debug_fov_for_source(
+    source: Optional[str],
+    capture_result: Optional[CaptureResult],
+) -> Tuple[float, float]:
+    """Resolve a camera FOV for projecting camera-frame 3D detections."""
+    candidates = []
+    if source:
+        candidates.append(source)
+    if capture_result is not None:
+        candidates.append(capture_result.source)
+    candidates.extend(("astra_rgb", "pan_tilt"))
+
+    for candidate in candidates:
+        if candidate in FOV:
+            return FOV[candidate]
+        if candidate == "astra":
+            return FOV["astra_rgb"]
+
+    return FOV["pan_tilt"]
+
+
+def _debug_rotation_matrix(roll_deg: float, pitch_deg: float, yaw_deg: float) -> np.ndarray:
+    """Build a camera-frame roll/pitch/yaw rotation matrix from degrees."""
+    roll, pitch, yaw = np.deg2rad([roll_deg, pitch_deg, yaw_deg])
+    cr, sr = np.cos(roll), np.sin(roll)
+    cp, sp = np.cos(pitch), np.sin(pitch)
+    cy, sy = np.cos(yaw), np.sin(yaw)
+
+    rx = np.array([[1.0, 0.0, 0.0], [0.0, cr, -sr], [0.0, sr, cr]])
+    ry = np.array([[cp, 0.0, sp], [0.0, 1.0, 0.0], [-sp, 0.0, cp]])
+    rz = np.array([[cy, -sy, 0.0], [sy, cy, 0.0], [0.0, 0.0, 1.0]])
+    return rz.dot(ry).dot(rx)
+
+
+def _debug_project_camera_point(
+    point: np.ndarray,
+    h_fov_deg: float,
+    v_fov_deg: float,
+) -> Optional[Tuple[float, float]]:
+    """Project one optical-frame [x, y, z] point into normalized [y, x]."""
+    x, y, z = point
+    if z <= 1e-4:
+        return None
+
+    fx = 500.0 / np.tan(np.deg2rad(h_fov_deg) / 2.0)
+    fy = 500.0 / np.tan(np.deg2rad(v_fov_deg) / 2.0)
+    norm_x = 500.0 + fx * (x / z)
+    norm_y = 500.0 + fy * (y / z)
+    return float(norm_y), float(norm_x)
+
+
+def _debug_draw_box_3d(
+    canvas: np.ndarray,
+    box_3d: List[float],
+    label: str,
+    color: Tuple[int, int, int],
+    fov: Tuple[float, float],
+) -> None:
+    """Project and draw a 3D camera-frame box as a wireframe cuboid."""
+    h, w = canvas.shape[:2]
+    cx, cy, cz, sx, sy, sz, roll, pitch, yaw = box_3d
+    center = np.array([cx, cy, cz], dtype=np.float64)
+    half = np.array([sx, sy, sz], dtype=np.float64) / 2.0
+    rotation = _debug_rotation_matrix(roll, pitch, yaw)
+
+    local_corners = np.array([
+        [-half[0], -half[1], -half[2]],
+        [ half[0], -half[1], -half[2]],
+        [ half[0],  half[1], -half[2]],
+        [-half[0],  half[1], -half[2]],
+        [-half[0], -half[1],  half[2]],
+        [ half[0], -half[1],  half[2]],
+        [ half[0],  half[1],  half[2]],
+        [-half[0],  half[1],  half[2]],
+    ], dtype=np.float64)
+
+    corners = center + local_corners.dot(rotation.T)
+    projected = [
+        _debug_project_camera_point(corner, fov[0], fov[1])
+        for corner in corners
+    ]
+    pixel_points: List[Optional[Tuple[int, int]]] = []
+    for point in projected:
+        if point is None:
+            pixel_points.append(None)
+        else:
+            py, px = _debug_norm_to_pixel(point[0], point[1], h, w)
+            pixel_points.append((px, py))
+
+    edges = (
+        (0, 1), (1, 2), (2, 3), (3, 0),
+        (4, 5), (5, 6), (6, 7), (7, 4),
+        (0, 4), (1, 5), (2, 6), (3, 7),
+    )
+    for a, b in edges:
+        pa = pixel_points[a]
+        pb = pixel_points[b]
+        if pa is not None and pb is not None:
+            cv2.line(canvas, pa, pb, color, 2, cv2.LINE_AA)
+
+    projected_center = _debug_project_camera_point(center, fov[0], fov[1])
+    if projected_center is not None:
+        py, px = _debug_norm_to_pixel(projected_center[0], projected_center[1], h, w)
+        cv2.circle(canvas, (px, py), 3, color, cv2.FILLED, cv2.LINE_AA)
+        _debug_draw_label(canvas, label, px + 6, py - 8, color)
+
+
 @api_call(default_verbosity=Verbosity.SILENT)
 def publish_debug(
     image: Union[np.ndarray, CaptureResult],
@@ -1625,7 +1829,7 @@ def publish_debug(
     source: Optional[str] = None,
 ) -> None:
     """
-    Annotate an image with detection boxes and labels, then publish to ROS.
+    Annotate an image with detection geometry and labels, then publish to ROS.
     
     Topic: /logos/debug_vision/{source}
 
@@ -1633,7 +1837,8 @@ def publish_debug(
         image: The base BGR image, or a CaptureResult with `.image` and `.meta`.
         detections: Optional Logos-format detection data. Can be a list, a single
             detection dict, a nested dict containing detections, or the
-            `(detections, CaptureResult)` tuple returned by logos.models.
+            `(detections, CaptureResult)` tuple returned by logos.models. Supports
+            2D boxes, 2D points, hand landmarks, and camera optical-frame 3D boxes.
         source: Optional string used to name the ROS topic. If omitted for a
             CaptureResult, it will be inferred from detection metadata.
 
@@ -1669,31 +1874,60 @@ def publish_debug(
     # Work on a copy so we don't modify the original image object
     canvas = base_image.copy()
     h, w = canvas.shape[:2]
+    fov = _debug_fov_for_source(source or debug_source, capture_result)
 
     if normalized_detections:
         for i, det in enumerate(normalized_detections):
-            box = det.get("box_2d")
-            if not box or len(box) != 4: continue
-            
-            # Map 0-1000 to pixel coordinates
-            y1, x1, y2, x2 = [
-                int(box[0] * h / 1000), int(box[1] * w / 1000),
-                int(box[2] * h / 1000), int(box[3] * w / 1000)
-            ]
-
             color = _DEBUG_BOX_COLORS[i % len(_DEBUG_BOX_COLORS)]
+            text = _debug_detection_label(det)
 
-            # Draw Box
-            cv2.rectangle(canvas, (x1, y1), (x2, y2), color, 2)
+            box = (
+                _coerce_debug_vector(det.get("box_2d"), 4)
+                or _coerce_debug_vector(det.get("bbox"), 4)
+                or _coerce_debug_vector(det.get("bounding_box"), 4)
+            )
+            if box is not None:
+                y1, x1 = _debug_norm_to_pixel(box[0], box[1], h, w)
+                y2, x2 = _debug_norm_to_pixel(box[2], box[3], h, w)
+                cv2.rectangle(canvas, (x1, y1), (x2, y2), color, 2)
+                _debug_draw_label(canvas, text, x1, y1 - 8, color)
 
-            # Draw Label & Confidence
-            label = det.get("label") or det.get("gesture") or det.get("handedness") or "unknown"
-            conf = det.get("confidence")
-            text = f"{label} {conf}" if conf else label
-            
-            # Simple text background for readability
-            cv2.putText(canvas, text, (x1, y1 - 10), 
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1, cv2.LINE_AA)
+            point = (
+                _coerce_debug_vector(det.get("point"), 2)
+                or _coerce_debug_vector(det.get("center_2d"), 2)
+            )
+            if point is not None:
+                _debug_draw_point(canvas, point, None if box is not None else text, color)
+
+            landmarks = det.get("landmarks")
+            if isinstance(landmarks, (list, tuple)):
+                # If it looks like a standard 21-point hand skeleton, draw connections first
+                if len(landmarks) == 21:
+                    connections = [
+                        (0, 1), (1, 2), (2, 3), (3, 4),
+                        (0, 5), (5, 6), (6, 7), (7, 8),
+                        (5, 9), (9, 10), (10, 11), (11, 12),
+                        (9, 13), (13, 14), (14, 15), (15, 16),
+                        (13, 17), (0, 17), (17, 18), (18, 19), (19, 20),
+                        (5, 9), (9, 13), (13, 17)
+                    ]
+                    for start_idx, end_idx in connections:
+                        if start_idx < len(landmarks) and end_idx < len(landmarks):
+                            pt1 = _coerce_debug_vector(landmarks[start_idx], 2)
+                            pt2 = _coerce_debug_vector(landmarks[end_idx], 2)
+                            if pt1 is not None and pt2 is not None:
+                                py1, px1 = _debug_norm_to_pixel(pt1[0], pt1[1], h, w)
+                                py2, px2 = _debug_norm_to_pixel(pt2[0], pt2[1], h, w)
+                                cv2.line(canvas, (px1, py1), (px2, py2), color, 1, cv2.LINE_AA)
+
+                for landmark in landmarks:
+                    landmark_point = _coerce_debug_vector(landmark, 2)
+                    if landmark_point is not None:
+                        _debug_draw_point(canvas, landmark_point, None, color, radius=2)
+
+            box_3d = _coerce_debug_vector(det.get("box_3d"), 9)
+            if box_3d is not None:
+                _debug_draw_box_3d(canvas, box_3d, text, color, fov)
 
     # Publish to ROS
     try:
@@ -1702,6 +1936,7 @@ def publish_debug(
         pub.publish(msg)
     except Exception as e:
         print(f"vision: Failed to publish debug image: {e}")
+
 
 
 # ============================================================================

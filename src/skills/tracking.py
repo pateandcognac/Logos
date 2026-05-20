@@ -94,7 +94,7 @@ def track_step(
     eye_damp: float = 0.05,
     max_turn: float = 35.0,
     look_deadband: float = 120.0,
-) -> bool:
+) -> Tuple[bool, List[CaptureResult]]:
     """
     A single non-blocking tick of a composable tracking loop.
 
@@ -126,7 +126,11 @@ def track_step(
                        is already roughly centered.
 
     Returns:
-        True if the target was seen recently, False if the coast window expired.
+        (keep_tracking, captures), where keep_tracking is True if the target
+        was seen recently and False if the coast window expired. captures is
+        the CaptureResult list from this tick, with detection metadata attached
+        via add_meta(). Usually this is just the pan-tilt capture; with
+        drive=True it may also include the Astra capture.
 
     Note to self:
         Drop this in a tight loop with a short sleep (0.05s). The Kobuki watchdog
@@ -137,12 +141,15 @@ def track_step(
     now = time.time()
     drive_speed = 0.0
     turn_speed = 0.0
+    captures: List[CaptureResult] = []
 
     # ── 1. Detect on pan-tilt ────────────────────────────────────────────
     pt_res = logos.vision.capture('pan_tilt', verbosity=Verbosity.SILENT)
     pt_dets = []
     if pt_res is not None:
+        captures.append(pt_res)
         pt_dets, pt_res = logos.models.yolo11(pt_res, classes=[target])
+        pt_res.add_meta(det_track=pt_dets, track_target=target)
 
     if pt_dets:
         _tracking_state["last_seen_time"] = now
@@ -186,7 +193,9 @@ def track_step(
         if drive:
             astra_res = logos.vision.capture('astra', verbosity=Verbosity.SILENT)
             if astra_res is not None:
+                captures.append(astra_res)
                 astra_dets, astra_res = logos.models.yolo11(astra_res, classes=[target])
+                astra_res.add_meta(det_track=astra_dets, track_target=target)
                 if astra_dets and astra_res.depth_points is not None:
                     box = astra_dets[0]["box_2d"]
                     cy, cx = logos.utils.get_box_center(box)
@@ -221,7 +230,7 @@ def track_step(
                 linear_x=0.0, angular_z_deg=0.0, topic="muxed",
                 verbosity=logos.Verbosity.SILENT
             )
-            return False
+            return False, captures
         # Still within the coast window: decay the last known turn so we
         # keep rotating gently in the direction we last saw the target
         turn_speed = _tracking_state["last_turn_speed"] * 1.8
@@ -236,4 +245,4 @@ def track_step(
         topic="muxed",
         verbosity=logos.Verbosity.SILENT,
     )
-    return True
+    return True, captures

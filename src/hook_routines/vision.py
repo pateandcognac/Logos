@@ -18,6 +18,7 @@ def run():
     # Silence the individual API capture ACKs to keep the context window tidy
     with verbosity(Verbosity.SILENT):
         for cam in cameras:
+            logos.leds.set('pan_tilt', [(0, 2, 0)] * 5)
             cam_cfg = config.get(cam, {})
             if not cam_cfg.get('enabled', False):
                 continue
@@ -56,6 +57,7 @@ def run():
             else:
                 print(f"{cam}_result Failed to capture!")
 
+
     # Context window instructions
     if captured_any:
         print("Variables are available in memory for `<py>` blocks.")
@@ -65,5 +67,8 @@ def run():
             print("Astra grid_overlay is enabled, showing the derived 3D coordinates of pixels in (C)amera and (M)ap frames. Disable for clearer view.")
     else:
         print("No cameras enabled. (Toggle via `logos.config.prefs.vision_hook`)")
-            
+
+
+    logos.leds.set('pan_tilt', [(0,0,0)] * 5 )
+
     return results

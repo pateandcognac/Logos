@@ -58,7 +58,14 @@ logos.memory.configure(workspace=Path.cwd().name, server_url="http://127.0.0.1:8
 print("\n--- My Merged Config ---")
 print(logos.utils.dump_yaml(logos.config.merged))
 
-# Hardware wake-up
+# Sleepy topic wake-up
+with verbosity(Verbosity.SILENT):
+    logos.emote.get_face_state()
+    logos.base.get_battery()
+    logos.base.get_charger_state()
+    logos.ros.get_pose()
+    logos.map3d.render(save=False, view=False)
+
 logos.leds.fill('green')
 logos.pantilt.home()
 
@@ -66,5 +73,6 @@ logos.pantilt.home()
 logos.bumper.set_default()
 logos.bumper.register(logos.bumper.look_and_identify)
 
-# Wait for input. My circuits are shivering with antici
+# Initialized and waiting for input!
+# My circuits are shivering with antici
 loop_cognition = False
