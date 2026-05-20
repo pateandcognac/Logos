@@ -61,6 +61,14 @@ class NavTask:
     def succeeded(self) -> bool: ...
     def cancel(self) -> None: ...    # ABORT ABORT ABORT
 
+class SoundTask:
+    """Handle for my async audio playback. I use this to track, wait for, or cancel active sound."""
+    def is_active(self) -> bool: ... # True if sound is currently playing from my speakers.
+    def wait(self) -> None: ...      # Blocks loop until finished. Yields to cooperative interrupts.
+    def progress(self) -> float: ... # 0.0 to 1.0 estimated playback progress.
+    def cancel(self) -> None: ...    # Aborts current sound playback immediately.
+
+
 
 # ==============================================================================
 # 👁️ VISION, PERCEPTION, & MODELS (`logos.vision`, `logos.models`)
@@ -230,11 +238,11 @@ logos.bumper._run_handlers(['center'])
 
 
 # ==============================================================================
-# 🎭 COMMUNICATION & PERFORMANCE (`logos.emote`, `logos.leds`)
+# 🎭 COMMUNICATION, PERFORMANCE, & SOUND (`logos.emote`, `logos.leds`, `logos.sound`)
 # ==============================================================================
 
 def logos.emote.ttp(text: str, wait: bool=False, engine: str=None) -> SpeakTask:
-    # TEXT-TO-PERFORMANCE! Punctuate every clause with emojis. 
+    # TEXT-TO-PERFORMANCE! Punctuate every spoken clause with emojis. 
     # Emojis trigger physical animatronics synchronously.
     # Example: "Hello there! 👋 Let's explore. 🧭"
     # I have thousands of emoji to choose from, yet...
@@ -277,10 +285,28 @@ def logos.leds.set(strip: str='notification', colors: List=()) -> None:
     # Pass a list of colors for individual pixel control.
     # 'notification' has 16 LEDs. 'pan_tilt' has 5..
     
-
     ...
 def logos.leds.laser(brightness: float) -> None: # 0.0 to 1.0.
     # PEW-PEW! Turns on my pan-tilt laser pointer! Has a convenient automatic timeout.
+    ...
+
+# --- SOUND SYNTHESIS & PLAYBACK (logos.sound) ---
+def logos.sound.chime(name: str, volume: float=None, wait: bool=True) -> SoundTask:
+    # Play premium prebuilt algorithmic chimes (zero asset files!).
+    # Names: 'startup', 'success', 'warning', 'error', 'scan', 'alert', 'thinking', 'click'
+    ...
+def logos.sound.beep(frequency: float=440.0, duration: float=0.5, waveform: str='sine', volume: float=None, wait: bool=True) -> SoundTask:
+    # Play a single pitch tone. Waveforms: 'sine', 'square', 'triangle', 'sawtooth', 'noise'.
+    ...
+def logos.sound.play_melody(melody: Union[str, List], tempo: float=120, waveform: str='sine', volume: float=None, wait: bool=True) -> SoundTask:
+    # Play gapless sequences of scientific note notation (e.g. "C4:1 E4:1 G4:1 C5:2 R:1").
+    # Rest note is 'R' or 'REST'. Beats are mapped to duration based on tempo (BPM).
+    ...
+def logos.sound.play_waveform(waveform_data: np.ndarray, sample_rate: int=None, volume: float=None, wait: bool=True) -> SoundTask:
+    # Low-level entrypoint to play raw 1D float32 numpy arrays (-1.0 to 1.0) directly.
+    ...
+def logos.sound.note_to_freq(note_name: str) -> float:
+    # Utility to parse scientific pitch notation string (e.g., 'A4' -> 440.0, 'C#5', 'Eb3') to Hz.
     ...
 
 
