@@ -138,6 +138,7 @@ class Collection:
         self,
         ids: List[str],
         documents: Optional[List[str]] = None,
+        embedding_documents: Optional[List[str]] = None,
         metadatas: Optional[List[Optional[Dict[str, Any]]]] = None,
         embeddings: Optional[List[List[float]]] = None,
     ) -> int:
@@ -149,6 +150,7 @@ class Collection:
         Args:
             ids: Unique identifier for each document.
             documents: Raw text to embed and store.
+            embedding_documents: Optional text to embed while storing `documents`.
             metadatas: Optional metadata dict per document.
             embeddings: Pre-computed vectors. If omitted the sidecar embeds via Ollama.
 
@@ -158,6 +160,8 @@ class Collection:
         payload: Dict[str, Any] = {"ids": ids}
         if documents is not None:
             payload["documents"] = documents
+        if embedding_documents is not None:
+            payload["embedding_documents"] = embedding_documents
         if metadatas is not None:
             payload["metadatas"] = metadatas
         if embeddings is not None:
@@ -170,6 +174,7 @@ class Collection:
         self,
         ids: List[str],
         documents: Optional[List[str]] = None,
+        embedding_documents: Optional[List[str]] = None,
         metadatas: Optional[List[Optional[Dict[str, Any]]]] = None,
         embeddings: Optional[List[List[float]]] = None,
     ) -> int:
@@ -179,6 +184,7 @@ class Collection:
         Args:
             ids: Unique identifiers.
             documents: Raw text documents.
+            embedding_documents: Optional text to embed while storing `documents`.
             metadatas: Optional metadata dicts.
             embeddings: Pre-computed vectors.
 
@@ -192,6 +198,7 @@ class Collection:
         return self.upsert(
             ids=ids,
             documents=documents,
+            embedding_documents=embedding_documents,
             metadatas=metadatas,
             embeddings=embeddings,
             verbosity=Verbosity.SILENT,

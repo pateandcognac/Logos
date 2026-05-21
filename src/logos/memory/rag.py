@@ -48,8 +48,11 @@ _SUMMARIES = "summaries"
 __COMMON_LOGOS_DB = "logoi_collective"
 _SHARED_NAMESPACE = "shared"
 
-# mxbai-embed-large 512-token context window (~1500 chars)
+# I still guard arbitrary remembered text with the reference chunk budget.
 _MAX_EMBED_CHARS = 1500
+_REFERENCE_CHUNK_OVERSAMPLE = 5
+_RECORD_SOURCE_DOCUMENT = "source_document"
+_RECORD_CHUNK = "chunk"
 
 
 # ─── Private helpers ──────────────────────────────────────────────────
@@ -143,6 +146,98 @@ def _flatten_results(raw: Dict[str, Any]) -> List[Dict[str, Any]]:
     return results
 
 
+def _flatten_get_results(raw: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Flatten the sidecar's collection.get response into result dictionaries."""
+    ids = raw.get("ids") or []
+    docs = raw.get("documents") or []
+    metas = raw.get("metadatas") or []
+
+    results = []
+    for i in range(len(ids)):
+        results.append({
+            "id": ids[i] if i < len(ids) else "",
+            "document": docs[i] if i < len(docs) else "",
+            "metadata": metas[i] if i < len(metas) else {},
+            "distance": None,
+        })
+    return results
+
+
+def _distance_sort_key(result: Dict[str, Any]) -> float:
+    """Sort Chroma results by relevance while keeping missing distances last."""
+    distance = result.get("distance")
+    return float(distance) if distance is not None else float("inf")
+
+
+def _search_reference_documents(
+    collection_name: str,
+    query: str,
+    n_results: int,
+    workspace: Optional[str],
+) -> List[Dict[str, Any]]:
+    """
+    Search chunk records, group hits by parent, and fetch full source snapshots.
+
+    I ask Chroma for more chunks than final documents because several strong
+    matches may point at overlapping regions of one source snapshot.
+    """
+    if n_results <= 0:
+        return []
+
+    collection = get_or_create_collection(collection_name, namespace=workspace)
+    raw = collection.query(
+        query_texts=[query],
+        n_results=max(n_results, n_results * _REFERENCE_CHUNK_OVERSAMPLE),
+        where={"record_kind": _RECORD_CHUNK},
+    )
+    chunk_results = _flatten_results(raw)
+
+    chunks_by_parent: Dict[str, List[Dict[str, Any]]] = {}
+    for chunk in chunk_results:
+        meta = chunk.get("metadata") or {}
+        parent_id = meta.get("parent_id")
+        if not parent_id:
+            continue
+        chunks_by_parent.setdefault(parent_id, []).append(chunk)
+
+    if not chunks_by_parent:
+        return []
+
+    ranked_parent_ids = sorted(
+        chunks_by_parent,
+        key=lambda parent_id: _distance_sort_key(
+            sorted(chunks_by_parent[parent_id], key=_distance_sort_key)[0]
+        ),
+    )[:n_results]
+
+    parent_raw = collection.get(
+        ids=ranked_parent_ids,
+        where={"record_kind": _RECORD_SOURCE_DOCUMENT},
+        include=["documents", "metadatas"],
+    )
+    parent_by_id = {
+        result.get("id", ""): result for result in _flatten_get_results(parent_raw)
+    }
+
+    results = []
+    for parent_id in ranked_parent_ids:
+        parent = parent_by_id.get(parent_id)
+        if parent is None:
+            continue
+
+        matched_chunks = sorted(
+            chunks_by_parent[parent_id],
+            key=_distance_sort_key,
+        )
+        best_chunk = matched_chunks[0]
+        parent["distance"] = best_chunk.get("distance")
+        parent["matched_chunk"] = best_chunk
+        parent["matched_chunks"] = matched_chunks
+        results.append(parent)
+
+    return results
+
+
 def _format_context_block(results: List[Dict[str, Any]], header: str) -> str:
     """
     Formats a list of result dicts into a human- and LLM-readable context block.
@@ -187,30 +282,33 @@ def search_api_help(
     """
     Queries my technical reference index for API documentation relevant to a question.
 
-    Searches the `technical_reference` collection using semantic embedding
-    similarity against my query. The results are the most relevant logos API
-    functions, class methods, and skills entries — ranked by vector distance
-    (lower = more relevant).
+    Searches chunk vectors in the `technical_reference` collection, groups
+    hits back to their full indexed source snapshots, and returns the most
+    relevant logos API functions, class methods, and skills entries.
 
     Args:
         query:     My natural-language question, e.g. "How do I make Logos speak?".
-        n_results: Maximum number of results to return. Default: 5.
+        n_results: Maximum number of source documents to return. Default: 5.
         workspace: Override the configured workspace namespace.
 
     Returns:
         A dict with keys:
             `query`    — the original query string.
-            `results`  — list of result dicts, each with `id`, `document`,
-                           `metadata`, and `distance`.
+            `results`  — list of source-document result dicts with `id`,
+                           full `document`, `metadata`, `distance`, and
+                           matched chunk evidence.
             `context`  — a pre-formatted text block ready for reading or LLM injection.
 
     Note to self:
         Chroma uses L2 distance: distance 0.0 is a perfect match,
         higher values are less relevant. Distances above ~1.5 are usually noise.
     """
-    collection = get_or_create_collection(_TECHNICAL_REFERENCE, namespace=workspace)
-    raw = collection.query(query_texts=[query], n_results=n_results)
-    results = _flatten_results(raw)
+    results = _search_reference_documents(
+        _TECHNICAL_REFERENCE,
+        query,
+        n_results,
+        workspace,
+    )
     return {
         "query": query,
         "results": results,
@@ -226,21 +324,24 @@ def search_examples(
     """
     Queries my few-shot example index for curated behavioral examples.
 
-    Search the `few_shot_examples` collection for files that match
-    the intent of my query — this includes anything in my
-    `.system/few_shot_examples/` directory and the output format template.
+    Search chunk vectors in the `few_shot_examples` collection for files that
+    match the intent of my query, then return full indexed snapshots from my
+    `.system/few_shot_examples/` directory.
 
     Args:
         query:     My natural-language question, e.g. "rotate and then speak".
-        n_results: Maximum number of results to return. Default: 5.
+        n_results: Maximum number of source example documents to return.
         workspace: Override the configured workspace namespace.
 
     Returns:
         A dict with keys `query`, `results`, and `context`.
     """
-    collection = get_or_create_collection(_FEW_SHOT_EXAMPLES, namespace=workspace)
-    raw = collection.query(query_texts=[query], n_results=n_results)
-    results = _flatten_results(raw)
+    results = _search_reference_documents(
+        _FEW_SHOT_EXAMPLES,
+        query,
+        n_results,
+        workspace,
+    )
     return {
         "query": query,
         "results": results,
@@ -283,11 +384,6 @@ def semantic_help(
 
             result = rag.semantic_help("How do I dock?")
             print(result["context"])
-
-        Or to pass the context to a model::
-
-            ctx = rag.semantic_help("pan-tilt capture")["context"]
-            response = logos.models.llm(prompt + "\\n\\n" + ctx)
     """
     api_resp = search_api_help(query, n_results=n_results, workspace=workspace)
     api_results = api_resp["results"]

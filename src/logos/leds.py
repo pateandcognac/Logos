@@ -131,8 +131,8 @@ def _pack_led(index: int, color_int: int) -> int:
 
 @api_call(default_verbosity=Verbosity.ACK)
 def set(
-    strip: Optional[str] = "notification",
     colors: Sequence[ColorValue] = (),
+    strip: Optional[str] = "notification",
 ) -> None:
     """
     Set individual LED colors on a strip ('notification' or 'pan_tilt').
@@ -203,7 +203,7 @@ def fill(
     strip = strip or "notification"
     led_count = STRIPS[strip]["count"]
     color_int = _normalize_color(color)
-    set(strip, [color_int] * led_count, verbosity=Verbosity.SILENT)
+    set([color_int] * led_count, strip, verbosity=Verbosity.SILENT)
 
 
 @api_call(default_verbosity=Verbosity.ACK)

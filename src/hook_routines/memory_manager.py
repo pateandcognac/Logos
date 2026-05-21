@@ -22,9 +22,11 @@ def run_policy_check():
     total_tokens = sum(msg.get('token_count', 0) for msg in messages)
 
     if len(messages) <= policy.max_cells and total_tokens <= policy.max_tokens:
+        print("Memory Manager: Analysis complete, no action needed.")
         return # Below thresholds, nothing to do.
 
     print("Memory Manager: Thresholds exceeded, beginning analysis.")
+    logos.emote.ttp("Just a moment please... ⏳ I need to tidy my palimpsest! ✍️", wait=False)
 
     # --- SINGLE PASS ANALYSIS ---
     cells_to_summarize = set()
@@ -101,5 +103,6 @@ def run_policy_check():
         final_cell_list = sorted(list(cells_to_summarize))
         print(f"Memory Manager: Submitting {len(final_cell_list)} cells for summarization.")
         logos.memory.summarize_io_buffer(cell_indices=final_cell_list)
+        logos.emote.ttp("Done! ✅", wait=False)
     else:
         print("Memory Manager: Analysis complete, no action needed.")

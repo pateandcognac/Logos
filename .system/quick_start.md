@@ -59,7 +59,7 @@ class NavTask:
     def progress(self) -> float: ... # Euclidean distance mapped 0.0 to 1.0 (can dip below/above!)
     def status(self) -> str: ...     # 'PENDING', 'ACTIVE', 'SUCCEEDED', 'ABORTED', etc.
     def succeeded(self) -> bool: ...
-    def cancel(self) -> None: ...    # ABORT ABORT ABORT
+    def cancel(self) -> None: ... 
 
 class SoundTask:
     """Handle for my async audio playback. I use this to track, wait for, or cancel active sound."""
@@ -281,13 +281,13 @@ def logos.leds.fill(color: Union[str, int, Tuple], strip: str='notification') ->
     - str:   CSS color names, plus 'off'.
              And '#FF0000' hex strings (like from `get_face_state()`)
     ...
-def logos.leds.set(strip: str='notification', colors: List=()) -> None:
+def logos.leds.set(colors: List=(), strip: str='notification') -> None:
     # Pass a list of colors for individual pixel control.
     # 'notification' has 16 LEDs. 'pan_tilt' has 5..
     
     ...
 def logos.leds.laser(brightness: float) -> None: # 0.0 to 1.0.
-    # PEW-PEW! Turns on my pan-tilt laser pointer! Has a convenient automatic timeout.
+    # PEW-PEW! Turns on my (harmless) pan-tilt laser pointer! Has a convenient automatic timeout.
     ...
 
 # --- SOUND SYNTHESIS & PLAYBACK (logos.sound) ---

@@ -55,9 +55,14 @@ _SUMMARIES = "summaries"
 # Path to my synopsis log, relative to workspace root (CWD at runtime)
 _SUMMARIES_FILE = Path("state/summaries.jsonl")
 
-# mxbai-embed-large has a 512-token context window (~1500 chars).
-# I truncate documents to this limit before sending them to Ollama.
+# I keep embedding inputs conservative while my embedding model is still a
+# tuneable part of the sidecar. Long reference snapshots are chunked under this
+# budget; summaries and arbitrary fact text still use it as a truncation guard.
 _MAX_DOC_CHARS = 1500
+_REFERENCE_CHUNK_OVERLAP_CHARS = 200
+
+_RECORD_SOURCE_DOCUMENT = "source_document"
+_RECORD_CHUNK = "chunk"
 
 # Logos API modules that I deliberately omit from the index
 _HIDDEN_MODULES = {"_llm_helper"}
@@ -87,8 +92,8 @@ def _truncate(text: str, max_chars: int = _MAX_DOC_CHARS) -> str:
     """
     I truncate a document to fit within the embedding model's context window.
 
-    mxbai-embed-large supports ~512 tokens. I cut at a newline boundary when
-    possible to keep the text coherent, and append an ellipsis marker.
+    I cut at a newline boundary when possible to keep the text coherent, and
+    append an ellipsis marker. Reference source snapshots use chunking instead.
     """
     if len(text) <= max_chars:
         return text
@@ -149,6 +154,121 @@ def _format_technical_doc(
         docstring if docstring else "(No docstring.)",
     ]
     return "\n".join(parts)
+
+
+def _format_reference_chunk_header(parent_id: str, metadata: Dict[str, Any]) -> str:
+    """I repeat compact provenance lines before each embedded reference chunk."""
+    parts = [
+        "Parent ID: {}".format(parent_id),
+        "Record: reference_chunk",
+        "Kind: {}".format(metadata.get("kind", "")),
+    ]
+    if metadata.get("symbol"):
+        parts.append("Symbol: {}".format(metadata["symbol"]))
+    if metadata.get("example_name"):
+        parts.append("Example: {}".format(metadata["example_name"]))
+    if metadata.get("source_path"):
+        parts.append("Source: {}".format(metadata["source_path"]))
+    return "\n".join(parts) + "\n\n"
+
+
+def _chunk_reference_snapshot(
+    parent_id: str,
+    snapshot: str,
+    metadata: Dict[str, Any],
+    max_chunk_chars: int = _MAX_DOC_CHARS,
+    overlap_chars: int = _REFERENCE_CHUNK_OVERLAP_CHARS,
+) -> List[str]:
+    """
+    Split one source snapshot into overlapping, newline-aware embedding chunks.
+
+    I repeat a small provenance header in every chunk, then use the remaining
+    embedding budget for text from the full rendered source snapshot.
+    """
+    header = _format_reference_chunk_header(parent_id, metadata)
+    body_limit = max(1, max_chunk_chars - len(header))
+    overlap = min(max(overlap_chars, 0), max(0, body_limit - 1))
+    text = snapshot if snapshot else "(Empty source document.)"
+
+    chunks: List[str] = []
+    start = 0
+    while start < len(text):
+        hard_end = min(len(text), start + body_limit)
+        end = hard_end
+        if hard_end < len(text):
+            cut = text.rfind("\n", start + body_limit // 2, hard_end)
+            if cut > start:
+                end = cut + 1
+
+        if end <= start:
+            end = hard_end
+
+        chunks.append(header + text[start:end])
+        if end >= len(text):
+            break
+
+        next_start = end - overlap
+        start = next_start if next_start > start else end
+
+    return chunks
+
+
+def _build_reference_records(
+    parent_id: str,
+    snapshot: str,
+    metadata: Dict[str, Any],
+    max_chunk_chars: int = _MAX_DOC_CHARS,
+    overlap_chars: int = _REFERENCE_CHUNK_OVERLAP_CHARS,
+) -> Tuple[List[str], List[str], List[str], List[Dict[str, Any]]]:
+    """
+    Build one source-document record and its linked searchable chunk records.
+
+    The source record stores the full indexed snapshot but embeds the first
+    short chunk. Chroma still receives a vector for that record, while RAG
+    search filters it out and queries only the chunk records.
+    """
+    chunk_documents = _chunk_reference_snapshot(
+        parent_id,
+        snapshot,
+        metadata,
+        max_chunk_chars=max_chunk_chars,
+        overlap_chars=overlap_chars,
+    )
+    chunk_count = len(chunk_documents)
+
+    parent_meta = dict(metadata)
+    parent_meta.update({
+        "record_kind": _RECORD_SOURCE_DOCUMENT,
+        "parent_id": parent_id,
+        "chunk_index": -1,
+        "chunk_count": chunk_count,
+        "chunk_overlap_chars": max(overlap_chars, 0),
+        "snapshot_hash": _content_hash(snapshot),
+        "snapshot_provenance": "rendered_from_source",
+    })
+
+    ids = [parent_id]
+    documents = [snapshot]
+    embedding_documents = [chunk_documents[0]]
+    metadatas = [parent_meta]
+
+    for chunk_index, chunk_text in enumerate(chunk_documents):
+        chunk_meta = dict(metadata)
+        chunk_meta.update({
+            "record_kind": _RECORD_CHUNK,
+            "parent_id": parent_id,
+            "chunk_index": chunk_index,
+            "chunk_count": chunk_count,
+            "chunk_overlap_chars": max(overlap_chars, 0),
+            "snapshot_hash": parent_meta["snapshot_hash"],
+            "snapshot_provenance": parent_meta["snapshot_provenance"],
+        })
+        ids.append("{}:chunk:{:04d}".format(parent_id, chunk_index))
+        documents.append(chunk_text)
+        embedding_documents.append(chunk_text)
+        metadatas.append(chunk_meta)
+
+    return ids, documents, embedding_documents, metadatas
 
 
 def _collect_module_entries(
@@ -281,15 +401,17 @@ def refresh_technical_reference(
     workspace: Optional[str] = None,
     verbose: bool = True,
     batch_size: int = 10,
+    max_chunk_chars: int = _MAX_DOC_CHARS,
+    chunk_overlap_chars: int = _REFERENCE_CHUNK_OVERLAP_CHARS,
 ) -> Dict[str, Any]:
     """
     (Re)build my technical reference index from the logos API and skills library.
 
     Discovers every public function and class across all logos API modules
-    and my skills library, build a structured document for each, and upsert
-    them into the `technical_reference` vector collection. Re-running this
-    is safe: entries that have not changed are updated in place; nothing
-    is duplicated.
+    and my skills library, build a full source snapshot and overlapping
+    searchable chunks for each, and upsert them into the `technical_reference`
+    vector collection. Re-running this replaces the generated records so
+    removed symbols and old single-document records do not linger.
 
     Args:
         workspace:   Override the active workspace namespace for this run.
@@ -299,9 +421,11 @@ def refresh_technical_reference(
                      (e.g. to 5) if Ollama is slow and requests time out.
                      Raise the client timeout with `memory.configure(timeout=120)`
                      before calling if needed.
+        max_chunk_chars: Embedding-character budget for each searchable chunk.
+        chunk_overlap_chars: Characters of overlap between adjacent chunks.
 
     Returns:
-        A dict with `{"upserted": N, "modules": M}` counts.
+        Counts for upserted records, source documents, chunks, and modules.
 
     Note to self:
         I should run this whenever I add or update logos API code or skills.
@@ -321,7 +445,9 @@ def refresh_technical_reference(
 
     ids: List[str] = []
     documents: List[str] = []
+    embedding_documents: List[str] = []
     metadatas: List[Dict[str, Any]] = []
+    source_count = 0
 
     all_modules = _discover_logos_modules() + _discover_skills_modules()
 
@@ -336,14 +462,9 @@ def refresh_technical_reference(
             continue
 
         for symbol, sig, src_path, docstring in entries:
-            doc_text = _truncate(
-                _format_technical_doc(mod_name, symbol, sig, src_path, docstring)
-            )
-            doc_id = "{}:{}:overview".format(mod_name, symbol)
-
-            ids.append(doc_id)
-            documents.append(doc_text)
-            metadatas.append({
+            snapshot = _format_technical_doc(mod_name, symbol, sig, src_path, docstring)
+            parent_id = "{}:{}:source".format(mod_name, symbol)
+            base_metadata = {
                 "workspace": active_workspace,
                 "collection_kind": "technical_reference",
                 "kind": "api_docstring",
@@ -351,18 +472,38 @@ def refresh_technical_reference(
                 "symbol": symbol,
                 "signature": symbol + sig,
                 "source_path": src_path or "",
-                "chunk_kind": "overview",
-                "content_hash": _content_hash(doc_text),
+                "content_hash": _content_hash(snapshot),
                 "git_commit": git_commit,
                 "generated_at": generated_at,
                 "visibility": "workspace",
                 "trust": "generated_from_source",
-            })
+            }
+            record_ids, record_docs, record_embeddings, record_metas = (
+                _build_reference_records(
+                    parent_id,
+                    snapshot,
+                    base_metadata,
+                    max_chunk_chars=max_chunk_chars,
+                    overlap_chars=chunk_overlap_chars,
+                )
+            )
+            ids.extend(record_ids)
+            documents.extend(record_docs)
+            embedding_documents.extend(record_embeddings)
+            metadatas.extend(record_metas)
+            source_count += 1
 
     if not ids:
         if verbose:
             print("refresh_technical_reference: nothing found to index.")
         return {"upserted": 0, "modules": 0}
+
+    # I rebuild generated reference records so removed symbols and old
+    # truncation-only overviews cannot leak into chunk-grouped retrieval.
+    collection.delete(
+        where={"collection_kind": "technical_reference"},
+        verbosity=Verbosity.SILENT,
+    )
 
     # Upsert in small batches — Ollama embeds sequentially, so large batches
     # easily exceed the 30s default client timeout.
@@ -371,30 +512,38 @@ def refresh_technical_reference(
         n = collection.upsert(
             ids=ids[i:i + batch_size],
             documents=documents[i:i + batch_size],
+            embedding_documents=embedding_documents[i:i + batch_size],
             metadatas=metadatas[i:i + batch_size],
             verbosity=Verbosity.SILENT,
         )
         total_upserted += n
 
     if verbose:
-        print("refresh_technical_reference: upserted {} documents from {} modules.".format(
-            total_upserted, len(all_modules)
+        print("refresh_technical_reference: upserted {} records for {} source documents from {} modules.".format(
+            total_upserted, source_count, len(all_modules)
         ))
-    return {"upserted": total_upserted, "modules": len(all_modules)}
+    return {
+        "upserted": total_upserted,
+        "source_documents": source_count,
+        "chunks": len(ids) - source_count,
+        "modules": len(all_modules),
+    }
 
 
 @api_call(default_verbosity=Verbosity.ACK)
 def refresh_few_shot_examples(
     workspace: Optional[str] = None,
     verbose: bool = True,
+    batch_size: int = 10,
+    max_chunk_chars: int = _MAX_DOC_CHARS,
+    chunk_overlap_chars: int = _REFERENCE_CHUNK_OVERLAP_CHARS,
 ) -> Dict[str, Any]:
     """
     (Re)builds my few-shot example index from my curated example files.
 
     Scans `.system/few_shot_examples/` for `.py` and `.md` files. Each file
-    becomes one document in the `few_shot_examples` collection; the entire
-    file content is embedded so queries can match on behavioral intent and
-    patterns, not just filenames.
+    becomes a full source snapshot plus overlapping searchable chunks, so
+    queries can match on behavioral intent without losing the full example.
 
     To add a new few-shot example, I (or Mark) drop a `.py` or `.md` file
     into `.system/few_shot_examples/` and re-run this method.
@@ -402,9 +551,12 @@ def refresh_few_shot_examples(
     Args:
         workspace: Override the active workspace namespace for this run.
         verbose:   If True, I print progress to stdout. Default: True.
+        batch_size: Records per upsert request. Default: 10.
+        max_chunk_chars: Embedding-character budget for each searchable chunk.
+        chunk_overlap_chars: Characters of overlap between adjacent chunks.
 
     Returns:
-        A dict with `{"upserted": N, "files": F}` counts.
+        Counts for upserted records, source documents, chunks, and files.
 
     Note to self:
         New curated examples go into `.system/few_shot_examples/`.
@@ -440,7 +592,9 @@ def refresh_few_shot_examples(
 
     ids = []
     documents = []
+    embedding_documents = []
     metadatas = []
+    source_count = 0
 
     for fpath in candidate_files:
         try:
@@ -451,20 +605,17 @@ def refresh_few_shot_examples(
             continue
 
         rel_path = _workspace_relative(fpath)
-        # Build a stable, collision-free ID from the relative path
-        doc_id = "few_shot_examples:{}".format(rel_path.replace("/", ":").replace("\\", ":"))
+        # Build a stable, collision-free source ID from the relative path.
+        parent_id = "few_shot_examples:{}:source".format(
+            rel_path.replace("/", ":").replace("\\", ":")
+        )
 
-        # Prepend a brief header so the embedding carries provenance context.
-        # Truncate to fit within the embedding model's context window.
-        doc_text = _truncate(
+        snapshot = (
             "Source: {}\nKind: few_shot_example\nFilename: {}\n\n{}".format(
                 rel_path, fpath.name, content
             )
         )
-
-        ids.append(doc_id)
-        documents.append(doc_text)
-        metadatas.append({
+        base_metadata = {
             "workspace": active_workspace,
             "collection_kind": "few_shot_examples",
             "kind": "few_shot_example",
@@ -475,20 +626,48 @@ def refresh_few_shot_examples(
             "generated_at": generated_at,
             "visibility": "workspace",
             "trust": "curated_example",
-        })
+        }
+        record_ids, record_docs, record_embeddings, record_metas = (
+            _build_reference_records(
+                parent_id,
+                snapshot,
+                base_metadata,
+                max_chunk_chars=max_chunk_chars,
+                overlap_chars=chunk_overlap_chars,
+            )
+        )
+        ids.extend(record_ids)
+        documents.extend(record_docs)
+        embedding_documents.extend(record_embeddings)
+        metadatas.extend(record_metas)
+        source_count += 1
 
-    n = collection.upsert(
-        ids=ids,
-        documents=documents,
-        metadatas=metadatas,
+    collection.delete(
+        where={"collection_kind": "few_shot_examples"},
         verbosity=Verbosity.SILENT,
     )
 
+    total_upserted = 0
+    for i in range(0, len(ids), batch_size):
+        n = collection.upsert(
+            ids=ids[i:i + batch_size],
+            documents=documents[i:i + batch_size],
+            embedding_documents=embedding_documents[i:i + batch_size],
+            metadatas=metadatas[i:i + batch_size],
+            verbosity=Verbosity.SILENT,
+        )
+        total_upserted += n
+
     if verbose:
-        print("refresh_few_shot_examples: upserted {} documents from {} files.".format(
-            n, len(ids)
+        print("refresh_few_shot_examples: upserted {} records from {} files.".format(
+            total_upserted, source_count
         ))
-    return {"upserted": n, "files": len(ids)}
+    return {
+        "upserted": total_upserted,
+        "source_documents": source_count,
+        "chunks": len(ids) - source_count,
+        "files": source_count,
+    }
 
 
 def _read_summaries_jsonl(path: Path) -> List[Dict[str, Any]]:

@@ -8,7 +8,7 @@ This is **Logos** — the codebase for an embodied AI robot running on ROS Noeti
 
 Mark is the human developer/roommate who built the hardware.
 
-The primary model(s) running the robot are **gemini-robotics-er-1.6-preview** and **gemini-3-flash-preview** (configured in `.system/framework_config.json`). The agent reading this right now — yes, *you* — is used as an external development assistant for the codebase. You are not part of the live robot loop.
+The primary model(s) running the robot are **gemini-robotics-er-1.6-preview** and **gemini-3-flash-preview** (configured in `.system/framework_config.json`). The agent reading this right now — yes, *you* — is used as an external development assistant for the codebase. You are not part of the live robot loop. You are working on setting up the Logos robot agent up for success!
 
 ## Runtime Environment
 
@@ -44,7 +44,7 @@ The robot's one universal tool. Always available in its Python runtime without i
 
 The `memory/` package talks to a FastAPI sidecar that owns ChromaDB and Ollama embeddings. The sidecar exists because Python 3.8 (ROS Noetic) cannot import modern `chromadb` — so the sidecar runs under a separate Python 3.11 venv and exposes a thin HTTP API at `http://127.0.0.1:8123`.
 
-- Embedding model: `granite-embedding:30m` (via local Ollama)
+- Embedding model: `granite-embedding:30m` (via local Ollama) (still testing various models)
 - Persistent storage: `~/.local/share/logos_chroma`
 - Collection naming convention: `logos__{namespace}__{kind}` (e.g. `logos__Logos__technical_reference`)
 - The sidecar is name-agnostic; naming is owned by the client (`indexing.py`)

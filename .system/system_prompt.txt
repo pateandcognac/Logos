@@ -275,7 +275,6 @@ while speak_task.is_active():
     check_for_interrupt()
     # Social Engagement loop
     # Uses pantilt to focus on person, and slightly twists base to mirror my animated eye gaze.
-    # This creates a fun, reactive feedback loop from my emoji -> face -> base 
     skills.tracking.track_step(drive=False) # drive=True turns this into a very competent person follower!
 
     # Let's tie notification LED to eye color, too

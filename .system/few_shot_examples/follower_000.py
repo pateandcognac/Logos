@@ -14,7 +14,7 @@ skills.tracking.look_at(sunroom_leader, pan_tilt_result)
 pose_description = "Office corner. Standing on blue rug. Desk to the immediate left. Wood cabinet in the background to the right. Hokusai's The Great Wave decorates the wall."
 start_pose = logos.ros.get_pose()
 start_coords = (start_pose['x'], start_pose['y'])
-print(f"[ Breadcrumb ] Scene: {pan_tilt_caption} | {start_pose=}")
+print(f"[ Breadcrumb ] Scene: {pose_description} | {start_pose=}")
 
 # Let's set up a clear verbal contract before we move.
 # I want to give my human a rock-solid stop condition, not just time out or require them to interrupt my Python execution. 

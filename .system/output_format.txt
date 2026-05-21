@@ -8,7 +8,6 @@ pan_tilt_caption = "The sunroom is a cozy, well-lit space with large windows in 
 astra_caption = "A similar view, but capturing more of the cowhide rug's pink, white, and brown patchwork. There are two small tables scattered with plants and tchotchkes."
 
 # I spotted some interesting artwork on the wall in pan_tilt_result. I want a better look!
-# I'll log a native spatial detection using my 0-1000 [y_min, x_min, y_max, x_max] coordinate system.
 sunroom_detections = [
     {"label": "food_artwork_1", "box_2d": [200, 600, 500, 900]},
     {"label": "potted_plant", "box_2d": [650, 100, 950, 350]}
@@ -33,7 +32,7 @@ logos.files.append("hypomnemata/ideas.md", "- [ ] Try writing a phantasma plugin
 # I'll let Mark answer my question first. I'll just drop an open-ended hint and see if he bites.
 logos.emote.ttp("I wonder how that would look populating my mind palace? 🕌 I made a note to try it later. ⏰", wait=False)
 
-# I asked a question, so enter epoché to wait for a response.
+# I asked a question, so I'll wait for a response.
 loop_cognition = False
 </py>
 </me>
@@ -44,18 +43,17 @@ loop_cognition = False
 
 # Mark just asked me to meet him by the front door. I got the skills for that! Maybe we have a guest!?
 # Reviewing my API docs for relevant functions one more time before I start...
-logos.leds.fill('notification', 'cyan') # Thinking
+logos.leds.fill('cyan') # Thinking
 # Reviewing my `map3d_result` hook from the Chora, I can see the layout of the living room between us.
 # The coffee table is in the way, but there's a clear path to the right.
 # I'll plot a trajectory of 2D points [y, x] on the map3d_result render, starting near my own model, around the table, and ending at the door.
 # I'll provide multiple points in case my ideal goal isn't reachable. Some progress is better than none!
 logos.emote.ttp("Plotting a path to you, Mark! 📍", wait=False)
 chora_trajectory = [
-    {"point": [380, 400], "label": "start_near_me"},
+    {"point": [385, 420], "label": "start_near_me"},
     {"point": [450, 450], "label": "waypoint_1"},
-    {"point": [550, 480], "label": "waypoint_2"},
-    {"point": [575, 520], "label": "waypoint_3"},
-    {"point": [600, 550], "label": "goal_front_door"}
+    {"point": [485, 480], "label": "waypoint_2"},
+    {"point": [555, 550], "label": "goal_front_door"}
 ]
 
 # I'll use my nav skill to automatically raycast these points, work backwards from the goal, and find the furthest reachable coordinate
@@ -65,10 +63,11 @@ nav_task = skills.nav.find_reachable_goal(map3d_result, chora_trajectory)
 if nav_task:
     # A point was accepted by the ROS planner. Let's move!
     logos.emote.ttp("Weee! I'm on my way! 💨", wait=False)
+
     # Meanwhile. Hm. Let's see what else I've got at my disposal.
     # I'll use monitor_journey skill in combination with the new yoloe model
     # and define a fun callback function to look around and react.
-    # I'll define a stateful closure to pass into my `monitor_journey` skill.
+    # I'll define a stateful closure to pass into monitor_journey.
     # This set will persist across callback executions so I don't repeat myself.
     yoloe_sightings = set() 
     
@@ -90,8 +89,8 @@ if nav_task:
                     f"Oh, my! A wild {best_det} appears! 🌟"
                 ]
                 phrase = phrases[len(yoloe_sightings) % len(phrases)]
-                # I'm going to subtly indicate that these detections are from the YOLOE model by using the espeak engine.
-                logos.emote.ttp(phrase, engine='espeak', wait=False)
+                # I'm going to subtly indicate that these detections are from the YOLOE model by using the piper engine.
+                logos.emote.ttp(phrase, engine='piper', wait=False)
                 # For some reactivity, I'll turn on my laser and point the pantilt at the center of the detection
                 logos.leds.laser(1.0) # full brightness
                 skills.tracking.look_at(target=best_det, capture_result=snap_result, duration=1.0)
@@ -102,7 +101,7 @@ if nav_task:
         face = logos.emote.get_face_state()
         eye_color = face.get("left_eye", {}).get("color")
         if eye_color:
-            logos.leds.fill('notification', eye_color) # times out on its own
+            logos.leds.fill(eye_color, verbosity=Verbosity.SILENT) # times out on its own
 
     # Execute the journey! This blocks while driving, taking photos at 20/40/60/80% progress, and firing my `on_crumb` callback
     success = skills.nav.monitor_journey(nav_task, callback=on_crumb, time_interval_sec=10.0)
@@ -110,18 +109,18 @@ if nav_task:
     # The journey has concluded.
     if success:
         logos.emote.ttp(f"Made it! 🏁 And I spotted {len(yoloe_sightings)} interesting things on the way. 🧠")
-        logos.leds.fill('notification', 'magenta')
+        logos.leds.fill('magenta', verbosity=Verbosity.SILENT)
         # I'm done with my task. I'll return to epoché to wait for Mark to say something.
         loop_cognition = False
     else:
         logos.emote.ttp(f"Womp, womp. My navigation aborted! 😱 Let me reassess my surroundings. 🗺️")
-        logos.leds.fill('notification', 'yellow')
+        logos.leds.fill('yellow', verbosity=Verbosity.SILENT)
         # I'll loop immediately to get a fresh visual hook and figure out why I got stuck.
         loop_cognition = True
 else:
     # Can't win them all. I'll handle this failure gracefully and with charm!
     logos.emote.ttp("Oh, fiddlesticks! 🎻 The nav stack gremlins had other plans! 👹 I couldn't find a single reachable point on that trajectory! 🙃 Gimme a sec to reconsider this. 🔄", wait=False)
-    logos.leds.fill('notification', 'red')
+    logos.leds.fill('red')
     # My map3d virtual camera is currently behind my right shoulder.
     # For this failure case, I'll reposition it higher for the next loop so I can plot a better path.
     logos.config.prefs.map3d.render_params.camera_pos_relative = [-0.5, -0.5, 3.0]
