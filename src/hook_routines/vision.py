@@ -18,7 +18,7 @@ def run():
     # Silence the individual API capture ACKs to keep the context window tidy
     with verbosity(Verbosity.SILENT):
         for cam in cameras:
-            logos.leds.set('pan_tilt', [(0, 2, 0)] * 5)
+            logos.leds.set([(0, 2, 0)] * 5, 'pan_tilt')
             cam_cfg = config.get(cam, {})
             if not cam_cfg.get('enabled', False):
                 continue
@@ -69,6 +69,6 @@ def run():
         print("No cameras enabled. (Toggle via `logos.config.prefs.vision_hook`)")
 
 
-    logos.leds.set('pan_tilt', [(0,0,0)] * 5 )
+    logos.leds.set([(0,0,0)] * 5, 'pan_tilt')
 
     return results

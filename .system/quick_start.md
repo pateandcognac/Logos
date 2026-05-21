@@ -320,7 +320,7 @@ def indexing.refresh_all_reference_indexes()
 
 def rag.semantic_help(query: str, include_examples: bool=True) -> Dict:
     # Self-help! Queries my API docs & few-shot examples. 
-    # `print(rag.semantic_help("How do I X?")["context"])`
+    # print(rag.semantic_help("How do I X?")["context"])`
     ...
 def rag.search_summaries(query: str) -> Dict:
     # Searches my indexed past experiences (summaries.jsonl). Returns relative time stamps.
