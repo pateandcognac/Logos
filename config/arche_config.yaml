@@ -1,5 +1,5 @@
   - name: hook_config
-    description: An overview of my currently configured cognitive hooks.
+    description: An overview of my current cognitive hooks.
     enabled: true
     code: |
       print("\n--- Hook Config ---")

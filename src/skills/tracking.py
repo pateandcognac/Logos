@@ -88,11 +88,11 @@ def look_at(
 def track_step(
     target: str = "person",
     drive: bool = False,
-    target_dist: float = 0.66,
+    target_dist: float = 0.6,
     align_gain: float = 3.0,
     eye_pan_scale: float = 25.0,
     eye_damp: float = 0.05,
-    max_turn: float = 35.0,
+    max_turn: float = 40.0,
     look_deadband: float = 120.0,
 ) -> Tuple[bool, List[CaptureResult]]:
     """

@@ -330,7 +330,7 @@ def look_and_identify(bumpers: List[str]) -> Optional[str]:
 
     print("Returning pan-tilt to starting position...")
     _pt.move(prev_pan, prev_tilt, verbosity=Verbosity.SILENT)
-    _emote.ttp(phrase)
+    _emote.ttp(phrase, engine='festival') # use festival for fast reactivity
     
     return labels
 

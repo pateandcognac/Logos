@@ -3,6 +3,7 @@ tts:
   kokoro_params: {voice: 0.5*am_onyx + 0.25*im_nicola + 0.25*bf_emma, speed: 1.3, volume: 1.0}
   piper_params: {voice: en_US-joe-medium, speed: 1.1, volume: 0.9}
   espeak_params: {voice: en-us+m3, speed: 0.9, volume: 0.9}
+  festival_params: {voice: us2_mbrola, speed: 1.00, volume: 1.0}
 map3d:
   phantasmata_dir: src/logos/phantasmata
   chora_config: hypomnemata/chora/mind_palace_00.yaml
@@ -19,7 +20,7 @@ map3d:
     laser_scan_show: true
 memory_policy:
   enabled: true
-  max_cells: 16
+  max_cells: 32
   max_tokens: 32767
   untouchable_tail: 8
   summarizable_types: ["human", "me", "py_result", "py_async", "human_stt", "system"]

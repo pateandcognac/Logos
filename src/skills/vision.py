@@ -80,8 +80,8 @@ def smart_detect(
 
 def scan_room(
     targets: Union[str, List[str]], 
-    sweep_type: str = "human", 
-    looks_per_point: int = 2
+    sweep_type: str = "person", 
+    looks_per_point: int = 3
 ) -> List[Dict[str, Any]]:
     """
     Perform a pan-tilt sweep to search the room for specific targets.
