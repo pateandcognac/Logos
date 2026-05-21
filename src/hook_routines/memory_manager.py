@@ -40,10 +40,10 @@ def run_policy_check():
         py_map = {} # { msg_id: cell_index }
         
         for i, msg in enumerate(summarizable_part):
-            if msg.get('type') == 'me':
-                py_map[msg['id']] = i
-            if msg.get('type') in policy.summarizable_types:
-                candidates.append({'cell_index': i, 'msg': msg, 'paired': False})
+            msg_id = msg.get('id')
+            if msg.get('type') == 'me' and msg_id:
+                py_map[msg_id] = i
+            candidates.append({'cell_index': i, 'msg': msg, 'paired': False})
 
         if not candidates:
             print("Memory Manager: No eligible cells to summarize.")
@@ -60,8 +60,9 @@ def run_policy_check():
                         break
         
         max_token_count = max(c['msg'].get('token_count', 1) for c in candidates) or 1
+        age_span = max(len(summarizable_part) - 1, 1)
         for cand in candidates:
-            norm_age = cand['cell_index'] / len(summarizable_part)
+            norm_age = 1.0 - (cand['cell_index'] / age_span)
             norm_size = cand['msg'].get('token_count', 0) / max_token_count
             score = (norm_age * policy.age_weight) + (norm_size * policy.size_weight)
             if cand['paired']: score += 0.1 # Prioritize paired actions
@@ -87,7 +88,7 @@ def run_policy_check():
 
     # 2b. Identify Contiguous Summaries for Recursion
     contiguous_summaries = []
-    for i, msg in enumerate(messages):
+    for i, msg in enumerate(summarizable_part):
         if msg.get('type') == 'synopsis':
             contiguous_summaries.append(i)
         else:

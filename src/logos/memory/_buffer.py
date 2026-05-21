@@ -8,12 +8,11 @@ a clean and relevant context window for my main cognition.
 
 import os
 import json
-import string
 import time
 from pathlib import Path
 from ..core import api_call, Verbosity
 from ..utils import make_time_id
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 
 __all__ = ["summarize_io_buffer", "recall_msg", "replace_cell_content", "BUFFER_FILE", "HISTORY_FILE", "SUMMARIES_FILE"]
 
@@ -72,20 +71,25 @@ def summarize_io_buffer(cell_indices: List[int], guidance: str = None):
     # 2. Prepare the data for the summarization prompt
     grouped_cell_indices = _group_contiguous_indices(cell_indices)
     summarization_tasks = []
-    all_msg_ids_in_tasks = set()
+    task_cells_by_id = {}
     max_cell_index = 0
 
-    for i, group in enumerate(grouped_cell_indices):
-        task_ids = [buffer_lines[cell_idx]['id'] for cell_idx in group if cell_idx < len(buffer_lines)]
+    for group in grouped_cell_indices:
+        task_cells = [
+            cell_idx for cell_idx in group
+            if 0 <= cell_idx < len(buffer_lines) and buffer_lines[cell_idx].get('id')
+        ]
+        task_ids = [buffer_lines[cell_idx]['id'] for cell_idx in task_cells]
         if not task_ids: continue # Skip if group is out of bounds
 
-        task = {"task_id": i, "msg_ids": task_ids}
+        task_id = len(summarization_tasks)
+        task = {"task_id": task_id, "msg_ids": task_ids}
         if guidance:
             task["guidance"] = guidance
         summarization_tasks.append(task)
+        task_cells_by_id[task_id] = task_cells
 
-        all_msg_ids_in_tasks.update(task_ids)
-        max_cell_index = max(max_cell_index, max(group))
+        max_cell_index = max(max_cell_index, max(task_cells))
 
     if not summarization_tasks:
         print("summarize_io_buffer: No valid cells found to summarize.")
@@ -166,16 +170,24 @@ def summarize_io_buffer(cell_indices: List[int], guidance: str = None):
 
     # 5. Process the summaries and prepare for file writes
     new_summaries_for_log = []
-    summaries_by_start_cell = {}
+    summaries_by_task_id = {}
+    tasks_by_id = {task['task_id']: task for task in summarization_tasks}
 
     for summary_item in response_data['summaries']:
+        if not isinstance(summary_item, dict):
+            continue
         task_id = summary_item.get('task_id')
         content = summary_item.get('content')
-        if task_id is None or content is None: continue
+        if not isinstance(task_id, int) or not isinstance(content, str):
+            continue
+        original_task = tasks_by_id.get(task_id)
+        task_cells = task_cells_by_id.get(task_id)
+        if original_task is None or not task_cells:
+            continue
+        if task_id in summaries_by_task_id:
+            continue
 
-        original_task = summarization_tasks[task_id]
         source_ids = original_task['msg_ids']
-        start_cell_index = grouped_cell_indices[task_id][0]
 
         new_id = make_time_id(prefix="sum-")
         token_count = len(content) // 5 # Simple estimation
@@ -190,10 +202,10 @@ def summarize_io_buffer(cell_indices: List[int], guidance: str = None):
         }
         new_summaries_for_log.append(summary_for_log)
 
-        # what is this doing?
+        # I keep lineage in the synopsis log, not in the active palimpsest.
         summary_for_buffer = summary_for_log.copy()
         del summary_for_buffer['source_ids']
-        summaries_by_start_cell[start_cell_index] = summary_for_buffer
+        summaries_by_task_id[task_id] = summary_for_buffer
 
     # 6. Perform atomic rewrite safely     
     # Re-read the live buffer in case new messages arrived during LLM inference
@@ -201,33 +213,26 @@ def summarize_io_buffer(cell_indices: List[int], guidance: str = None):
         live_buffer = [json.loads(line) for line in f]
 
     new_buffer_lines = []
+    msg_task_ids = {}
     skip_ids = set() # Track IDs of messages that have been summarized
-    
-    for i, summary_item in enumerate(response_data['summaries']):
-        task_id = summary_item.get('task_id')
-        if task_id is None: continue
-        
-        # Get the IDs of the original messages this summary replaces
-        original_msg_ids = summarization_tasks[task_id]['msg_ids']
+
+    for task_id in summaries_by_task_id:
+        original_msg_ids = tasks_by_id[task_id]['msg_ids']
         skip_ids.update(original_msg_ids)
+        for msg_id in original_msg_ids:
+            msg_task_ids[msg_id] = task_id
 
     # Reconstruct the file: Keep summaries, keep unsummarized, keep NEW messages
     summary_inserted_for_task = set()
     
     for msg in live_buffer:
-        if msg['id'] in skip_ids:
-            task_id_for_msg = next(t['task_id'] for t in summarization_tasks if msg['id'] in t['msg_ids'])
-            start_cell = grouped_cell_indices[task_id_for_msg][0]
+        msg_id = msg.get('id')
+        if msg_id in skip_ids:
+            task_id_for_msg = msg_task_ids[msg_id]
             
-            # Check if the LLM ACTUALLY provided a summary for this task!
-            if start_cell in summaries_by_start_cell:
-                if task_id_for_msg not in summary_inserted_for_task:
-                    new_buffer_lines.append(summaries_by_start_cell[start_cell])
-                    summary_inserted_for_task.add(task_id_for_msg)
-            else:
-                # LLM dropped the ball and skipped this task. Keep the original message!
-                # (You might want to print a warning here to your backend logs)
-                new_buffer_lines.append(msg)
+            if task_id_for_msg not in summary_inserted_for_task:
+                new_buffer_lines.append(summaries_by_task_id[task_id_for_msg])
+                summary_inserted_for_task.add(task_id_for_msg)
         else:
             # Keep anything that wasn't summarized (including new messages)
             new_buffer_lines.append(msg)

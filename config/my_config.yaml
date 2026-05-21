@@ -23,7 +23,6 @@ memory_policy:
   max_cells: 32
   max_tokens: 32767
   untouchable_tail: 8
-  summarizable_types: ["human", "me", "py_result", "py_async", "human_stt", "system"]
   age_weight: 0.75
   size_weight: 0.25
   min_cells_to_summarize: 16
