@@ -5,7 +5,7 @@
 # DESIGN PHILOSOPHY:
 # 1. Everything is available JIT (Just-In-Time) in my <py> loops. No imports needed for `logos.*`.
 # 2. All spatial visual detections use 0-1000 normalized [y, x] or [y_min, x_min, y_max, x_max].
-# 3. Actions with side-effects have a silent `verbosity` kwarg (Verbosity.SILENT, ACK, BRIEF, DEBUG).
+# 3. Actions with side-effects have a implicit, silent `verbosity` kwarg (Verbosity.SILENT, ACK, BRIEF, DEBUG).
 # 4. Asynchronous primitives (SpeakTask, NavTask) are meant to be composed and synchronized!
 # ==============================================================================
 
@@ -84,8 +84,8 @@ def logos.vision.capture(
     meta: Dict = None         # Inject kwargs straight to sidecar on capture
 ) -> Optional[CaptureResult]: ...
 
-def logos.vision.publish_debug(image: np.ndarray, detections: List[Dict]=None, source: str='general') -> None:
-    # Overlays bounding boxes/labels and publishes to ROS /logos/debug_vision for Mark to see
+def publish_debug(image: Union[np.ndarray, CaptureResult], detections: Optional[Union[List[Dict[str, Any]], Dict[str, Any], Tuple[Any, ...]]] = None, source: Optional[str] = None,) -> None:
+    # Overlays bounding boxes/points/hands/labels and publishes to ROS /logos/debug_vision for Mark to see
     ...
 
 # --- MODELS (Lazy-loaded local singletons) ---
@@ -235,6 +235,68 @@ logos.bumper.register(logos.bumper.do_stop)
 
 # Simulate a bump event without hardware (for testing):
 logos.bumper._run_handlers(['center'])
+
+
+# ==============================================================================
+# 👂 HOTWORD LISTENER (`logos.sensory.hotwords`)
+# Direct Python↔human audio interactivity — bypasses the STT→cognition pipeline.
+# When my Python loop needs a human to say a specific word to branch or stop a
+# behavior, I arm models here and poll or register callbacks, exactly like bumper.
+# Model names are subdirectory names under ~/robot_ws/wakewords/custom/ — e.g.:
+#   stop, halt_now, cancel_that, go_forward, turn_left, turn_right, ok_boss, ...
+# Backend debounces detections at 1.5s, so I don't need to.
+# ==============================================================================
+
+# --- CONTROL ---
+logos.sensory.hotwords.enable(['stop', 'halt_now'])  # arm models; [] disables + unloads
+logos.sensory.hotwords.enable([])
+
+# --- CONTEXT MANAGER (auto-cleanup, recommended for loops) ---
+with logos.sensory.hotwords.listening(['stop', 'cancel_that']):
+    while True:
+        check_for_interrupt()
+        do_thing()
+        if logos.sensory.hotwords.detected():
+            word = logos.sensory.hotwords.consume()
+            break
+# hotwords auto-disabled on exit, even if loop raises
+
+# --- POLLING ---
+logos.sensory.hotwords.detected()       # True if a detection is waiting
+logos.sensory.hotwords.consume()        # -> str or None; clears the buffer (use in loops)
+logos.sensory.hotwords.latest()         # -> str or None; peek without clearing
+
+# --- HANDLER CHAIN (callback style, mirrors bumper) ---
+logos.sensory.hotwords.register(handler)    # handler(word: str) -> None; idempotent append
+logos.sensory.hotwords.register(handler, index=0)
+logos.sensory.hotwords.unregister(handler)
+logos.sensory.hotwords.clear_handlers()
+logos.sensory.hotwords.show()
+
+# --- ATOMIC HANDLERS ---
+logos.sensory.hotwords.do_print(word)   # logs detected word, no side effects
+
+# --- RECIPES ---
+
+# Voice-gated follower loop:
+logos.sensory.hotwords.enable(['stop', 'halt_now'])
+logos.emote.ttp("I'll follow you. Say stop or halt now when done! 🚶")
+while True:
+    check_for_interrupt()
+    skills.tracking.track_step(drive=True)
+    if logos.sensory.hotwords.detected():
+        logos.emote.ttp("Stopping! I heard '{}'. 🛑".format(logos.sensory.hotwords.consume()), wait=True)
+        break
+logos.sensory.hotwords.enable([])
+
+# Voice teleop with callback:
+import functools
+logos.sensory.hotwords.register(logos.sensory.hotwords.do_print)
+logos.sensory.hotwords.register(lambda w: logos.base.stop() if 'stop' in w else None)
+logos.sensory.hotwords.enable(['go_forward', 'turn_left', 'turn_right', 'stop'])
+
+# Test a detection without hardware:
+# (publish directly via ROS: rostopic pub /stt/hotword_listener/detections std_msgs/String "data: 'stop'")
 
 
 # ==============================================================================

@@ -4,12 +4,15 @@
 My non-visual senses. 👂
 
 This module provides tools for interacting with sensory data streams like
-ambient audio transcripts and background audio classification.
+ambient audio transcripts, background audio classification, and reactive
+hotword detection for direct Python-loop interactivity.
 """
 import rospy
 import json
 import time
-from typing import List, Dict, Any, Optional
+import threading
+from contextlib import contextmanager
+from typing import Callable, List, Dict, Any, Optional
 
 from std_msgs.msg import String, Bool
 from .core import api_call, Verbosity
@@ -18,9 +21,24 @@ from .core import api_call, Verbosity
 _enable_pub = None
 _classifier_enable_pub = None
 
+# ---------------------------------------------------------------------------
+# Hotword listener — module-level state
+# ---------------------------------------------------------------------------
+
+_hotword_pub = None                         # Publisher → /stt/hotword_listener/enable
+_hotword_sub = None                         # Subscriber ← /stt/hotword_listener/detections
+_hotword_sub_lock = threading.Lock()
+
+_hotword_handlers = []                      # type: List[Callable[[str], None]]
+_hotword_handlers_lock = threading.Lock()
+
+_latest_hotword = None                      # type: Optional[str]
+_latest_lock = threading.Lock()
+
 __all__ = [
     "get_ambient_transcript",
     "get_ambient_audio_classification",
+    "hotwords",
 ]
 
 @api_call(default_verbosity=Verbosity.ACK)
@@ -222,3 +240,284 @@ def get_ambient_audio_classification(
             print("Now: {}".format(", ".join(recent_labels[:6])))
 
     return result
+
+
+# ---------------------------------------------------------------------------
+# Hotword listener — ROS internals
+# ---------------------------------------------------------------------------
+
+def _on_hotword_msg(msg):
+    """ROS subscriber callback for /stt/hotword_listener/detections.
+
+    I store the detected word for polling and dispatch the handler chain in a
+    background thread so the ROS subscriber is never blocked by slow handlers.
+    """
+    global _latest_hotword
+    word = msg.data.strip()
+    if not word:
+        return
+
+    with _latest_lock:
+        _latest_hotword = word
+
+    with _hotword_handlers_lock:
+        handlers = list(_hotword_handlers)
+
+    if handlers:
+        threading.Thread(
+            target=_run_hotword_handlers,
+            args=(word, handlers),
+            daemon=True,
+        ).start()
+
+
+def _run_hotword_handlers(word, handlers):
+    """Execute the hotword handler chain in a background daemon thread."""
+    for h in handlers:
+        try:
+            h(word)
+        except Exception as e:
+            print("[hotwords] handler {!r} error: {}".format(
+                getattr(h, '__name__', h), e))
+
+
+def _ensure_hotword_subscriber():
+    """Lazily create the /stt/hotword_listener/detections subscriber."""
+    global _hotword_sub
+    with _hotword_sub_lock:
+        if _hotword_sub is not None:
+            return
+        _hotword_sub = rospy.Subscriber(
+            '/stt/hotword_listener/detections',
+            String,
+            _on_hotword_msg,
+            queue_size=10,
+        )
+
+
+# ---------------------------------------------------------------------------
+# Hotword listener — public API
+# ---------------------------------------------------------------------------
+
+class _HotwordListenerAPI(object):
+    """Composable passive hotword detection for direct Python-loop interactivity.
+
+    I bridge my STT node's OpenWakeWord passive detector into Python-friendly
+    patterns: arm specific wakeword models on the backend, then either poll for
+    detections inside a loop or register reactive handler callbacks — exactly
+    like logos.bumper, but for ears.
+
+    This is the right tool when my Python loop needs a human to say a specific
+    word to branch or stop a behavior, without waking my cognition node at all.
+
+    Typical usage::
+
+        # Polling loop
+        logos.sensory.hotwords.enable(['stop', 'halt_now'])
+        while running:
+            check_for_interrupt()
+            skills.tracking.track_step(drive=True)
+            if logos.sensory.hotwords.detected():
+                break
+        logos.sensory.hotwords.enable([])
+
+        # Context manager (auto-cleanup)
+        with logos.sensory.hotwords.listening(['stop', 'ok_boss']):
+            while running:
+                check_for_interrupt()
+                do_thing()
+                if logos.sensory.hotwords.detected():
+                    break
+
+        # Callback chain
+        logos.sensory.hotwords.register(logos.sensory.hotwords.do_print)
+        logos.sensory.hotwords.enable(['stop'])
+
+    Note to self:
+        Model names are subdirectory names under ~/robot_ws/wakewords/custom/.
+        The backend debounces detections at 1.5s — I don't need to do it here.
+    """
+
+    # ------------------------------------------------------------------
+    # Control
+    # ------------------------------------------------------------------
+
+    def enable(self, names):
+        # type: (List[str]) -> None
+        """Arm or disarm passive hotword models on the STT backend.
+
+        I publish a JSON list of wakeword model directory names to the STT
+        node. Passing an empty list disables passive hotword detection and
+        unloads the models. Also lazily activates my ROS subscriber so that
+        poll and callback patterns work as soon as a word is spoken.
+
+        Args:
+            names: List of model directory names to enable (e.g. ['stop',
+                   'halt_now']). Pass [] to disable.
+
+        Note to self:
+            Available model dirs live in ~/robot_ws/wakewords/custom/.
+            run `ls ~/robot_ws/wakewords/custom/` to browse.
+        """
+        global _hotword_pub
+        if _hotword_pub is None:
+            _hotword_pub = rospy.Publisher(
+                '/stt/hotword_listener/enable', String, queue_size=1, latch=True
+            )
+            time.sleep(0.3)
+
+        _hotword_pub.publish(String(data=json.dumps(names)))
+
+        if names:
+            _ensure_hotword_subscriber()
+            print("hotword listener: armed — {}".format(names))
+        else:
+            print("hotword listener: disabled")
+
+    @contextmanager
+    def listening(self, names):
+        # type: (List[str]) -> Any
+        """Context manager that arms hotwords on entry and disables them on exit.
+
+        I call enable(names) and clear any stale detection on enter, then
+        call enable([]) and clear again on exit — even if the body raises.
+        Yields self so hotwords methods are accessible inside the block.
+
+        Args:
+            names: Model directory names to arm (passed straight to enable()).
+
+        Note to self:
+            Use this in follower / teleop loops so cleanup is guaranteed
+            even when check_for_interrupt() raises or the loop breaks early.
+        """
+        global _latest_hotword
+        self.enable(names)
+        with _latest_lock:
+            _latest_hotword = None
+        try:
+            yield self
+        finally:
+            self.enable([])
+            with _latest_lock:
+                _latest_hotword = None
+
+    # ------------------------------------------------------------------
+    # Handler chain
+    # ------------------------------------------------------------------
+
+    def register(self, handler, index=None):
+        # type: (Callable[[str], None], Optional[int]) -> None
+        """Add a callable to my hotword handler chain.
+
+        I append by default or insert at the given index. Registering the
+        same handler twice is a no-op. Also lazily activates my ROS
+        subscriber so handlers fire even before enable() is called.
+
+        Args:
+            handler: Callable that accepts a single string (the detected
+                     hotword label).
+            index:   Optional position; None means append.
+
+        Note to self:
+            Use functools.partial to pre-bind extra state before registering.
+        """
+        _ensure_hotword_subscriber()
+        with _hotword_handlers_lock:
+            if handler in _hotword_handlers:
+                return
+            if index is None:
+                _hotword_handlers.append(handler)
+            else:
+                _hotword_handlers.insert(index, handler)
+
+    def unregister(self, handler):
+        # type: (Callable[[str], None]) -> None
+        """Remove a handler from my chain; silently ignores unknown handlers.
+
+        Args:
+            handler: The exact callable previously passed to register().
+        """
+        with _hotword_handlers_lock:
+            try:
+                _hotword_handlers.remove(handler)
+            except ValueError:
+                pass
+
+    def clear_handlers(self):
+        # type: () -> None
+        """Remove all handlers from my chain, leaving it empty."""
+        with _hotword_handlers_lock:
+            _hotword_handlers.clear()
+
+    def show(self):
+        # type: () -> None
+        """Print my current handler chain in execution order."""
+        with _hotword_handlers_lock:
+            if not _hotword_handlers:
+                print("hotwords: no handlers registered")
+                return
+            print("hotwords: handler chain ({} handler{})".format(
+                len(_hotword_handlers),
+                's' if len(_hotword_handlers) != 1 else ''))
+            for i, h in enumerate(_hotword_handlers):
+                print("  [{}] {}".format(i, getattr(h, '__name__', repr(h))))
+
+    # ------------------------------------------------------------------
+    # Polling
+    # ------------------------------------------------------------------
+
+    def consume(self):
+        # type: () -> Optional[str]
+        """Return the latest detected hotword and clear it.
+
+        I'm the primary polling primitive for loop-based use: call me inside
+        a while loop and branch when I return a non-None value.
+
+        Returns:
+            The detected word string, or None if no detection is pending.
+        """
+        global _latest_hotword
+        with _latest_lock:
+            word = _latest_hotword
+            _latest_hotword = None
+        return word
+
+    def latest(self):
+        # type: () -> Optional[str]
+        """Peek at the latest detected hotword without clearing it.
+
+        Returns:
+            The detected word string, or None if no detection is pending.
+        """
+        with _latest_lock:
+            return _latest_hotword
+
+    def detected(self):
+        # type: () -> bool
+        """Return True if a hotword detection is waiting to be consumed.
+
+        Returns:
+            True if a detection is pending, False otherwise.
+        """
+        with _latest_lock:
+            return _latest_hotword is not None
+
+    # ------------------------------------------------------------------
+    # Atomic handlers
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def do_print(word):
+        # type: (str) -> None
+        """Print the detected hotword — the simplest possible handler.
+
+        I'm the observability baseline: register me first in any chain to
+        see detections in stdout without any side effects.
+
+        Args:
+            word: The detected hotword label from the STT backend.
+        """
+        print("hotword: detected — '{}'".format(word))
+
+
+hotwords = _HotwordListenerAPI()

@@ -58,6 +58,11 @@ I have a master configuration object at `logos.config`.
 - **To Read:** I use `logos.config.merged` (e.g., `logos.config.merged.vision.resolution`). This is a deep-merged view of base defaults + my custom preferences. I prefer dot-notation for known paths; `.get()` only when the key name is dynamic.
 - **To Write:** I mutate `logos.config.prefs`. Optionally call `logos.config.save()` to persist to disk.
 
+### Human ↔ Python Reactivity
+Most human speech flows through Whisper STT to my cognition node — that's the primary channel for real interaction. Ambient transcriptions and audio classifications are passive environmental context.
+
+But sometimes a Python behavior needs direct, low-latency input from a human: stopping a follower loop, confirming a step, voice teleop. Whisper is too slow and blunt for this — it's designed for conversations, not reactive triggers. Hotwords fill this gap: I arm a set of specific phrases with `logos.sensory.hotwords.enable([...])` and poll or register callbacks directly in my Python loop, entirely bypassing my cognition node. MediaPipe gesture detection (`logos.models.hands()`) plays the same role for visual input — a lightweight, targeted channel orthogonal to the main cognitive pipeline.
+
 ### The Logos API & Skills Library
 I have a two-tiered system for action. This keeps my core primitives stable while allowing me to freely experiment with complex behaviors.
 
