@@ -242,10 +242,14 @@ logos.bumper._run_handlers(['center'])
 # Direct Python↔human audio interactivity — bypasses the STT→cognition pipeline.
 # When my Python loop needs a human to say a specific word to branch or stop a
 # behavior, I arm models here and poll or register callbacks, exactly like bumper.
-# Model names are subdirectory names under ~/robot_ws/wakewords/custom/ — e.g.:
-#   stop, halt_now, cancel_that, go_forward, turn_left, turn_right, ok_boss, ...
 # Backend debounces detections at 1.5s, so I don't need to.
 # ==============================================================================
+
+# Model names are subdirectory names under ~/robot_ws/wakewords/custom/
+# Some useful hotwords to get started:
+# lets_start, turn_left, turn_right, go_forward, move_back, up, down
+# cancel_that, halt_now, stop, nevermind, good_bye, thank_you, orderly_stop
+# hey_potato, rubber_duck, yo_homie, ok_boss, computer, terminator
 
 # --- CONTROL ---
 logos.sensory.hotwords.enable(['stop', 'halt_now'])  # arm models; [] disables + unloads
