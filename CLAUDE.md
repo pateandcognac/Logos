@@ -33,7 +33,7 @@ The robot's one universal tool. Always available in its Python runtime without i
 | `pantilt.py` | Servo control for the directed-gaze periscope. Degrees only; never radians. Pan: ±80–100°, Tilt: ±60–70° |
 | `map3d.py` | Virtual 3D scene ("Chora") — render from ROS map + Astra point cloud + phantasmata, then raycast to world coords |
 | `models.py` | ML/vision inference: `llm()` (out-of-band Gemini call), `yolo11()` (COCO 80-class fast), `yolo_world()` (open-vocab ~8k classes), `yoloe()` (prompted or prompt-free broad detection), `hands()` (MediaPipe gesture recognition) |
-| `sensory.py` | Non-visual senses: ambient audio transcript access via ROS STT node |
+| `sensory.py` | Non-visual senses: ambient audio transcript access via ROS STT node, OpenWakeWord detection |
 | `nav.py` | Autonomous navigation via `move_base` (absolute) and `turtlebot_actions` (relative) |
 | `bumper.py` | Event-driven bumper callback system — composable handler chain (`register/unregister/clear/set_default/show`), atomic behaviors (`do_print`, `do_stop`, `do_backup`), composed behavior (`look_and_identify`). Rising-edge only; handlers run in a background thread with debounce. |
 | `memory/` | io_buffer summarization and semantic vector memory. Sub-modules: `_buffer.py` (palimpsest summarization), `client.py` / `collection.py` (ChromaDB sidecar HTTP client), `config.py` (server URL / workspace config), `errors.py`, `indexing.py` (index builders: technical reference, summaries, etc.), `rag.py` (`semantic_help()`, `search_memories()`, `remember()`, `recall_facts()`) |

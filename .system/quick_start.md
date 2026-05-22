@@ -299,10 +299,6 @@ logos.sensory.hotwords.register(logos.sensory.hotwords.do_print)
 logos.sensory.hotwords.register(lambda w: logos.base.stop() if 'stop' in w else None)
 logos.sensory.hotwords.enable(['go_forward', 'turn_left', 'turn_right', 'stop'])
 
-# Test a detection without hardware:
-# (publish directly via ROS: rostopic pub /stt/hotword_listener/detections std_msgs/String "data: 'stop'")
-
-
 # ==============================================================================
 # 🎭 COMMUNICATION, PERFORMANCE, & SOUND (`logos.emote`, `logos.leds`, `logos.sound`)
 # ==============================================================================
@@ -349,8 +345,7 @@ def logos.leds.fill(color: Union[str, int, Tuple], strip: str='notification') ->
     ...
 def logos.leds.set(colors: List=(), strip: str='notification') -> None:
     # Pass a list of colors for individual pixel control.
-    # 'notification' has 16 LEDs. 'pan_tilt' has 5..
-    
+    # 'notification' has 16 LEDs. 'pan_tilt' has 5.
     ...
 def logos.leds.laser(brightness: float) -> None: # 0.0 to 1.0.
     # PEW-PEW! Turns on my (harmless) pan-tilt laser pointer! Has a convenient automatic timeout.

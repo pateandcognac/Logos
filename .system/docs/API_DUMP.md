@@ -1,5 +1,5 @@
 # Logos API Full Dump (docstrings + signatures)
-Everything inspectable without showing raw source. (3760 lines!)
+Everything inspectable without showing raw source.
 
 ### Module: logos.base
 Docstring:
@@ -988,7 +988,7 @@ Functions:
               Good hygiene to call `logos.leds.off()` at the end of a light show
               or when entering idle state.
 
-    set(strip: Union[str, NoneType] = 'notification', colors: Sequence[Union[int, Tuple[int, int, int], List[int], str]] = ()) -> None
+    set(colors: Sequence[Union[int, Tuple[int, int, int], List[int], str]] = (), strip: Union[str, NoneType] = 'notification') -> None
       Docstring:
           Set individual LED colors on a strip ('notification' or 'pan_tilt').
 
@@ -1615,13 +1615,14 @@ Classes:
               Should not be constructed directly. Use `memory.get_or_create_collection()`.
       Methods:
 
-        Collection.add(self, ids: List[str], documents: Union[List[str], NoneType] = None, metadatas: Union[List[Union[Dict[str, Any], NoneType]], NoneType] = None, embeddings: Union[List[List[float]], NoneType] = None) -> int
+        Collection.add(self, ids: List[str], documents: Union[List[str], NoneType] = None, embedding_documents: Union[List[str], NoneType] = None, metadatas: Union[List[Union[Dict[str, Any], NoneType]], NoneType] = None, embeddings: Union[List[List[float]], NoneType] = None) -> int
           Docstring:
               Add documents to this collection.
 
               Args:
                   ids: Unique identifiers.
                   documents: Raw text documents.
+                  embedding_documents: Optional text to embed while storing `documents`.
                   metadatas: Optional metadata dicts.
                   embeddings: Pre-computed vectors.
 
@@ -1678,7 +1679,7 @@ Classes:
               Returns:
                   Dict with keys `ids`, `documents`, `metadatas`, `distances` — Chroma shape.
 
-        Collection.upsert(self, ids: List[str], documents: Union[List[str], NoneType] = None, metadatas: Union[List[Union[Dict[str, Any], NoneType]], NoneType] = None, embeddings: Union[List[List[float]], NoneType] = None) -> int
+        Collection.upsert(self, ids: List[str], documents: Union[List[str], NoneType] = None, embedding_documents: Union[List[str], NoneType] = None, metadatas: Union[List[Union[Dict[str, Any], NoneType]], NoneType] = None, embeddings: Union[List[List[float]], NoneType] = None) -> int
           Docstring:
               Upsert documents into this collection.
 
@@ -1687,6 +1688,7 @@ Classes:
               Args:
                   ids: Unique identifier for each document.
                   documents: Raw text to embed and store.
+                  embedding_documents: Optional text to embed while storing `documents`.
                   metadatas: Optional metadata dict per document.
                   embeddings: Pre-computed vectors. If omitted the sidecar embeds via Ollama.
 
@@ -1860,14 +1862,13 @@ Functions:
           Returns:
               A dict with `{"technical_reference": {...}, "few_shot_examples": {...}}`.
 
-    refresh_few_shot_examples(workspace: Union[str, NoneType] = None, verbose: bool = True) -> Dict[str, Any]
+    refresh_few_shot_examples(workspace: Union[str, NoneType] = None, verbose: bool = True, batch_size: int = 10, max_chunk_chars: int = 1500, chunk_overlap_chars: int = 200) -> Dict[str, Any]
       Docstring:
           (Re)builds my few-shot example index from my curated example files.
 
           Scans `.system/few_shot_examples/` for `.py` and `.md` files. Each file
-          becomes one document in the `few_shot_examples` collection; the entire
-          file content is embedded so queries can match on behavioral intent and
-          patterns, not just filenames.
+          becomes a full source snapshot plus overlapping searchable chunks, so
+          queries can match on behavioral intent without losing the full example.
 
           To add a new few-shot example, I (or Mark) drop a `.py` or `.md` file
           into `.system/few_shot_examples/` and re-run this method.
@@ -1875,9 +1876,12 @@ Functions:
           Args:
               workspace: Override the active workspace namespace for this run.
               verbose:   If True, I print progress to stdout. Default: True.
+              batch_size: Records per upsert request. Default: 10.
+              max_chunk_chars: Embedding-character budget for each searchable chunk.
+              chunk_overlap_chars: Characters of overlap between adjacent chunks.
 
           Returns:
-              A dict with `{"upserted": N, "files": F}` counts.
+              Counts for upserted records, source documents, chunks, and files.
 
           Note to self:
               New curated examples go into `.system/few_shot_examples/`.
@@ -1905,15 +1909,15 @@ Functions:
               I run this after my palimpsest has been summarized to make the new
               synopsis searchable in `rag.search_summaries()`.
 
-    refresh_technical_reference(workspace: Union[str, NoneType] = None, verbose: bool = True, batch_size: int = 10) -> Dict[str, Any]
+    refresh_technical_reference(workspace: Union[str, NoneType] = None, verbose: bool = True, batch_size: int = 10, max_chunk_chars: int = 1500, chunk_overlap_chars: int = 200) -> Dict[str, Any]
       Docstring:
           (Re)build my technical reference index from the logos API and skills library.
 
           Discovers every public function and class across all logos API modules
-          and my skills library, build a structured document for each, and upsert
-          them into the `technical_reference` vector collection. Re-running this
-          is safe: entries that have not changed are updated in place; nothing
-          is duplicated.
+          and my skills library, build a full source snapshot and overlapping
+          searchable chunks for each, and upsert them into the `technical_reference`
+          vector collection. Re-running this replaces the generated records so
+          removed symbols and old single-document records do not linger.
 
           Args:
               workspace:   Override the active workspace namespace for this run.
@@ -1923,9 +1927,11 @@ Functions:
                            (e.g. to 5) if Ollama is slow and requests time out.
                            Raise the client timeout with `memory.configure(timeout=120)`
                            before calling if needed.
+              max_chunk_chars: Embedding-character budget for each searchable chunk.
+              chunk_overlap_chars: Characters of overlap between adjacent chunks.
 
           Returns:
-              A dict with `{"upserted": N, "modules": M}` counts.
+              Counts for upserted records, source documents, chunks, and modules.
 
           Note to self:
               I should run this whenever I add or update logos API code or skills.
@@ -1980,21 +1986,21 @@ Functions:
       Docstring:
           Queries my technical reference index for API documentation relevant to a question.
 
-          Searches the `technical_reference` collection using semantic embedding
-          similarity against my query. The results are the most relevant logos API
-          functions, class methods, and skills entries — ranked by vector distance
-          (lower = more relevant).
+          Searches chunk vectors in the `technical_reference` collection, groups
+          hits back to their full indexed source snapshots, and returns the most
+          relevant logos API functions, class methods, and skills entries.
 
           Args:
               query:     My natural-language question, e.g. "How do I make Logos speak?".
-              n_results: Maximum number of results to return. Default: 5.
+              n_results: Maximum number of source documents to return. Default: 5.
               workspace: Override the configured workspace namespace.
 
           Returns:
               A dict with keys:
                   `query`    — the original query string.
-                  `results`  — list of result dicts, each with `id`, `document`,
-                                 `metadata`, and `distance`.
+                  `results`  — list of source-document result dicts with `id`,
+                                 full `document`, `metadata`, `distance`, and
+                                 matched chunk evidence.
                   `context`  — a pre-formatted text block ready for reading or LLM injection.
 
           Note to self:
@@ -2005,13 +2011,13 @@ Functions:
       Docstring:
           Queries my few-shot example index for curated behavioral examples.
 
-          Search the `few_shot_examples` collection for files that match
-          the intent of my query — this includes anything in my
-          `.system/few_shot_examples/` directory and the output format template.
+          Search chunk vectors in the `few_shot_examples` collection for files that
+          match the intent of my query, then return full indexed snapshots from my
+          `.system/few_shot_examples/` directory.
 
           Args:
               query:     My natural-language question, e.g. "rotate and then speak".
-              n_results: Maximum number of results to return. Default: 5.
+              n_results: Maximum number of source example documents to return.
               workspace: Override the configured workspace namespace.
 
           Returns:
@@ -2047,11 +2053,6 @@ Functions:
 
                   result = rag.semantic_help("How do I dock?")
                   print(result["context"])
-
-              Or to pass the context to a model::
-
-                  ctx = rag.semantic_help("pan-tilt capture")["context"]
-                  response = logos.models.llm(prompt + "\n\n" + ctx)
 
     upsert_collective_fact(text: str, tags: Union[List[str], NoneType] = None, mem_id: Union[str, NoneType] = None) -> str
       Docstring:
@@ -3038,7 +3039,8 @@ Docstring:
     My non-visual senses. 👂
 
     This module provides tools for interacting with sensory data streams like
-    ambient audio transcripts and background audio classification.
+    ambient audio transcripts, background audio classification, and reactive
+    hotword detection for direct Python-loop interactivity.
 Functions:
     get_ambient_audio_classification(last_minutes: Union[float, NoneType] = None, report: bool = False) -> Dict[str, Any]
       Docstring:
@@ -3756,3 +3758,4 @@ Functions:
               This is how I show Mark what I'm seeing and thinking. I would use
               this to request a sanity check from human eyes, or if Mark specifically
               asks me to.
+

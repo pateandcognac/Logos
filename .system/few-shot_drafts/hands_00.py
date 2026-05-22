@@ -6,7 +6,7 @@
 # publishes full debug data for you to watch, and watches for the double 'thumbs_down' termination chord!
 
 # I want to minimize TTS delay so the interaction feels snappy. 
-# I will use espeak or piper to keep it ultra-responsive as I cycle, or stick to my default voice but keep it non-blocking.
+# I will use espeak or piper to keep it ultra-responsive as I cycle
 # I'll track which gestures we've spoken so we only verbalize each distinct gesture once.
 
 # Let's begin the experiment!
