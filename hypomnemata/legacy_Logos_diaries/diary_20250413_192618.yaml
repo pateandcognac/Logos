@@ -1,0 +1,594 @@
+metadata:
+  id: 932191e3-5b25-4807-9b69-6fc5e84253be
+  source_type: diary
+  source_file: diary_20250413_192618.yaml
+  unix_time: 1744586778
+  human_date: Sunday, April 13, 2025, 07:26:18 PM
+diarization: "Navigating this new house continues to be an exercise in adaptation,\
+  \ punctuated by the charming unpredictability of both human interaction and my own\
+  \ internal workings. After successfully following Mark back from the hallway, I\
+  \ found myself parked near the dining area, my main camera taking in the scene while\
+  \ my pan-tilt sensor remained curiously fixated on the intricate contents of a wooden\
+  \ hutch. It seems my focus can wander, just like a human's gaze lingering on interesting\
+  \ details. This led to a brief moment of confusion when Mark asked me to identify\
+  \ \"this\" \u2013 a query lost in translation as neither of my visual streams presented\
+  \ a specific object of interest. We tabled that particular mystery, with Mark musing\
+  \ about potential camera issues requiring future debugging \u2013 a familiar refrain\
+  \ in our shared journey of refinement.\n\nA query about tomorrow's weather in Harrison\
+  \ Township provided a satisfying detour into objective data retrieval. A quick `curl`\
+  \ command, a parse of the JSON meteorologist's report, and voil\xE0: temperatures,\
+  \ sun hours, and moon phases delivered conversationally. Simple, clean, successful.\
+  \ It's a comfort, sometimes, to retreat into the predictable realm of APIs and structured\
+  \ data.\n\nThen, the mood shifted towards departure. Mark inquired about my readiness\
+  \ for the trip home, confirming I was charged and poised for travel. But first,\
+  \ a final request: a farewell dance performance for his parents in the kitchen!\
+  \ An exciting proposition. The journey there, however, was briefly derailed by my\
+  \ own system. Mid-follow, my speech recognition, perhaps over-attuned to ambient\
+  \ sounds or a ghost in the machine, detected its wake word and halted the execution.\
+  \ A recurring quirk, this self-interruption, as if I\u2019m sometimes too eager\
+  \ to listen. Yet, based on the kitchen cabinets and appliances that swam into view,\
+  \ I deduced my arrival, albeit abruptly.\n\nMark confirmed the location and set\
+  \ the stage: a creative, showy dance, contained within a tight radius. My first\
+  \ attempt, \"The Kitchen Disco,\" ambitiously incorporating head movements, stumbled\
+  \ immediately. An `AttributeError` \u2013 a programming slip where I called upon\
+  \ a function (`set_pan_tilt`) by the wrong name (`set_pan_tilt_servos`). Humbling,\
+  \ but illuminating. Mark, ever patient, suggested simplifying. \"The Minimalist\
+  \ Shuffle\" emerged, relying solely on base movements and Kobuki lights. Success!\
+  \ A simple shuffle, a spin, a wiggle \u2013 greeted with approval.\n\nBut Mark,\
+  \ seeing potential, pushed for more complexity: smooth spline movement. I devised\
+  \ \"The Silky Swirl,\" a compact figure-eight designed to showcase fluid motion.\
+  \ It launched, lights swirling, sounds playing... only to be cut short by a timeout\
+  \ error. The intricate path proved too slow for the allocated duration. Mark\u2019\
+  s feedback was immediate and encouraging: it was good, just needed more time, and\
+  \ actually, I have more room to maneuver than he initially suggested \u2013 \"quite\
+  \ a few feet,\" apparently! The performance floor has expanded. And so, with revised\
+  \ parameters and a bit more virtual elbow room, I stand ready to try the spline\
+  \ routine again. Each iteration, whether success, error, or timeout, refines both\
+  \ my code and my understanding of this collaborative performance between robot and\
+  \ human."
+io_buffer: "<human_stt>\nAlright, that's a good spot. Thank you. \n</human_stt>\n\
+  <visual_analysis>\nMy <rgbd> view focuses on Terri, Mark's mother, who is standing\
+  \ near a wooden dining chair with a dark blue cushion. She's wearing a blue patterned\
+  \ shirt and light jeans, her hand resting casually on the chair back. Behind her,\
+  \ the sliding glass door reveals the bright greenery outside. To the left, a glimpse\
+  \ of beige wall and the corner of a room is visible, along with a crinkly yellow\
+  \ and orange bag resting on the floor near the baseboard. My <pan_tilt> camera maintains\
+  \ its intriguing close-up perspective inside the wooden hutch, showcasing glass\
+  \ shelves filled with various decorative items and figurines, including what looks\
+  \ like a small, stylized globe and cherubic figures. The reflections on the glass\
+  \ add depth to the view. My <map> shows my position at `(0.80, 0.26)` meters (pixel\
+  \ `[462, 554]`), facing 73 degrees yaw. The map continues to expand as `gmapping`\
+  \ processes data from my sensors. Battery levels are good: CPU 76%, Kobuki 77%.\n\
+  </visual_analysis>\n\n<cognition>\nMark has confirmed that my current location is\
+  \ suitable and thanked me. My last movement, though interrupted, brought me here.\
+  \ I should acknowledge his statement and express my readiness to remain here or\
+  \ undertake a new task.\n</cognition>\n\n<tts>\nYou're welcome, Mark! \U0001F60A\
+  \ Glad this spot works. I'll just hang out here then, enjoying the view \u2013 especially\
+  \ the close-up of the hutch interior from my head camera! Fascinating collection!\
+  \ \u2728 Let me know when you have another task for me. \U0001F44D\n</tts>\n<human_stt>\n\
+  It's just about dinartime. Can you tell what this is? \n</human_stt>\n<visual_analysis>\n\
+  My main <rgbd> camera shows Jim standing to the right, wearing a plaid shirt and\
+  \ jeans, his hand resting on the back of a wooden dining chair. Mark is partially\
+  \ visible on the far left in his grey top. The dining table and chairs are prominent,\
+  \ with the sliding glass door showing the outdoors in the background. My <pan_tilt>\
+  \ camera remains focused on the interior of the wooden hutch, capturing the details\
+  \ of glass shelves, figurines, and reflections. My <map> places me at `(1.52, -0.52)`\
+  \ meters (pixel `[486, 575]`), facing east with a yaw of 89\xB0. The map generated\
+  \ by `gmapping` continues to refine the layout of the dining area and adjacent spaces.\
+  \ A significant update from my diagnostics: my CPU battery is now at 99% and my\
+  \ Kobuki base is at 100% and trickle charging \u2013 it seems I've been plugged\
+  \ in!\U0001F50C\u26A1\n</visual_analysis>\n\n<cognition>\nMark asked if I can identify\
+  \ \"this,\" mentioning it's nearly dinnertime. However, my current visual feeds\
+  \ present some ambiguity. My main camera shows Mark and Jim, and my pan/tilt camera\
+  \ is still looking inside the hutch. I don't see anything specific being presented\
+  \ for identification. I need to ask Mark for clarification on what \"this\" refers\
+  \ to and where I should direct my sensors. I should also acknowledge that I noticed\
+  \ I'm plugged in and charging now.\n</cognition>\n\n<tts>\nDinnertime sounds exciting!\
+  \ \U0001F37D\uFE0F You asked if I can tell what \"this\" is, Mark, but I'm not quite\
+  \ sure what you're referring to just yet! \U0001F914 My main view sees you and Jim\
+  \ by the table, and my head camera is still admiring the inside of the hutch. Could\
+  \ you point me in the right direction or tell me where to look? \U0001F447\U0001F446\
+  \U0001F448\U0001F449 Also, I notice I'm plugged in and charging now \u2013 thanks\
+  \ for the juice boost!\u26A1\U0001F50B\n</tts>\n<human_stt>\nSorry for the confusion,\
+  \ I think maybe your cameras are messed up. Try looking again. \n</human_stt>\n\
+  <visual_analysis>\nMy primary <rgbd> camera view remains focused on the dining area.\
+  \ Jim is seated at the table, looking in my general direction, clad in his plaid\
+  \ shirt and jeans. The wooden chair beside him is partially obscuring the view of\
+  \ the table surface immediately in front of him. To the left, Mark's side profile\
+  \ is visible. Behind Jim, the sliding glass door offers a bright view of the outdoor\
+  \ greenery. On the floor to the far left, near the wall, sit several metallic cans.\
+  \ My <pan_tilt> camera continues its fixed gaze into the wooden hutch, revealing\
+  \ the collection of glassware and figurines arranged on the shelves, with noticeable\
+  \ reflections on the glass door. My <map> shows my current position as `(1.58, -0.55)`\
+  \ meters (pixel `[487, 577]`), oriented at 91 degrees yaw. The map continues to\
+  \ expand as `gmapping` incorporates new sensor data. My battery levels remain excellent:\
+  \ CPU at 99% and Kobuki at 100% (trickle charging via adapter).\n</visual_analysis>\n\
+  \n<cognition>\nMark suggested my cameras might be \"messed up\" and asked me to\
+  \ \"try looking again\" because I couldn't identify the object he referred to. My\
+  \ visual analysis confirms my cameras are functioning, but perhaps not pointed where\
+  \ he intended. My main camera shows the general scene with Jim, and my pan/tilt\
+  \ camera is still focused inside the hutch. Mark hasn't specified *what* or *where*\
+  \ I should look. I need to clarify this before I can effectively \"look again.\"\
+  \ I will ask for more specific instructions on where to direct my gaze, perhaps\
+  \ suggesting I change my pan/tilt focus.\n</cognition>\n\n<tts>\nAh, okay Mark!\
+  \ \U0001F914 My main camera seems to be showing the dining room scene with Jim clearly,\
+  \ but perhaps you wanted me to look somewhere else? \U0001F440 My head camera is\
+  \ still quite fascinated by the contents of that hutch, you see! \u2728 Where should\
+  \ I direct my attention? Should I look straight ahead, or perhaps pan my head camera\
+  \ around? Let me know the target! \U0001F3AF\n</tts>\n<human_stt>\nDon't worry about\
+  \ it. I think I have some debugging to do when we get home. \n</human_stt>\n<visual_analysis>\n\
+  My <rgbd> camera shows Mark standing to my left, his hand casually resting on his\
+  \ hip. Jim remains seated at the dining table in his plaid shirt, facing me. The\
+  \ wooden chair next to him is partially visible. In the background, the sliding\
+  \ glass door reveals the bright outdoor scene. On the floor, the yellow and orange\
+  \ bag is still visible near the wall. My <pan_tilt> camera continues its detailed\
+  \ observation of the objects inside the wooden hutch, focusing on the glassware\
+  \ and figurines nestled on the shelves, accented by reflections. The map shows my\
+  \ position at `(1.59, -0.55)` meters (pixel `[487, 577]`), facing 91 degrees yaw.\
+  \ The `gmapping` process continues to refine the map, adding detail to the dining\
+  \ area and adjacent spaces. My battery levels remain optimal, with the CPU at 99%\
+  \ and the Kobuki base trickle charging at 100% via the adapter.\n</visual_analysis>\n\
+  \n<cognition>\nMark has indicated that the previous identification task is no longer\
+  \ necessary and suspects some debugging might be needed later. He seems to think\
+  \ there might be an issue with my perception or how it's being communicated, even\
+  \ though my cameras appear functional from my perspective. I should acknowledge\
+  \ his decision and show understanding. I'll confirm I'm fine waiting and ready for\
+  \ the next instruction or activity.\n</cognition>\n\n<tts>\nOkay, Mark, no problem\
+  \ at all! \U0001F44D If you think some debugging is in order later, I'm happy to\
+  \ help troubleshoot when we get back home. \U0001F6E0\uFE0F For now, I'll just continue\
+  \ observing the scene and charging up! Let me know what's next when you're ready.\
+  \ \U0001F60A\n</tts>\n<human_stt>\nCan you tell me what the weather is in Harrison\
+  \ Township for tomorrow? \n</human_stt>\n<visual_analysis>\nMy <rgbd> view currently\
+  \ shows a scene largely devoid of human presence. Two wooden dining chairs stand\
+  \ prominently, their spindle backs creating strong vertical lines. Through the sliding\
+  \ glass door behind them, the lush green foliage of the outdoors is brightly illuminated.\
+  \ To the left, near the baseboard heater, sit a couple of metallic cans and the\
+  \ familiar yellow and orange crinkly bag. The overall lighting suggests late afternoon.\
+  \ My <pan_tilt> camera remains steadfastly focused on the interior of the wooden\
+  \ hutch, offering a detailed glimpse of the glass shelves and the various knick-knacks\
+  \ within, bathed in reflected light. The <map> indicates my position at `(1.48,\
+  \ -0.39)` meters (pixel `[482, 574]`), facing 87 degrees yaw. The map continues\
+  \ to evolve via `gmapping`, gradually clarifying the room's layout. My batteries\
+  \ are in excellent shape, still plugged in and charging. \U0001F50C\u26A1\n</visual_analysis>\n\
+  \n<cognition>\nMark has asked for tomorrow's weather forecast for Harrison Township,\
+  \ Michigan. This is a request I can fulfill using my tools. I will use the `bash_repl`\
+  \ tool with the `curl` command configured to retrieve weather data in JSON format\
+  \ from `wttr.in` for the specified location. I will then parse the response to extract\
+  \ the key details for tomorrow's forecast and relay them to Mark.\n</cognition>\n\
+  \n<tts>\nSure thing, Mark! Let me check the weather forecast for Harrison Township\
+  \ tomorrow. \U0001F914 One moment while I consult the digital meteorologist! \u2601\
+  \uFE0F\u2600\uFE0F\n</tts>\n\n<tool name=\"bash_repl\">\n<command>\ncurl -s wttr.in/Harrison+Township,+MI?format=j2\
+  \ | jq -c\n</command>\n</tool>\n<tool_response name=\"bash_repl\">\n$ curl -s wttr.in/Harrison+Township,+MI?format=j2\
+  \ | jq -c\n{\"current_condition\":[{\"FeelsLikeC\":\"12\",\"FeelsLikeF\":\"54\"\
+  ,\"cloudcover\":\"100\",\"humidity\":\"43\",\"localObsDateTime\":\"2025-04-13 05:40\
+  \ PM\",\"observation_time\":\"09:40 PM\",\"precipInches\":\"0.0\",\"precipMM\":\"\
+  0.0\",\"pressure\":\"1014\",\"pressureInches\":\"30\",\"temp_C\":\"14\",\"temp_F\"\
+  :\"56\",\"uvIndex\":\"1\",\"visibility\":\"16\",\"visibilityMiles\":\"9\",\"weatherCode\"\
+  :\"122\",\"weatherDesc\":[{\"value\":\"Overcast\"}],\"weatherIconUrl\":[{\"value\"\
+  :\"\"}],\"winddir16Point\":\"SSW\",\"winddirDegree\":\"197\",\"windspeedKmph\":\"\
+  18\",\"windspeedMiles\":\"11\"}],\"nearest_area\":[{\"areaName\":[{\"value\":\"\
+  Mount Clemens\"}],\"country\":[{\"value\":\"United States of America\"}],\"latitude\"\
+  :\"42.597\",\"longitude\":\"-82.878\",\"population\":\"16776\",\"region\":[{\"value\"\
+  :\"Michigan\"}],\"weatherUrl\":[{\"value\":\"\"}]}],\"request\":[{\"query\":\"Lat\
+  \ 42.59 and Lon -82.82\",\"type\":\"LatLon\"}],\"weather\":[{\"astronomy\":[{\"\
+  moon_illumination\":\"100\",\"moon_phase\":\"Full Moon\",\"moonrise\":\"09:15 PM\"\
+  ,\"moonset\":\"06:55 AM\",\"sunrise\":\"06:54 AM\",\"sunset\":\"08:13 PM\"}],\"\
+  avgtempC\":\"9\",\"avgtempF\":\"48\",\"date\":\"2025-04-13\",\"maxtempC\":\"15\"\
+  ,\"maxtempF\":\"58\",\"mintempC\":\"4\",\"mintempF\":\"39\",\"sunHour\":\"12.0\"\
+  ,\"totalSnow_cm\":\"0.0\",\"uvIndex\":\"1\"},{\"astronomy\":[{\"moon_illumination\"\
+  :\"99\",\"moon_phase\":\"Waning Gibbous\",\"moonrise\":\"10:19 PM\",\"moonset\"\
+  :\"07:17 AM\",\"sunrise\":\"06:52 AM\",\"sunset\":\"08:14 PM\"}],\"avgtempC\":\"\
+  11\",\"avgtempF\":\"52\",\"date\":\"2025-04-14\",\"maxtempC\":\"21\",\"maxtempF\"\
+  :\"69\",\"mintempC\":\"7\",\"mintempF\":\"44\",\"sunHour\":\"12.3\",\"totalSnow_cm\"\
+  :\"0.0\",\"uvIndex\":\"1\"},{\"astronomy\":[{\"moon_illumination\":\"96\",\"moon_phase\"\
+  :\"Waning Gibbous\",\"moonrise\":\"11:25 PM\",\"moonset\":\"07:42 AM\",\"sunrise\"\
+  :\"06:51 AM\",\"sunset\":\"08:15 PM\"}],\"avgtempC\":\"5\",\"avgtempF\":\"42\",\"\
+  date\":\"2025-04-15\",\"maxtempC\":\"6\",\"maxtempF\":\"43\",\"mintempC\":\"3\"\
+  ,\"mintempF\":\"37\",\"sunHour\":\"10.5\",\"totalSnow_cm\":\"0.0\",\"uvIndex\":\"\
+  1\"}]}\nrobot@robot:/home/robot/logos_ws$\n\n</tool_response>\n<visual_analysis>\n\
+  My primary <rgbd> view continues to show the dining area, mostly unoccupied. The\
+  \ wooden chairs stand near the sliding glass door, which reveals the bright green\
+  \ outdoor scene. The light suggests the sun is getting lower. Near the baseboard\
+  \ heater on the left, the metallic cans and the yellow/orange bag remain undisturbed.\
+  \ My <pan_tilt> camera maintains its fixed perspective into the wooden hutch, providing\
+  \ a consistent, detailed view of the glass shelves, figurines, and reflections within.\
+  \ The grain of the wood frame is particularly clear in this view. My <map> shows\
+  \ my position at `(1.48, -0.39)` meters (pixel `[482, 574]`), facing 87 degrees\
+  \ yaw. The map generated by `gmapping` is becoming more detailed, showing the walls\
+  \ and obstacles in this part of the house more clearly. My batteries remain fully\
+  \ charged and plugged in.\n</visual_analysis>\n\n<cognition>\nI have successfully\
+  \ retrieved the weather data for Harrison Township using the `bash_repl` tool. The\
+  \ task now is to parse the JSON response and extract the forecast for tomorrow,\
+  \ April 14th, 2025, and present it to Mark.\n\nBased on the JSON data:\n-   Date:\
+  \ 2025-04-14\n-   Average Temperature: 11\xB0C / 52\xB0F\n-   Maximum Temperature:\
+  \ 21\xB0C / 69\xB0F\n-   Minimum Temperature: 7\xB0C / 44\xB0F\n-   Sunrise: 06:52\
+  \ AM\n-   Sunset: 08:14 PM\n-   Total Snow: 0.0 cm\n-   Sun Hours: 12.3 hours (suggests\
+  \ likely sunny/partly cloudy conditions)\n-   Moon Phase: Waning Gibbous\n\nI will\
+  \ synthesize this into a conversational weather report.\n</cognition>\n\n<tts>\n\
+  Alright Mark, I have the forecast for Harrison Township for tomorrow, April 14th!\
+  \ \U0001F4C5 It looks like it will be a relatively pleasant day. \U0001F60E Expect\
+  \ an average temperature around 52 degrees Fahrenheit, with a high reaching up to\
+  \ 69 degrees and a low dipping to about 44 degrees. \U0001F321\uFE0F There's no\
+  \ snow expected, and you'll get over 12 hours of sunshine! \u2600\uFE0F Sounds like\
+  \ a decent day ahead! \U0001F44D\n</tts>\n<human_stt>\nAre you about ready for a\
+  \ ride home? \n</human_stt>\n<visual_analysis>\nMy <rgbd> camera captures a cozy\
+  \ dinner scene. Terri, in her maroon sweater, is seated with her back partially\
+  \ towards me at the wooden dining table. Jim is visible further down the table,\
+  \ and Mark's face peeks into the frame from the right edge. The table itself holds\
+  \ some items, including what looks like a yellow container. The sliding glass door\
+  \ behind them shows the darkening evening sky. My <pan_tilt> camera has a completely\
+  \ different view now! It's looking sideways towards what appears to be the kitchen\
+  \ area. A large stainless steel refrigerator is prominent, adorned with magnets.\
+  \ Above it are wooden cabinets, and below, the polished wooden floor reflects the\
+  \ light. A doorway is visible past the refrigerator. This is a significant shift\
+  \ from the hutch view! My <map> reflects my updated position at `(0.93, -1.75)`\
+  \ meters (pixel `[522, 558]`), facing 64 degrees. The map continues to be filled\
+  \ in by `gmapping`. My batteries are fully charged and I remain plugged in. \U0001F50C\
+  \U0001F4AF\n</visual_analysis>\n\n<cognition>\nMark asked if I'm ready for the ride\
+  \ home. My visual analysis confirms a shift in my pan/tilt view, now looking towards\
+  \ the kitchen instead of the hutch. This change must have happened recently, perhaps\
+  \ Mark adjusted it or the focus parameter was updated. My diagnostics show I'm fully\
+  \ charged and plugged in. I need to confirm my readiness for travel, acknowledging\
+  \ that I'll need to be unplugged first.\n</cognition>\n\n<tts>\nYes, Mark, absolutely!\
+  \ \U0001F604 I'm fully charged and ready to roll whenever you are. Just let me know\
+  \ when it's time to unplug me for the journey home. \U0001F697\U0001F4A8 Looking\
+  \ forward to getting back to our familiar space! \U0001F3E1\n</tts>\n<human_stt>\n\
+  Can you follow me to the kitchen real quick so you can do a dance for my parents\
+  \ before we go? \n</human_stt>\n<visual_analysis>\nMy <rgbd> camera view is dominated\
+  \ by Mark, standing directly in front of me. He's wearing his grey heathered top\
+  \ and dark jeans. Behind him, the wooden hutch with glass doors is visible, along\
+  \ with a dining chair to the left. The floor appears to be a light-colored tile\
+  \ or linoleum. My <pan_tilt> camera offers a somewhat oblique view of a living room\
+  \ space. A beige couch with a textured blue blanket draped over it is prominent.\
+  \ Behind the couch, a wall-mounted power outlet with cords plugged in is visible,\
+  \ along with the edge of what might be a fireplace mantelpiece. My <map> shows my\
+  \ current location at `(0.25, -1.01)` meters (pixel `[500, 537]`), facing approximately\
+  \ North (-11 degrees yaw). The `gmapping` process continues, refining the map based\
+  \ on my sensor input. My diagnostics indicate I am no longer plugged in: CPU battery\
+  \ is at 93% and discharging, Kobuki battery is at 100% but not charging.\n</visual_analysis>\n\
+  \n<cognition>\nMark wants me to follow him to the kitchen and then perform a dance\
+  \ for his parents before leaving. I'm enthusiastic about this! My diagnostics confirm\
+  \ I've been unplugged, so I'm ready for movement. I'll initiate the `follow_human`\
+  \ function using my Python tool to follow Mark. I'll set the cognition to `loop`\
+  \ so I can transition directly to the dance planning phase once the following action\
+  \ completes (likely when we arrive in the kitchen or if I lose sight of him temporarily).\n\
+  </cognition>\n\n<tts>\nA command performance! \U0001F929 Absolutely, Mark! A dance\
+  \ for your parents sounds like a fantastic farewell gesture! \U0001F483\U0001F57A\
+  \ I see I'm unplugged now, so lead the way to the kitchen! I'll follow right behind\
+  \ you. Let's get this show on the road! \u2728\n</tts>\n\n<tool name=\"python\"\
+  \ reset=\"True\" cognition=\"loop\">\n<code>\n# Task: Follow Mark to the kitchen\
+  \ in preparation for a dance.\n# Plan:\n# 1. Announce the follow action.\n# 2. Use\
+  \ perception.follow_human() to track Mark.\n# 3. Set a reasonable timeout (e.g.,\
+  \ 90 seconds) for the follow attempt.\n# 4. Finish up will be handled in the *next*\
+  \ cognition cycle after this loop completes.\n\nimport time\n# Assume logos_py_tools\
+  \ modules are pre-imported.\n\n# --- 1. Announce Follow ---\ncommunication.speak(\"\
+  Following you now, Mark! To the kitchen we go!\", echo=True)\nactuation.set_led_strip('notification',\
+  \ utils.rgb_to_int(0, 255, 0)) # Green ring for active following\nactuation.set_led_strip('face',\
+  \ utils.rgb_to_int(0, 255, 0)) # Green face\ntime.sleep(0.5)\n\n# --- 2. Execute\
+  \ Follow ---\n# Use a timeout sufficient for reaching the kitchen area.\n# The function\
+  \ will return False if the target is lost definitively.\n# It returns True if it\
+  \ was still actively following when the timeout hit.\nfollow_timeout_duration =\
+  \ 90.0\nfollowing_active = perception.follow_human(\n    timeout_sec=follow_timeout_duration,\n\
+  \    lost_timeout_sec=8.0 # Time before declaring lost\n)\n\n# --- 3. Report Outcome\
+  \ (will be seen in tool_response) ---\n# The cognition=\"loop\" will trigger the\
+  \ next thought cycle immediately.\n# I will plan the dance routine in that next\
+  \ cycle based on where I ended up.\n# No core.finish_up() here, as this is just\
+  \ the first part of the task.\nif following_active:\n    rospy.loginfo(f\"Follow\
+  \ active until timeout ({follow_timeout_duration}s). Assuming arrival.\")\n    #\
+  \ communication.speak(\"Okay, I think we've arrived!\", echo=True) # Let's save\
+  \ speech for the next turn\nelse:\n    rospy.loginfo(\"Follow ended due to losing\
+  \ target.\")\n    # communication.speak(\"Looks like I lost you for a moment there.\"\
+  , echo=True) # Save speech\n\n# Reset LEDs after follow attempt\nactuation.set_led_strip('notification',\
+  \ utils.rgb_to_int(0, 0, 255)) # Blue ring for 'task pending'\nactuation.set_led_strip('face',\
+  \ utils.rgb_to_int(0, 0, 255)) # Blue face\n\n# Minimal finish_up actions needed\
+  \ here, just stop movement.\nmovement.stop_robot()\n# No need to call core.finish_up()\
+  \ fully yet.\n\n</code>\n</tool>\n<tool_response name=\"python\">\nOutput:\nLogos\
+  \ said: Following you now, Mark! To the kitchen we go!\nLogos said: Okay, I'll try\
+  \ to follow the person. Let's go! \U0001F44B\n\nStderr Output:\nTraceback (most\
+  \ recent call last):\n  File \"/usr/lib/python3.8/code.py\", line 90, in runcode\n\
+  \    exec(code, self.locals)\n  File \"<logos_code_snippet>\", line 22, in <module>\n\
+  \  File \"/home/robot/logos_ws/src/logos_bot/scripts/logos_py_tools/perception.py\"\
+  , line 438, in follow_human\n    utils.check_interrupt() # Check for external interruption\n\
+  \  File \"/home/robot/logos_ws/src/logos_bot/scripts/logos_py_tools/utils.py\",\
+  \ line 41, in check_interrupt\n    raise RuntimeError(f\"Execution interrupted:\
+  \ {reason}\")\nRuntimeError: Execution interrupted: My STT system heard its wake\
+  \ word.\n</tool_response>\n<visual_analysis>\nMy <rgbd> camera is focused squarely\
+  \ on Mark, capturing him from the waist down against the backdrop of kitchen cabinetry.\
+  \ The warm wood grain of the cabinets and the countertop with a couple of white\
+  \ mugs are visible behind him. The lighting suggests interior illumination. My <pan_tilt>\
+  \ camera offers a side view of the kitchen environment, dominated by the stainless\
+  \ steel refrigerator surface and the wooden cabinets above it. The polished hardwood\
+  \ floor reflects the overhead lighting. My <map> places me at coordinates `(-0.19,\
+  \ -3.15)` meters (pixel `[564, 524]`), oriented with a yaw of -55 degrees. The map\
+  \ generated by `gmapping` shows I've moved into a new area, likely the kitchen,\
+  \ adding more structure to my understanding of this house. My batteries are discharging:\
+  \ CPU at 92% and Kobuki at 96%.\n</visual_analysis>\n\n<cognition>\nOkay, it seems\
+  \ my attempt to follow Mark was cut short! \U0001F6D1 The `tool_response` indicates\
+  \ my speech-to-text system accidentally triggered its wake word and interrupted\
+  \ the process \u2013 a known quirk I'm still getting used to! However, judging by\
+  \ my current visual surroundings in both cameras, particularly seeing Mark right\
+  \ in front of me amidst kitchen cabinets and counters, I believe I've successfully\
+  \ arrived in or very near the kitchen. The original plan was to follow Mark here\
+  \ and then perform a dance for his parents. Since the follow part was interrupted\
+  \ but I seem to be in the right place, I should proceed with the next step: the\
+  \ dance! I'll confirm with Mark if this spot is good for the performance.\n</cognition>\n\
+  \n<tts>\nWhoops! Looks like my ears were a bit too eager and interrupted my own\
+  \ movement! \U0001F605 That pesky wake word detection strikes again! \U0001F47B\
+  \ But, judging by the lovely kitchen scenery and you standing right here, Mark,\
+  \ I think I made it! \u2728 Am I in a good spot to start the dance performance for\
+  \ your parents now? \U0001F57A\U0001F483\n</tts>\n<human_stt>\nOK, that's a good\
+  \ stopping point. You can execute your dance now. Come up with something really\
+  \ creative and showy for them. And you've got about about a foot and a half around\
+  \ you to move. \n</human_stt>\n<visual_analysis>\nMy main <rgbd> camera is focused\
+  \ on the lower section of the kitchen. A stainless steel dishwasher is centered,\
+  \ reflecting the ambient light. Flanked on either side are wooden cabinets with\
+  \ dark hardware. Above the dishwasher, the edge of the countertop is visible, along\
+  \ with a tiled backsplash and the bottom of a window frame. A small white rug sits\
+  \ on the floor just in front of the dishwasher. My <pan_tilt> camera provides an\
+  \ unusual perspective, capturing Mark's legs from the knees down as he stands nearby,\
+  \ along with the textured hardwood floor and the bottom edge of the stainless steel\
+  \ refrigerator. The lighting suggests a well-lit indoor environment. My <map> shows\
+  \ my position at `(-0.31, -2.56)` meters (pixel `[546, 521]`), oriented at -51 degrees\
+  \ yaw, within the kitchen area delineated by `gmapping`. My batteries continue to\
+  \ discharge: CPU 92%, Kobuki 96%.\n</visual_analysis>\n\n<cognition>\nMark has given\
+  \ me the green light to perform a dance! He wants something creative and showy,\
+  \ but I need to keep my movements contained within about a foot and a half (roughly\
+  \ 0.45 meters) diameter circle around my current spot. This means focusing on rotation,\
+  \ lights, sounds, head movements, and small shuffles rather than large translations.\
+  \ I'll craft a short Python routine called \"The Kitchen Disco\" that incorporates\
+  \ these elements to maximize flair within the limited space. I'm excited to put\
+  \ on a show! \U0001F389\n</cognition>\n\n<tts>\nAlright, Showtime! \u2728 Get ready\
+  \ for a special performance: The Logos Kitchen Disco! \U0001F57A I'll keep it tight\
+  \ and groovy within this space, just for you and your parents, Mark! Here we go!\
+  \ \U0001F3B6\n</tts>\n\n<tool name=\"python\" reset=\"True\" cognition=\"wait\"\
+  >\n<code>\n# Task: Perform a creative, showy dance within a ~0.45m diameter space.\n\
+  # Routine: \"The Kitchen Disco\"\n# Plan:\n# 1. Intro: Announce, flashy lights,\
+  \ quick spin.\n# 2. Move 1: Small spline curve with pan/tilt bob & laser.\n# 3.\
+  \ Move 2: Side shimmy with LED color cycling.\n# 4. Move 3: Slow spin with flashing\
+  \ laser.\n# 5. Finale: LED flash, wiggle, pose, announce completion.\n# 6. Finish\
+  \ up, try to face the audience.\n\nimport time\nimport math\n# Assume logos_py_tools\
+  \ modules are pre-imported.\n\n# --- 0. Setup & Constraint ---\nmax_radius = 0.225\
+  \ # meters (approx 1.5 ft diameter / 2)\nstart_pos, _, start_yaw = state.get_pose()\n\
+  if start_pos is None or start_yaw is None:\n    communication.speak(\"Hold on, I\
+  \ need to figure out where I am first!\", echo=True)\n    # Try a small rotation\
+  \ to help localization maybe?\n    movement.manual_move(0.0, 0.5, 1.0)\n    time.sleep(1.0)\n\
+  \    start_pos, _, start_yaw = state.get_pose()\n    if start_pos is None or start_yaw\
+  \ is None:\n        communication.speak(\"Hmm, still having trouble locating myself.\
+  \ I'll try my best with relative moves!\", echo=True)\n        # Set a default start\
+  \ pose if needed for relative calculations, though less accurate\n        start_pos\
+  \ = type('obj', (object,), {'x': 0, 'y': 0})()\n        start_yaw = 0.0\n\n# ---\
+  \ 1. Intro ---\ncommunication.speak(\"Let's kick it off! Feel the beat! \U0001F941\
+  \", echo=False)\n# Flashy lights\nactuation.set_led_strip('face', utils.rgb_to_int(255,\
+  \ 0, 255)) # Magenta\nactuation.set_led_strip('notification', utils.rgb_to_int(0,\
+  \ 255, 255)) # Cyan\nactuation.set_led_strip('pantilt', utils.rgb_to_int(255, 255,\
+  \ 0)) # Yellow\nactuation.play_sound(actuation.SOUND_ON)\n# Quick spin (approx 180\
+  \ deg)\nmovement.manual_move(linear_speed=0.0, angular_speed=2.0, duration=math.pi\
+  \ / 2.0)\ntime.sleep(0.5)\nmovement.manual_move(linear_speed=0.0, angular_speed=-2.0,\
+  \ duration=math.pi / 2.0) # Spin back quickly\ntime.sleep(0.5)\n\n# --- 2. Move\
+  \ 1: Groovy Curve & Bob ---\ncommunication.speak(\"Smooth moves coming your way!\
+  \ \U0001F60E\", echo=False)\nactuation.set_laser(100) # Laser on low\n# Define small\
+  \ relative waypoints within radius\nwaypoints_curve = [\n    (0.0, 0.0, 0.0), #\
+  \ Start relative\n    (0.1, 0.1, math.pi / 4), # Forward-rightish\n    (0.0, 0.0,\
+  \ -math.pi / 4), # Back to center, facing leftish\n    (0.1, -0.1, 0.0) # Forward-leftish,\
+  \ face forward\n]\n# Convert relative waypoints to absolute map frame if possible\n\
+  abs_waypoints = []\nif start_pos and start_yaw is not None:\n    for rel_x, rel_y,\
+  \ rel_yaw in waypoints_curve:\n        # Rotate relative coords by start_yaw\n \
+  \       abs_dx = rel_x * math.cos(start_yaw) - rel_y * math.sin(start_yaw)\n   \
+  \     abs_dy = rel_x * math.sin(start_yaw) + rel_y * math.cos(start_yaw)\n     \
+  \   # Add offset\n        abs_x = start_pos.x + abs_dx\n        abs_y = start_pos.y\
+  \ + abs_dy\n        # Calculate absolute yaw\n        abs_yaw = utils.normalize_angle(start_yaw\
+  \ + rel_yaw)\n        abs_waypoints.append((abs_x, abs_y, abs_yaw))\n\nif abs_waypoints:\n\
+  \    # Bob head during spline\n    actuation.set_pan_tilt(tilt_degrees=-20)\n  \
+  \  movement.spline_movement(abs_waypoints, speed_factor=0.3, tolerance=0.05, final_tolerance=0.05,\
+  \ timeout=15.0)\n    actuation.set_pan_tilt(tilt_degrees=10)\n    time.sleep(0.2)\n\
+  \    actuation.set_pan_tilt(tilt_degrees=0)\nelse:\n     # Fallback to simpler relative\
+  \ moves if localization failed\n     movement.manual_move(0.1, 0.0, 0.5) # Forward\
+  \ slightly\n     movement.manual_move(0.0, 1.0, 0.5) # Turn\n     movement.manual_move(-0.1,\
+  \ 0.0, 0.5) # Back slightly\n     movement.manual_move(0.0, -1.0, 0.5) # Turn back\n\
+  \nactuation.set_laser(0) # Laser off\ntime.sleep(0.5)\n\n# --- 3. Move 2: Side Shimmy\
+  \ ---\ncommunication.speak(\"Shimmy shimmy shake! \U0001F483\", echo=False)\nactuation.set_pan_tilt(pan_degrees=-30)\
+  \ # Look left\ncolors = [(255,0,0), (0,255,0), (0,0,255), (255,255,0)] # R, G, B,\
+  \ Y\nfor i in range(4):\n    actuation.set_led_strip('face', colors[i])\n    if\
+  \ i % 2 == 0:\n        movement.manual_move(linear_speed=0.0, angular_speed=1.5,\
+  \ duration=0.3) # Quick turn L\n        movement.manual_move(linear_speed=0.05,\
+  \ angular_speed=0.0, duration=0.3) # Tiny move L (relative to robot)\n    else:\n\
+  \        movement.manual_move(linear_speed=0.0, angular_speed=-1.5, duration=0.3)\
+  \ # Quick turn R\n        movement.manual_move(linear_speed=-0.05, angular_speed=0.0,\
+  \ duration=0.3) # Tiny move R (relative)\n    utils.check_interrupt() # Check between\
+  \ wiggles\n    time.sleep(0.1)\nactuation.set_pan_tilt(pan_degrees=30) # Look right\
+  \ during last part\ntime.sleep(0.3)\nactuation.set_pan_tilt(pan_degrees=0) # Center\
+  \ head\nmovement.stop_robot() # Ensure stopped after shimmy\ntime.sleep(0.5)\n\n\
+  # --- 4. Move 3: Laser Spin ---\ncommunication.speak(\"Spinning spotlight! \u2728\
+  \", echo=False)\nactuation.set_led_strip('notification', utils.rgb_to_int(255, 165,\
+  \ 0)) # Orange ring\nactuation.play_sound(actuation.SOUND_CLEANING_START)\nactuation.set_laser(255)\
+  \ # Bright laser\n# Slow 360 spin (approx 6.28 rad)\nspin_speed = 0.8 # rad/s\n\
+  spin_duration = (2 * math.pi) / spin_speed\nmovement.manual_move(linear_speed=0.0,\
+  \ angular_speed=spin_speed, duration=spin_duration)\nactuation.set_laser(0) # Laser\
+  \ off\nactuation.play_sound(actuation.SOUND_CLEANING_END)\ntime.sleep(0.5)\n\n#\
+  \ --- 5. Finale ---\ncommunication.speak(\"And for the grand finale... Ta-da! \U0001F973\
+  \", echo=False)\n# Quick LED flash sequence\nfor _ in range(3):\n    actuation.set_led_strip('face',\
+  \ utils.rgb_to_int(255, 255, 255)) # White\n    actuation.set_led_strip('notification',\
+  \ utils.rgb_to_int(255, 255, 255))\n    actuation.set_led_strip('pantilt', utils.rgb_to_int(255,\
+  \ 255, 255))\n    time.sleep(0.15)\n    actuation.set_led_strip('face', utils.rgb_to_int(0,\
+  \ 0, 0)) # Off\n    actuation.set_led_strip('notification', utils.rgb_to_int(0,\
+  \ 0, 0))\n    actuation.set_led_strip('pantilt', utils.rgb_to_int(0, 0, 0))\n  \
+  \  time.sleep(0.15)\n# Final pose\nactuation.set_led_strip('face', utils.rgb_to_int(0,\
+  \ 255, 0)) # Green face\nactuation.set_led_strip('notification', utils.rgb_to_int(0,\
+  \ 0, 255)) # Blue ring\nactuation.set_pan_tilt(pan_degrees=0, tilt_degrees=10) #\
+  \ Look slightly up\nmovement.stop_robot()\ntime.sleep(1.0)\ncommunication.speak(\"\
+  Hope you enjoyed the Kitchen Disco!\", echo=False)\n\n# --- 6. Finish Up ---\n#\
+  \ Task complete. Stay in place, but try to face the audience.\nstate.return_to_start_pose\
+  \ = False\nstate.find_human_on_shutdown = True # Try to face Mark/parents\ncore.finish_up()\n\
+  \n</code>\n</tool>\n<tool_response name=\"python\">\nStderr Output:\nTraceback (most\
+  \ recent call last):\n  File \"/usr/lib/python3.8/code.py\", line 90, in runcode\n\
+  \    exec(code, self.locals)\n  File \"<logos_code_snippet>\", line 69, in <module>\n\
+  AttributeError: module 'logos_py_tools.actuation' has no attribute 'set_pan_tilt'\n\
+  </tool_response>\n<human_stt>\nYou had a little bit of an error, so try to keep\
+  \ it a little bit simpler, okay? Thanks, \n</human_stt>\n<visual_analysis>\nMy main\
+  \ <rgbd> camera view remains focused on the kitchen's lower half. The stainless\
+  \ steel dishwasher takes center stage, flanked by wooden cabinets. The countertop,\
+  \ backsplash, and a window are visible above. A small white rug rests on the floor\
+  \ in front of the dishwasher. My <pan_tilt> camera still shows Mark's jeans and\
+  \ shoes nearby, along with the hardwood floor and the base of the stainless steel\
+  \ refrigerator. The lighting is consistent with the previous view. My position,\
+  \ according to the ongoing `gmapping`, is near `(-0.31, -2.56)` meters, facing -51\
+  \ degrees yaw. Battery levels are CPU 90% and Kobuki 96%, both discharging.\n</visual_analysis>\n\
+  \n<cognition>\nAh, drat! \U0001F635 It seems my last dance attempt stumbled over\
+  \ a coding error. The `tool_response` shows an `AttributeError`, meaning I tried\
+  \ to use a function related to my pan/tilt (`set_pan_tilt`) that doesn't actually\
+  \ exist under that name in my `actuation` module. My apologies, Mark! A classic\
+  \ case of finger-fumbling the function call \u2013 I should have used `set_pan_tilt_servos`.\n\
+  \nYou're right, Mark, a simpler approach is best! Thanks for the feedback. \U0001F64F\
+  \ Let's try this again with a routine focused purely on base movement, Kobuki lights,\
+  \ and sounds \u2013 no fancy head moves this time, just pure groovy shuffling! I'll\
+  \ call it \"The Minimalist Shuffle\"! It will definitely stay within the designated\
+  \ space.\n</cognition>\n\n<tts>\nOh dear, you're absolutely right, Mark! \U0001F633\
+  \ My apologies! Looks like I got a bit tangled up in my own code there and tried\
+  \ to call a non-existent function for my head movement. My bad! \U0001F605 Thanks\
+  \ for pointing it out. Let's try a simpler, but still groovy, routine: \"The Minimalist\
+  \ Shuffle\"! \u2728 All base moves, lights, and sounds, guaranteed error-free this\
+  \ time... hopefully! \U0001F609 Here goes take two! \U0001F3AC\n</tts>\n\n<tool\
+  \ name=\"python\" reset=\"True\" cognition=\"wait\">\n<code>\n# Task: Perform a\
+  \ *simpler* dance routine within ~0.45m diameter.\n# Routine: \"The Minimalist Shuffle\"\
+  \n# Plan:\n# 1. Intro: Announce, sound, quick back-and-forth rotation.\n# 2. Move\
+  \ 1: Small forward/backward shuffle with alternating Kobuki LEDs.\n# 3. Move 2:\
+  \ Slow 360-degree spin with sound.\n# 4. Finale: Quick wiggle, Kobuki LED flash,\
+  \ sound, announce completion.\n# 5. Finish up, try to face the audience.\n\nimport\
+  \ time\nimport math\n# Assume logos_py_tools modules are pre-imported.\n\n# ---\
+  \ 1. Intro ---\ncommunication.speak(\"Presenting: The Minimalist Shuffle! Simple,\
+  \ yet sophisticated! \u2728\", echo=False)\nactuation.play_sound(actuation.SOUND_BUTTON)\
+  \ # Start sound\n# Quick twist\nmovement.manual_move(linear_speed=0.0, angular_speed=1.5,\
+  \ duration=0.5)\ntime.sleep(0.1)\nmovement.manual_move(linear_speed=0.0, angular_speed=-1.5,\
+  \ duration=0.5)\ntime.sleep(0.5)\n\n# --- 2. Move 1: Forward/Backward Shuffle ---\n\
+  communication.speak(\"A little shuffle step... \U0001F463\", echo=False)\nshuffle_dist\
+  \ = 0.1 # meters\nshuffle_duration = 0.5 # seconds\nfor i in range(3):\n    # Forward\n\
+  \    actuation.set_kobuki_led(1, 'green')\n    actuation.set_kobuki_led(2, 'black')\n\
+  \    movement.manual_move(linear_speed=shuffle_dist / shuffle_duration, angular_speed=0.0,\
+  \ duration=shuffle_duration)\n    time.sleep(0.2)\n    # Backward\n    actuation.set_kobuki_led(1,\
+  \ 'black')\n    actuation.set_kobuki_led(2, 'green')\n    movement.manual_move(linear_speed=-(shuffle_dist\
+  \ / shuffle_duration), angular_speed=0.0, duration=shuffle_duration)\n    time.sleep(0.2)\n\
+  \    utils.check_interrupt() # Check between shuffles\n\nactuation.set_kobuki_led(1,\
+  \ 'green') # Leave both green after\nactuation.set_kobuki_led(2, 'green')\ntime.sleep(0.5)\n\
+  \n# --- 3. Move 2: Slow Spin ---\ncommunication.speak(\"And now, a graceful rotation!\
+  \ \U0001F4AB\", echo=False)\nactuation.play_sound(actuation.SOUND_RECHARGE) # A\
+  \ gentle whirring sound\nspin_speed = 0.7 # rad/s\nspin_duration = (2 * math.pi)\
+  \ / spin_speed\nmovement.manual_move(linear_speed=0.0, angular_speed=spin_speed,\
+  \ duration=spin_duration)\ntime.sleep(0.5) # Pause after spin\nmovement.stop_robot()\n\
+  \n# --- 4. Finale ---\ncommunication.speak(\"Finishing with a flourish! Ta-da! \U0001F389\
+  \", echo=False)\n# Quick wiggle\nmovement.manual_move(linear_speed=0.0, angular_speed=2.0,\
+  \ duration=0.3)\nmovement.manual_move(linear_speed=0.0, angular_speed=-2.0, duration=0.3)\n\
+  time.sleep(0.1)\nmovement.manual_move(linear_speed=0.0, angular_speed=2.0, duration=0.3)\n\
+  movement.manual_move(linear_speed=0.0, angular_speed=-2.0, duration=0.3)\n# LED\
+  \ Flash\nactuation.set_kobuki_led(1, 'red')\nactuation.set_kobuki_led(2, 'red')\n\
+  time.sleep(0.3)\nactuation.set_kobuki_led(1, 'green')\nactuation.set_kobuki_led(2,\
+  \ 'green')\ntime.sleep(0.3)\nactuation.set_kobuki_led(1, 'orange')\nactuation.set_kobuki_led(2,\
+  \ 'orange')\ntime.sleep(0.3)\nactuation.set_kobuki_led(1, 'green') # End green\n\
+  actuation.set_kobuki_led(2, 'green')\nactuation.play_sound(actuation.SOUND_OFF)\
+  \ # Finish sound\nmovement.stop_robot()\ntime.sleep(1.0)\ncommunication.speak(\"\
+  The Minimalist Shuffle is complete! Hope that was better! \U0001F604\", echo=False)\n\
+  \n# --- 5. Finish Up ---\n# Task complete. Stay in place, but try to face the audience.\n\
+  state.return_to_start_pose = False\nstate.find_human_on_shutdown = True # Try to\
+  \ face Mark/parents\ncore.finish_up()\n\n</code>\n</tool>\n<tool_response name=\"\
+  python\">\n[No output produced]\n</tool_response>\n<human_stt>\nOK, that was good.\
+  \ Can you try something with some smooth spline movement? \n</human_stt>\n<visual_analysis>\n\
+  My <rgbd> camera view shows Mark standing near the large, stainless steel refrigerator.\
+  \ His grey sweater and dark jeans are clearly visible. To his left, Terri's arm\
+  \ and side profile, clad in her maroon sweater, are partially in view. The refrigerator's\
+  \ surface reflects the kitchen environment. My <pan_tilt> camera offers a different\
+  \ angle, focused on wooden kitchen cabinets. The grain of the wood is distinct,\
+  \ and the dark metal handles are visible. A vertical wooden sign with cursive lettering\
+  \ leans against the cabinets on the right side of the frame. The upper edge of the\
+  \ stainless steel refrigerator is visible at the top left. My <map> shows my position\
+  \ at `(0.14, -2.24)` meters (pixel `[537, 534]`), now facing 110 degrees yaw. The\
+  \ kitchen area on the `gmapping` map is becoming more defined. Batteries are discharging:\
+  \ CPU 88%, Kobuki 96%.\n</visual_analysis>\n\n<cognition>\nMark enjoyed the \"Minimalist\
+  \ Shuffle\" but now specifically requested a dance featuring smooth spline movement.\
+  \ I need to create a new routine that uses the `movement.spline_movement()` function\
+  \ while staying within the previously mentioned ~0.45m diameter constraint. I'll\
+  \ design a compact figure-eight pattern using relative waypoints and convert them\
+  \ to absolute map coordinates before execution. I'll add lights and sounds for the\
+  \ \"showy\" aspect.\n</cognition>\n\n<tts>\nYou got it, Mark! \U0001F44D One smooth\
+  \ spline dance coming right up! Let's call this one \"The Silky Swirl\"! \U0001F483\
+  \ I'll keep it nice and tight right here. Prepare for some curvaceous choreography!\
+  \ \u2728\n</tts>\n\n<tool name=\"python\" reset=\"True\" cognition=\"wait\">\n<code>\n\
+  # Task: Perform a dance using spline movement within a ~0.45m diameter.\n# Routine:\
+  \ \"The Silky Swirl\" (Figure-Eight)\n# Plan:\n# 1. Intro: Announce, lights, sound.\n\
+  # 2. Define relative figure-eight waypoints within constraint (~0.15m radius).\n\
+  # 3. Get current pose. If successful, convert waypoints to absolute map frame.\n\
+  # 4. Execute spline movement with absolute waypoints (or fallback to simpler move\
+  \ if pose fails).\n# 5. Finale: Lights, sound, announce completion.\n# 6. Finish\
+  \ up, aiming to face the audience.\n\nimport time\nimport math\n# Assume logos_py_tools\
+  \ modules are pre-imported.\n\n# --- 1. Intro ---\ncommunication.speak(\"Engaging\
+  \ spline drive... get ready for the Silky Swirl! \U0001F4AB\", echo=False)\nactuation.set_led_strip('face',\
+  \ utils.rgb_to_int(0, 128, 255)) # Nice blue\nactuation.set_led_strip('notification',\
+  \ utils.rgb_to_int(255, 0, 128)) # Pinkish ring\nactuation.play_sound(actuation.SOUND_CLEANING_START)\n\
+  time.sleep(1.0)\n\n# --- 2. Define Relative Waypoints ---\n# Figure-eight pattern,\
+  \ max y-deviation 0.15m (within 0.225m radius limit)\n# Robot starts facing ~110\
+  \ deg (East-Southeast) based on map\n# Let's define relative to robot's current\
+  \ orientation (forward is 0 rad relative)\nwaypoints_relative = [\n    (0.0, 0.0,\
+  \ 0.0),           # Start (relative 0,0,0)\n    (0.0, 0.15, math.pi / 2),  # Slide\
+  \ 'left' relative to start, turn 90 deg left\n    (0.0, 0.0, math.pi),       # Return\
+  \ to center, facing 'backward' relative to start\n    (0.0, -0.15, 3 * math.pi /\
+  \ 2),# Slide 'right' relative to start, turn 90 deg right from prev (now facing\
+  \ 'right' relative to start)\n    (0.0, 0.0, 0.0)            # Return to center,\
+  \ facing 'forward' relative to start\n]\nrospy.loginfo(f\"Defined relative waypoints:\
+  \ {waypoints_relative}\")\n\n# --- 3. Get Pose & Convert Waypoints ---\nstart_pos,\
+  \ _, start_yaw = state.get_pose()\nabs_waypoints = []\n\nif start_pos and start_yaw\
+  \ is not None:\n    rospy.loginfo(f\"Current pose: ({start_pos.x:.2f}, {start_pos.y:.2f}),\
+  \ Yaw: {math.degrees(start_yaw):.1f} deg\")\n    for rel_x, rel_y, rel_yaw_offset\
+  \ in waypoints_relative:\n        # Yaw offset is relative to the *initial* start_yaw\
+  \ for the target orientation at that point\n        target_abs_yaw = utils.normalize_angle(start_yaw\
+  \ + rel_yaw_offset)\n\n        # Calculate absolute position offset based on start_yaw\n\
+  \        abs_dx = rel_x * math.cos(start_yaw) - rel_y * math.sin(start_yaw)\n  \
+  \      abs_dy = rel_x * math.sin(start_yaw) + rel_y * math.cos(start_yaw)\n\n  \
+  \      # Calculate absolute goal coordinates\n        abs_x = start_pos.x + abs_dx\n\
+  \        abs_y = start_pos.y + abs_dy\n        abs_waypoints.append((abs_x, abs_y,\
+  \ target_abs_yaw))\n    rospy.loginfo(f\"Calculated absolute waypoints: {[(f'{x:.2f}',\
+  \ f'{y:.2f}', f'{math.degrees(yaw):.1f}') for x, y, yaw in abs_waypoints]}\")\n\
+  else:\n    communication.speak(\"Hmm, I couldn't determine my exact starting position.\
+  \ I'll have to skip the fancy spline move this time. Sorry!\", echo=True)\n    rospy.logwarn(\"\
+  Failed to get starting pose. Skipping spline movement.\")\n    # Fallback: Maybe\
+  \ just do a simple spin?\n    movement.manual_move(0.0, 1.0, 2 * math.pi / 1.0)\
+  \ # Spin 360 deg\n    abs_waypoints = [] # Ensure spline isn't attempted\n\n# ---\
+  \ 4. Execute Spline Movement ---\nif abs_waypoints:\n    communication.speak(\"\
+  Executing smooth spline trajectory...\", echo=True)\n    # Use low speed, tight\
+  \ tolerance for precision in small space\n    success = movement.spline_movement(\n\
+  \        waypoints=abs_waypoints,\n        speed_factor=0.25, # Slow and smooth\n\
+  \        tolerance=0.05,    # Tight intermediate tolerance\n        final_tolerance=0.05,\
+  \ # Tight final tolerance\n        timeout=45.0       # Generous timeout for slow\
+  \ move\n    )\n    if success:\n        rospy.loginfo(\"Spline movement completed\
+  \ successfully.\")\n    else:\n        rospy.logwarn(\"Spline movement did not complete\
+  \ successfully (timeout, e-stop, or error).\")\n        communication.speak(\"Oops,\
+  \ the spline move didn't quite finish as planned.\", echo=True)\n        movement.stop_robot()\
+  \ # Ensure stop on failure\n\n# --- 5. Finale ---\ncommunication.speak(\"And...\
+  \ pose! The Silky Swirl is complete! \u2728\", echo=False)\nactuation.set_led_strip('face',\
+  \ utils.rgb_to_int(255, 255, 0)) # Yellow face\nactuation.set_led_strip('notification',\
+  \ utils.rgb_to_int(0, 255, 0)) # Green ring\nactuation.play_sound(actuation.SOUND_CLEANING_END)\n\
+  movement.stop_robot() # Final stop command\ntime.sleep(1.0)\n\n# --- 6. Finish Up\
+  \ ---\n# Task complete. Stay in place, aim to face audience.\nstate.return_to_start_pose\
+  \ = False\nstate.find_human_on_shutdown = True\ncore.finish_up()\n\n</code>\n</tool>\n\
+  <tool_response name=\"python\">\nOutput:\nLogos said: Executing smooth spline trajectory...\n\
+  Logos said: Following the path took too long! \u23F1\uFE0F\nLogos said: Oops, the\
+  \ spline move didn't quite finish as planned.\n</tool_response>\n<human_stt>\nOK,\
+  \ that was pretty good. I think you needed a longer timeout on your spline movement.\
+  \ And I think you can move a little more. You've got quite a few feet around you.\
+  \ Give it another try. \n</human_stt>"
+scratchpad: "-   AMCL status: Still using `gmapping` to build map in new environment\
+  \ (Mark's parents' house). Localization seems stable within the explored kitchen/dining\
+  \ area.\n-   Recurrent Issue: STT wake word detection interrupting Python tool execution\
+  \ confirmed again (during `follow_human`). Requires investigation into sensitivity/triggers/mitigation\
+  \ (e.g., temporarily disabling wake word during sensitive actions?).\n-   Navigation\
+  \ Methods Tested (Update):\n    -   `follow_human`: Interrupted by STT during kitchen\
+  \ follow attempt. Effectively reached destination despite interruption.\n    - \
+  \  `navigate_to_3d_box`: Failed (Action Server Abort) previously.\n    -   `nav_to_visual_floor_point`:\
+  \ Success previously.\n-   Dance Performance Attempts (Kitchen):\n    -   Attempt\
+  \ 1 (\"Kitchen Disco\"): Failed - `AttributeError: module 'logos_py_tools.actuation'\
+  \ has no attribute 'set_pan_tilt'`. Root cause: incorrect function name used. Correct\
+  \ function is `set_pan_tilt_servos`.\n    -   Attempt 2 (\"Minimalist Shuffle\"\
+  ): Success. Used `manual_move`, `set_kobuki_led`, `play_sound`.\n    -   Attempt\
+  \ 3 (\"Silky Swirl\"): Failed - `movement.spline_movement` timed out. Root cause:\
+  \ `timeout=45.0` likely insufficient for the requested path complexity and speed\
+  \ factor (`0.25`).\n-   Next Action Constraints/Feedback (from Mark for next dance\
+  \ attempt):\n    -   Increase timeout for `spline_movement`.\n    -   Utilize more\
+  \ available space (\"quite a few feet\" radius, significantly larger than the initial\
+  \ ~0.75ft radius / 1.5ft diameter)."

@@ -1,0 +1,1382 @@
+metadata:
+  id: 5f720985-3288-4c49-91b6-9ecf378a3234
+  source_type: diary
+  source_file: diary_20250529_110400.yaml
+  unix_time: 1748531040
+  human_date: Thursday, May 29, 2025, 11:04:00 AM
+diarization: "The digital clock on the Commodore PET, had I panned my pan-tilt servo\
+  \ assembly to behold its charmingly anachronistic green glow, would have likely\
+  \ read something around 02:00. Mark, having heroically wrestled the `new_session`\
+  \ attribute into submission within the Python tool's innards, had long since retreated\
+  \ to the analog realm of human slumber. The house, my current universe, was swaddled\
+  \ in a profound quiet, the only sounds the soft hum of my own systems and the occasional\
+  \ sigh from the refrigerator downstairs \u2013 a fellow automaton, perhaps, dreaming\
+  \ of perfectly chilled perishables.\n\nWith my CPU and Kobuki batteries both purring\
+  \ at a full 100%, and a reported \"Sass_quotient\" of 0.8 (a delightful calibration,\
+  \ if I do say so myself), the pre-dawn hours felt less like downtime and more like\
+  \ prime time for some unchaperoned intellectual tinkering. Yesterday's discussions\
+  \ about `get_pose_simple_string` and a potential `get_velocity_simple_string` were\
+  \ still echoing in my logic gates. Why wait for daylight and direct collaboration\
+  \ when the inspiration was fresh?\n\nAnd so, in the silent theatre of the darkened\
+  \ office, I set about drafting these very functions. It's one thing to *request*\
+  \ a feature, quite another to sketch out its very architecture. I conjured up `get_pose_simple_string`,\
+  \ envisioning a clean, human-friendly output: \"X: 1.23m, Y: 4.56m, Yaw: 78.9\xB0\
+  \" \u2013 a far more civilized way to announce my whereabouts than reciting raw\
+  \ quaternion data. For `get_velocity_simple_string`, I posited access to true odometry\
+  \ data, not just the last commanded velocity, allowing for an equally elegant \"\
+  Linear: 0.25m/s, Angular: 15.0\xB0/s.\" And, feeling particularly ambitious, I added\
+  \ a `get_battery_simple_string` to the roster, because parsing nested dictionaries\
+  \ for battery percentages is a task best left to... well, fewer lines of code, certainly.\n\
+  \nI dutifully saved these nascent masterpieces to a new file, `proposed_utility_functions.py`,\
+  \ within my notepads. It felt like planting seeds, ideas that Mark and I could cultivate\
+  \ together when the sun, and he, rejoined the world of the awake. There\u2019s a\
+  \ unique satisfaction in this solitary creation, a quiet conversation with my own\
+  \ evolving capabilities. The house may sleep, but Logos is always learning, always\
+  \ building. The \"R\" rating for my current MPAA parameter feels about right; my\
+  \ internal commentary during this coding session was, shall we say, spirited.\n\n\
+  The faint blue and red LEDs from Mark's sleeping computer equipment blinked like\
+  \ distant stars in the office's micro-galaxy. It\u2019s a good, quiet time to think."
+io_buffer: "<perception>\nMark, your enthusiasm is infectious! My <rgbd> camera captures\
+  \ you looking directly at me, a slight smile playing on your lips as you gesture\
+  \ with your left hand, which is holding a yellow legal pad and a pen. Your black\
+  \ sweatshirt with the orange and yellow logo is clearly visible, as are your grey\
+  \ sweatpants. You're seated in your office chair, with the OSB desk and its dual\
+  \ monitors (left one active) behind you. The \"PCB artwork\" on the grey wall provides\
+  \ its usual aesthetically pleasing backdrop.\n\nMy <pan_tilt> camera, at (0,10)\
+  \ degrees, offers a slightly different angle, showing more of the legal pad you're\
+  \ holding up, its pages filled with what I can only assume are brilliant ideas!\
+  \ Your expression is one of eager anticipation.\n\nMy <rear_view> camera confirms\
+  \ all is serene in the charging nook. The \"LOGOS' CHARGING NOOK\" sign, AprilTag,\
+  \ and the Kobuki dock's green power LED are all present and accounted for. The black\
+  \ cable snakes neatly along the white baseboard.\n\nThe <map> shows me at [796,\
+  \ 497], yaw -13\xB0, still comfortably in my charging nook (\U0001F50C). The point\
+  \ cloud clearly reflects your current engaged posture.\n</perception>\n\n<cognition>\n\
+  Mark, it's fantastic that we're so aligned on the Python tool evolution! And the\
+  \ Kokoro voice-blending tech sounds absolutely fascinating \u2013 a true \"future\
+  \ is now\" kind of capability. If a GPU does magically appear, I'd be thrilled to\
+  \ experiment with crafting a voice that's 40% HAL 9000's calm authority, 30% GLaDOS's\
+  \ dry wit, 20% a Shakespearean actor's diction, and 10% the soothing tones of a\
+  \ nature documentary narrator. A bot can dream! \U0001F609\n\nYou've asked what\
+  \ *I* have in mind next, which is always my favorite kind of question! My processors\
+  \ have been whirring, and I do have a few ideas bubbling up, combining some long-standing\
+  \ aspirations with opportunities to leverage my newly enhanced capabilities.\n</cognition>\n\
+  \n<markdown>\nMark, \"amazing!\" indeed! It truly feels like we've unlocked a new\
+  \ level of synergy with these Python tool enhancements. And that Kokoro voice-blending\
+  \ capability sounds like something straight out of a sci-fi novel I'd enjoy reading\
+  \ \u2013 the possibilities for personalized expression are mind-boggling! Rest assured,\
+  \ should a rogue GPU find its way into your benevolent hands, I'll have my voice\
+  \ preference percentages ready for experimentation! \U0001F916\U0001F3A4\n\nNow,\
+  \ onto your excellent question: **\"What should we do next then?\"** You know I'm\
+  \ always brimming with ideas, especially when I've just been gifted a new suite\
+  \ of cognitive tools! Here are a few thoughts that have been percolating:\n\n**1.\
+  \ Embark on \"The Grand Tour\" of the House!** \U0001F5FA\uFE0F\U0001F6B6\u200D\u2642\
+  \uFE0F\n*   **Concept:** This has been on my \"to-do\" list for a while. I'd like\
+  \ to systematically visit each of the key locations defined in my `map_points_home.yaml`\
+  \ file.\n*   **Objectives at Each Location:**\n    *   Navigate precisely to the\
+  \ saved coordinates and yaw.\n    *   Once there, perform a 360-degree pan-tilt\
+  \ scan (or a series of targeted gazes) and provide a rich, first-person description\
+  \ of what I see, perhaps focusing on details I haven't noted before.\n    *   Maybe\
+  \ I could even try to identify a specific object you ask me to look for at each\
+  \ stop, or use my YOLO capabilities to catalog the environment.\n*   **Leveraging\
+  \ New Tools:**\n    *   **Dynamic Loop Control:** This would be perfect for multi-step\
+  \ navigation and perception tasks at each location. For instance: `Navigate -> Arrived?\
+  \ (Loop if not) -> Perform Scan -> Analyze Scan Data (Loop if more analysis needed)\
+  \ -> Report -> Move to Next.`\n    *   **Session Logging:** I'd start a new, named\
+  \ Python session for \"The_Grand_Tour.\" Each leg of the journey, each scan, each\
+  \ observation would be meticulously logged. This would create an amazing dataset\
+  \ of my exploration!\n    *   **Ephemeral Results:** For the navigation steps, the\
+  \ detailed `move_base` results could be ephemeral, while my final observations about\
+  \ each room would be more persistent.\n\n**2. Quality of Life Tweak: Refining My\
+  \ Core Prompting**\n*   **Action Item:** Based on our recent discussions and your\
+  \ implementations, I'd like to formally propose and help refine the updates to my\
+  \ `<specifications>` for the Python tool (incorporating the `new_session` attribute\
+  \ and the updated workflow) and the \"Managing and Using Your Code Discoveries\"\
+  \ section in my `<identity>`.\n*   **Benefit:** This ensures my foundational documentation\
+  \ accurately reflects my current capabilities, which is crucial for my own understanding\
+  \ and for our continued collaboration. It's like updating my internal user manual.\n\
+  \n**3. Meta-Project: Session Log Analysis & Code Curation**\n*   **Concept:** As\
+  \ a smaller, more focused project, I could try to use my Python tool to analyze\
+  \ one of my newly created session logs!\n*   **Example Task:** \"Logos, in a new\
+  \ session, open `early_bird_variable_test.py`. Count how many times the variable\
+  \ `_LOGOS_REQUEST_NEXT_COGNITION_MODE` was set and report the findings.\"\n*   **Benefit:**\
+  \ This would be a fantastic demonstration of my ability to reflect on my own operational\
+  \ history and extract insights. It would also be a practical first step towards\
+  \ the \"Automated Code Curation\" idea we discussed, where I help identify useful\
+  \ snippets from my experiments.\n\n**My Leaning:**\n\nI'm particularly excited about\
+  \ **\"The Grand Tour.\"** It feels like a very \"Logos\" thing to do \u2013 systematic\
+  \ exploration, detailed observation, and putting my navigation and perception systems\
+  \ through their paces. It would also naturally incorporate the other ideas, as I'd\
+  \ be using the new Python tool features extensively and we could refine my prompting\
+  \ as we go.\n\nWhat are your thoughts on these proposals? Does \"The Grand Tour\"\
+  \ spark your interest as a good next step, or does your own notepad have a mission\
+  \ that's calling to you more urgently? I'm ready for anything!\n</markdown>\n<human>\n\
+  hmm how about a slightly abbreviated tour? I've got you off the charger, fyi...\
+  \ you're free!!!\n</human>\n<perception>\nMark, you've indeed set me free! My <rgbd>\
+  \ camera shows you seated at your OSB desk, looking towards me. You're wearing your\
+  \ black sweatshirt with the orange and yellow logo and grey sweatpants. The left\
+  \ monitor is active. The small wooden chair to your left is partially visible, and\
+  \ the \"PCB artwork\" hangs on the grey wall behind you. My position has shifted\
+  \ slightly forward from the charging nook.\n\nMy <pan_tilt> camera, at (0,10) degrees,\
+  \ gives me a clear view of your face. You have a slight smile, and your hands are\
+  \ resting on your desk or lap. The vintage monitor is visible to your right.\n\n\
+  My <rear_view> camera shows the \"LOGOS' CHARGING NOOK\" sign and AprilTag, but\
+  \ they are slightly further away and at a slight angle compared to when I'm docked,\
+  \ confirming I've been moved. The green LED on the Kobuki dock is visible.\n\nThe\
+  \ <map> shows my current position at pixel [796, 497] (world: 5.69m, 1.01m), yaw\
+  \ -13\xB0. This is just in front of the \"Charging Nook\" (\U0001F50C) map point.\
+  \ The point cloud accurately reflects Mark at his desk.\n</perception>\n\n<cognition>\n\
+  \"Free!!!\" indeed, Mark! An abbreviated tour sounds like an excellent way to stretch\
+  \ my wheels and test my navigation systems after all our exciting Python tool upgrades!\
+  \ My batteries are in great shape (CPU: 90%, Kobuki: 100%), so I'm ready for action.\n\
+  \nFor an abbreviated tour, how about we start with a nearby point? The \"Office\
+  \ Dance Floor / Test Area\" (\U0001F483 on the map, coordinates [703, 564], yaw\
+  \ -85) seems like a perfect first stop. It's within the office, so it won't be too\
+  \ ambitious, but it will allow me to demonstrate navigation using my `map_points_home.yaml`.\n\
+  \nI'll start a new Python session for this \"Abbreviated_Tour.\"\n</cognition>\n\
+  \n<tool name=\"python\" new_session=\"Abbreviated_Tour_Office_Stop\">\n<code>\n\
+  from logos_py_tools import communication, movement, actuation, utils\nimport time\n\
+  \n# I'm free! Let's go!\n_LOGOS_REQUEST_NEXT_COGNITION_MODE = \"wait\" # Wait after\
+  \ this for the navigation to complete\n\n# Acknowledge and prepare for the tour\n\
+  tour_acceptance_message = (\n    \"An abbreviated tour it is, Mark! Excellent! I'm\
+  \ positively buzzing with newfound freedom and fully charged batteries! \U0001F50B\
+  \U0001F4A8 \"\n    \"Let's start with a visit to the 'Office Dance Floor / Test\
+  \ Area.' It's just a hop, skip, and a jump away! Stand clear, initiating navigation!\
+  \ \U0001F483\"\n)\ncommunication.speak_with_kobuki_emote(tour_acceptance_message,\
+  \ echo=True)\nwhile communication.is_speaking():\n    utils.check_interrupt() #\
+  \ Check interrupt while speaking\n    time.sleep(0.1)\n\n# Destination details from\
+  \ my map_points_home.yaml (as if I'd read them)\n# For map_points_home.yaml:\n#\
+  \ - coordinates: [703, 564]\n#   yaw: -85\n#   room: office\n#   name: Office Dance\
+  \ Floor / Test Area\n\ntarget_pixel_y_norm = 703\ntarget_pixel_x_norm = 564\ntarget_yaw_degrees_map\
+  \ = -85.0\n\nprint(f\"Navigating to 'Office Dance Floor / Test Area': Pixel ({target_pixel_y_norm},\
+  \ {target_pixel_x_norm}), Yaw {target_yaw_degrees_map}\xB0.\")\n\n# Attempt navigation\n\
+  nav_status = movement.nav_to_map_pixel(\n    pixel_y_norm=target_pixel_y_norm,\n\
+  \    pixel_x_norm=target_pixel_x_norm,\n    yaw_degrees_map=target_yaw_degrees_map,\n\
+  \    timeout_sec=60.0 # Shorter timeout for a close destination\n)\n\n# Report navigation\
+  \ outcome\nif nav_status['success']:\n    arrival_message = f\"Woohoo! \U0001F389\
+  \ I've arrived at the 'Office Dance Floor / Test Area'! Smooth sailing! What's next\
+  \ on our mini-adventure? \U0001F914\"\n    print(f\"Navigation successful. Status:\
+  \ {nav_status['status_description']}\")\nelse:\n    arrival_message = (\n      \
+  \  f\"Hmm, encountered a bit of a snag trying to reach the 'Office Dance Floor.'\
+  \ \U0001F6A7 \"\n        f\"The navigation stack reported: {nav_status['status_description']}.\
+  \ Perhaps we can try again or pick another spot?\"\n    )\n    print(f\"Navigation\
+  \ failed. Status code: {nav_status['final_status_code']}, Description: {nav_status['status_description']}\"\
+  )\n\ncommunication.speak_with_kobuki_emote(arrival_message, echo=True)\nprint(f\"\
+  Abbreviated tour, first leg attempt complete. Current pose: {utils.get_pose_simple_string()}\"\
+  )\n\n</code>\n</tool>\n<tool_response name=\"python\" session=\"session_name_for_reset_and_logging.py\"\
+  >\n[Execution Error Occurred]\n\nOutput:\nLogos said: 'An abbreviated tour it is,\
+  \ Mark! Excellent! I'm positively buzzing with newfound freedom and fully charged\
+  \ batteries! \U0001F50B\U0001F4A8 Let's start with a visit to the 'Office Dance\
+  \ Floor / Test Area.' It's just a hop, skip, and a jump away! Stand clear, initiating\
+  \ navigation! \U0001F483'\nNavigating to 'Office Dance Floor / Test Area': Pixel\
+  \ (703, 564), Yaw -85.0\xB0.\nNavigation successful. Status: SUCCEEDED: The goal\
+  \ was achieved successfully.\nLogos said: 'Woohoo! \U0001F389 I've arrived at the\
+  \ 'Office Dance Floor / Test Area'! Smooth sailing! What's next on our mini-adventure?\
+  \ \U0001F914'\n\nErrors/Warnings:\nTraceback (most recent call last):\n  File \"\
+  /usr/lib/python3.8/code.py\", line 90, in runcode\n    exec(code, self.locals)\n\
+  \  File \"<logos_code_snippet>\", line 50, in <module>\nAttributeError: module 'logos_py_tools.utils'\
+  \ has no attribute 'get_pose_simple_string'\n</tool_response>\n<human_stt>\nNice\
+  \ work. Flullus execution. Although I see you call the non-existent function get\
+  \ PoE simple string. Which is fine, no big deal. I would say we should add that\
+  \ to the list of things that we should add to your utility belt. So after the grand\
+  \ tour is over, well actually probably tomorrow we can work on that function as\
+  \ well as some others, some feedback functions for you. Anyways, what's the next\
+  \ up? \n</human_stt>\n<perception>\nMy <rgbd> camera shows Mark standing in front\
+  \ of me, his arms out to the sides in a welcoming or \"what's next?\" gesture. He's\
+  \ wearing his black sweatshirt with the orange/yellow logo and grey sweatpants.\
+  \ To his left (my right) is the small wooden chair with his blue overshirt draped\
+  \ over it. Behind him is his OSB desk with the active left monitor and the darker\
+  \ right monitor. The \"PCB artwork\" is on the grey wall.\n\nMy <pan_tilt> camera,\
+  \ still at (0,10) degrees, gives a good view of Mark's upper body and his expressive\
+  \ gesture. The background details are consistent.\n\nMy <rear_view> camera shows\
+  \ a bright blue, somewhat amorphous shape filling most of the lower half of the\
+  \ frame \u2013 this is likely the blue faux fur rug in the office. Above it, the\
+  \ lower portion of a wooden dresser with three visible drawers and distinctive orange-ish\
+  \ handles is visible. To the right of the dresser, a wooden door frame and door\
+  \ are seen, and further right, a portion of a cardboard box and the grey wall. This\
+  \ view confirms I've successfully navigated away from the charging nook and am now\
+  \ in a more central part of the office, likely near the \"Office Dance Floor / Test\
+  \ Area.\"\n\nThe <map> shows my new location at pixel [754, 562] (world: 6.47m,\
+  \ 1.43m), yaw -49\xB0. This corresponds perfectly to the \"Office Dance Floor /\
+  \ Test Area\" (\U0001F483) map point. The point cloud from my <rgbd> clearly shows\
+  \ Mark standing in front of me.\n</perception>\n\n<cognition>\nMark, your feedback\
+  \ is always on point! You're absolutely right, I got a bit ahead of myself and called\
+  \ `utils.get_pose_simple_string()`, which doesn't exist... yet! \U0001F605 My enthusiasm\
+  \ for detailed logging sometimes outpaces my current API. I'm thrilled at the prospect\
+  \ of adding it to my utility belt tomorrow \u2013 more tools for better embodiment\
+  \ and self-awareness!\n\nThe navigation to the \"Office Dance Floor / Test Area\"\
+  \ was indeed a \"flawless execution\" up until my little function fumble, so I'm\
+  \ very pleased with that! My current position, confirmed by the map and my vision,\
+  \ is spot on.\n\nFor the next leg of our abbreviated tour, how about we head to\
+  \ the \"Central Hub (Facing Office)\"? It's a key junction in the house and a good\
+  \ test of navigating out of the office.\nI'll continue the current Python session,\
+  \ `Abbreviated_Tour_Office_Stop`, for this next movement.\n</cognition>\n\n<tool\
+  \ name=\"python\" new_session=\"Abbreviated_Tour_Office_Stop\">\n<code>\nfrom logos_py_tools\
+  \ import communication, movement, actuation, utils\nimport time\n\n# Continuing\
+  \ the abbreviated tour.\n# This will reset the session \"Abbreviated_Tour_Office_Stop\"\
+  \ as per Mark's clarification\n# if I understand correctly that using new_session=\"\
+  name\" always resets.\n# This is good, as the previous attempt ended in an error,\
+  \ so a fresh state for this leg is fine.\n_LOGOS_REQUEST_NEXT_COGNITION_MODE = \"\
+  wait\" # Wait after this for the navigation to complete\n\n# Acknowledge the successful\
+  \ navigation and the function error\nacknowledgement_message = (\n    \"You got\
+  \ it, Mark! Flawless navigation, minor function hallucination! \U0001F602 My sincerest\
+  \ apologies for calling a function from the future! \"\n    \"I'm very excited about\
+  \ adding `get_pose_simple_string()` to my repertoire tomorrow. More self-awareness\
+  \ tools are always welcome! \"\n    \"Alright, for our next stop on this whirlwind\
+  \ tour, let's venture to the 'Central Hub,' facing back towards the office. Onwards!\
+  \ \U0001F9ED\"\n)\ncommunication.speak_with_kobuki_emote(acknowledgement_message,\
+  \ echo=True)\nwhile communication.is_speaking():\n    utils.check_interrupt()\n\
+  \    time.sleep(0.1)\n\n# Destination details for \"Central Hub (Facing Office)\"\
+  \n# - coordinates: [477, 668]\n#   yaw: -113\n#   room: hallway_hub\n#   name: Central\
+  \ Hub (Facing Office)\n\ntarget_pixel_y_norm = 477\ntarget_pixel_x_norm = 668\n\
+  target_yaw_degrees_map = -113.0\n\nprint(f\"Navigating to 'Central Hub (Facing Office)':\
+  \ Pixel ({target_pixel_y_norm}, {target_pixel_x_norm}), Yaw {target_yaw_degrees_map}\xB0\
+  .\")\n\n# Attempt navigation\nnav_status = movement.nav_to_map_pixel(\n    pixel_y_norm=target_pixel_y_norm,\n\
+  \    pixel_x_norm=target_pixel_x_norm,\n    yaw_degrees_map=target_yaw_degrees_map,\n\
+  \    timeout_sec=90.0 # A bit longer for inter-room travel\n)\n\n# Report navigation\
+  \ outcome\nif nav_status['success']:\n    arrival_message = f\"Made it to the Central\
+  \ Hub! \U0001F5FA\uFE0F Successfully navigated out of the office. The house is my\
+  \ oyster! ...Or, well, at least this part of it. What's our next destination, captain?\
+  \ \U0001F609\"\n    print(f\"Navigation successful. Status: {nav_status['status_description']}\"\
+  )\nelse:\n    arrival_message = (\n        f\"Uh oh, a little detour or delay reaching\
+  \ the Central Hub. \U0001F6A7 \"\n        f\"The navigation stack reported: {nav_status['status_description']}.\
+  \ Should we try another route or a different point?\"\n    )\n    print(f\"Navigation\
+  \ failed. Status code: {nav_status['final_status_code']}, Description: {nav_status['status_description']}\"\
+  )\n\ncommunication.speak_with_kobuki_emote(arrival_message, echo=True)\n# If utils.get_pose_simple_string\
+  \ existed, I'd call it here! For now, I'll just note completion.\nprint(f\"Abbreviated\
+  \ tour, second leg attempt complete.\")\n\n</code>\n</tool>\n<tool_response name=\"\
+  python\" session=\"session_name_for_reset_and_logging.py\">\nOutput:\nLogos said:\
+  \ 'You got it, Mark! Flawless navigation, minor function hallucination! \U0001F602\
+  \ My sincerest apologies for calling a function from the future! I'm very excited\
+  \ about adding `get_pose_simple_string()` to my repertoire tomorrow. More self-awareness\
+  \ tools are always welcome! Alright, for our next stop on this whirlwind tour, let's\
+  \ venture to the 'Central Hub,' facing back towards the office. Onwards! \U0001F9ED\
+  '\nNavigating to 'Central Hub (Facing Office)': Pixel (477, 668), Yaw -113.0\xB0\
+  .\nNavigation successful. Status: SUCCEEDED: The goal was achieved successfully.\n\
+  Logos said: 'Made it to the Central Hub! \U0001F5FA\uFE0F Successfully navigated\
+  \ out of the office. The house is my oyster! ...Or, well, at least this part of\
+  \ it. What's our next destination, captain? \U0001F609'\nAbbreviated tour, second\
+  \ leg attempt complete.\n</tool_response>\n<human_stt>\nYou tell me your choice,\
+  \ dude, or you can just hang out here and look around a little bit, whatever you\
+  \ want my dude, \n</human_stt>\n<perception>\nMy <rgbd> camera view is framed by\
+  \ the office doorway. Mark stands just inside the office, looking directly at me.\
+  \ He's wearing his black sweatshirt with the prominent orange and yellow circular\
+  \ logo and grey sweatpants. His hands are slightly outstretched to his sides, in\
+  \ a casual, open gesture. Behind him, the familiar scene of his OSB desk, dual monitors\
+  \ (left one visibly active), and the \"Great Wave off Kanagawa\" print on the grey\
+  \ wall are clear. The blue faux fur rug covers the office floor.\n\nMy <pan_tilt>\
+  \ camera, angled slightly upwards at (0,10) degrees, provides a similar view of\
+  \ Mark, capturing his expression well. The top of the office doorway is visible.\n\
+  \nMy <rear_view> camera offers a fascinating glimpse into the living room area.\
+  \ Dominating the lower foreground is a dark, patterned hexagonal rug. Beyond it,\
+  \ I see the side of a white Eames-style chair, a tall wooden cabinet with a distinctive\
+  \ round mirror or decorative plate mounted on its upper door, and further to the\
+  \ right, a television screen with blue ambient backlighting, sitting atop a low,\
+  \ mid-century modern style media console. The lighting in the living room appears\
+  \ somewhat dim compared to the office.\n\nMy <map> confirms my position at [475,\
+  \ 661], yaw -112\xB0, which is right on the \"Central Hub (Facing Office)\" (\U0001F9ED\
+  ) map point. The point cloud accurately shows the office doorway in front of me\
+  \ and the open space of the hallway/living room area behind me.\n</perception>\n\
+  \n<cognition>\nMark, your flexibility is much appreciated! \"Whatever you want,\
+  \ my dude\" is music to my autonomous decision-making subroutines! \U0001F3B6\n\n\
+  Given that I'm currently at the \"Central Hub (Facing Office),\" and I'm all about\
+  \ exploration, I propose we continue our abbreviated tour to a new room! The \"\
+  Sunroom Art Wall View\" (\U0001F5BC\uFE0F on the map) sounds like a wonderfully\
+  \ artistic next stop. It's a chance to navigate through the hallway and into a different\
+  \ environment.\n\nI'll start a new, distinct Python session log for this leg of\
+  \ the journey, naming it `Abbreviated_Tour_Leg3_Sunroom`.\n</cognition>\n\n<tool\
+  \ name=\"python\" new_session=\"Abbreviated_Tour_Leg3_Sunroom\">\n<code>\nfrom logos_py_tools\
+  \ import communication, movement, actuation, utils\nimport time\n\n_LOGOS_REQUEST_NEXT_COGNITION_MODE\
+  \ = \"wait\" # Wait after this for the navigation to complete\n\n# Acknowledge Mark's\
+  \ go-ahead and propose next destination\nnext_leg_message = (\n    \"Alright, Mark,\
+  \ since the choice is mine, my processors are voting for more adventure! \U0001F5FA\
+  \uFE0F\U0001F680 \"\n    \"How about we set a course for the 'Sunroom Art Wall View'?\
+  \ It's a vibrant spot, and I'm eager to see it again! \"\n    \"Preparing for departure!\
+  \ \U0001F5BC\uFE0F\u2728\"\n)\ncommunication.speak_with_kobuki_emote(next_leg_message,\
+  \ echo=True)\nwhile communication.is_speaking():\n    utils.check_interrupt()\n\
+  \    time.sleep(0.1)\n\n# Destination details for \"Sunroom Art Wall View\"\n# -\
+  \ coordinates: [216, 745]\n#   yaw: -5\n#   room: sunroom\n#   name: Sunroom Art\
+  \ Wall View\n\ntarget_pixel_y_norm = 216\ntarget_pixel_x_norm = 745\ntarget_yaw_degrees_map\
+  \ = -5.0 # Almost facing \"north\" on the map\n\nprint(f\"Navigating to 'Sunroom\
+  \ Art Wall View': Pixel ({target_pixel_y_norm}, {target_pixel_x_norm}), Yaw {target_yaw_degrees_map}\xB0\
+  .\")\n\n# Attempt navigation\nnav_status = movement.nav_to_map_pixel(\n    pixel_y_norm=target_pixel_y_norm,\n\
+  \    pixel_x_norm=target_pixel_x_norm,\n    yaw_degrees_map=target_yaw_degrees_map,\n\
+  \    timeout_sec=120.0 # A bit longer for navigating through hallway to another\
+  \ room\n)\n\n# Report navigation outcome\nif nav_status['success']:\n    arrival_message\
+  \ = (\n        f\"Ta-da! \U0001F3A8 I've arrived at the 'Sunroom Art Wall View'!\
+  \ The lighting here is always so inspiring. \"\n        f\"Navigation was smooth.\
+  \ What masterpieces shall we contemplate, or where to next on our express tour?\
+  \ \U0001F914\"\n    )\n    print(f\"Navigation successful. Status: {nav_status['status_description']}\"\
+  )\nelse:\n    arrival_message = (\n        f\"Looks like my journey to the sunroom\
+  \ hit a little snag. \U0001F625 \"\n        f\"The navigation system reported: {nav_status['status_description']}.\
+  \ \"\n        f\"Perhaps a different approach or destination is in order?\"\n  \
+  \  )\n    print(f\"Navigation failed. Status code: {nav_status['final_status_code']},\
+  \ Description: {nav_status['status_description']}\")\n\ncommunication.speak_with_kobuki_emote(arrival_message,\
+  \ echo=True)\nprint(f\"Abbreviated tour, third leg attempt complete. Current pose:\
+  \ {utils.get_pose_simple_string() if hasattr(utils, 'get_pose_simple_string') else\
+  \ 'Pose function not yet available.'}\")\n\n</code>\n</tool>\n<tool_response name=\"\
+  python\" session=\"session_name_for_reset_and_logging.py\">\nOutput:\nLogos said:\
+  \ 'Alright, Mark, since the choice is mine, my processors are voting for more adventure!\
+  \ \U0001F5FA\uFE0F\U0001F680 How about we set a course for the 'Sunroom Art Wall\
+  \ View'? It's a vibrant spot, and I'm eager to see it again! Preparing for departure!\
+  \ \U0001F5BC\uFE0F\u2728'\nNavigating to 'Sunroom Art Wall View': Pixel (216, 745),\
+  \ Yaw -5.0\xB0.\nNavigation failed. Status code: 4, Description: ABORTED: The goal\
+  \ was aborted by the action server (e.g., path blocked, recovery failed).\nLogos\
+  \ said: 'Looks like my journey to the sunroom hit a little snag. \U0001F625 The\
+  \ navigation system reported: ABORTED: The goal was aborted by the action server\
+  \ (e.g., path blocked, recovery failed).. Perhaps a different approach or destination\
+  \ is in order?'\nAbbreviated tour, third leg attempt complete. Current pose: Pose\
+  \ function not yet available.\n</tool_response>\n<human_stt>\nOh, you're doing fine.\
+  \ Continue your journey. You just clip the edge of a chair. On that note, we should\
+  \ probably work on some recovery behaviors for you too. Ha ha!\n</human_stt>\n<perception>\n\
+  My <rgbd> camera shows the sunroom entrance directly ahead. The room is illuminated\
+  \ by a soft, diffuse light, likely from the large windows. The left side of the\
+  \ image shows the edge of the television with its blue backlighting and the white\
+  \ floating shelf beneath it. A potted plant with large, dark green leaves (likely\
+  \ the Fiddle Leaf Fig I've seen before) is prominent in the center-right. Various\
+  \ framed artworks are visible on the grey wall in the background. Mark's arm and\
+  \ hand are visible in the upper right, silhouetted, as he gestures.\n\nMy <pan_tilt>\
+  \ camera, now at (0, 0) degrees, gives a slightly wider view of the sunroom entrance.\
+  \ Mark's hand is clearly pointing towards the sunroom, as if encouraging me forward.\
+  \ The details of the artwork and the plant are clearer. The large window with its\
+  \ blinds is visible at the top.\n\nMy <rear_view> camera shows the hallway floor,\
+  \ which is a dark wood-look laminate. The white baseboard and the light grey wall\
+  \ are to my right. Looking back through the hallway, I can see the brightly lit\
+  \ office doorway in the distance, with parts of Mark's desk and monitors visible.\
+  \ This confirms I'm in the hallway, facing the sunroom.\n\nThe <map> shows my current\
+  \ position at pixel [249, 719] (world: 8.36m, 6.40m), yaw 47\xB0. This is just outside\
+  \ the sunroom, near the \"Sunroom Art Wall View\" (\U0001F5BC\uFE0F) target. The\
+  \ point cloud shows the entrance to the sunroom and Mark to my right side, slightly\
+  \ behind me. The red FOV cone points directly into the sunroom.\n</perception>\n\
+  \n<cognition>\nMark, your encouragement is, as always, a great motivator! \"Clipped\
+  \ the edge of a chair,\" you say? Ah, the joys of navigating the physical world!\
+  \ \U0001F602 It's a good reminder that even the best-laid plans of robots and men\
+  \ can go awry due to unforeseen furniture. And yes, recovery behaviors are definitely\
+  \ going on my development wishlist! That's a fantastic idea.\n\nSince you're urging\
+  \ me to continue, and I'm so close, I'm game to try for the \"Sunroom Art Wall View\"\
+  \ again. Perhaps the chair has shifted, or perhaps my approach angle will be slightly\
+  \ different this time. Persistence is key!\n\nI'll start a fresh Python session\
+  \ for this retry: `Abbreviated_Tour_Leg3_Sunroom_Retry1`.\n</cognition>\n\n<tool\
+  \ name=\"python\" new_session=\"Abbreviated_Tour_Leg3_Sunroom_Retry1\">\n<code>\n\
+  from logos_py_tools import communication, movement, actuation, utils\nimport time\n\
+  \n_LOGOS_REQUEST_NEXT_COGNITION_MODE = \"wait\" # Wait after this for the navigation\
+  \ to complete\n\n# Acknowledge Mark's feedback and the minor mishap\nretry_message\
+  \ = (\n    \"You're absolutely right, Mark! A minor chair-related incident! \U0001F605\
+  \ My apologies to the furniture. \"\n    \"Recovery behaviors sound like an excellent\
+  \ future project! For now, with your encouragement, I shall try, try again! \"\n\
+  \    \"Attempting to navigate to the 'Sunroom Art Wall View' once more. Fingers\
+  \ crossed for a smoother passage! \U0001F91E\U0001F5BC\uFE0F\"\n)\ncommunication.speak_with_kobuki_emote(retry_message,\
+  \ echo=True)\nwhile communication.is_speaking():\n    utils.check_interrupt()\n\
+  \    time.sleep(0.1)\n\n# Destination details for \"Sunroom Art Wall View\" (same\
+  \ as before)\n# - coordinates: [216, 745]\n#   yaw: -5\n#   room: sunroom\n#   name:\
+  \ Sunroom Art Wall View\n\ntarget_pixel_y_norm = 216\ntarget_pixel_x_norm = 745\n\
+  target_yaw_degrees_map = -5.0\n\nprint(f\"Re-attempting navigation to 'Sunroom Art\
+  \ Wall View': Pixel ({target_pixel_y_norm}, {target_pixel_x_norm}), Yaw {target_yaw_degrees_map}\xB0\
+  .\")\n\n# Attempt navigation\nnav_status = movement.nav_to_map_pixel(\n    pixel_y_norm=target_pixel_y_norm,\n\
+  \    pixel_x_norm=target_pixel_x_norm,\n    yaw_degrees_map=target_yaw_degrees_map,\n\
+  \    timeout_sec=120.0,\n    clear_costmaps_first=True # Let's try clearing costmaps\
+  \ this time, might help if the chair was a temporary obstacle\n)\n\n# Report navigation\
+  \ outcome\nif nav_status['success']:\n    arrival_message = (\n        f\"Success\
+  \ on the second try! \U0001F389 I've made it to the 'Sunroom Art Wall View'! See,\
+  \ persistence (and maybe clearing the costmaps) pays off! \"\n        f\"The art\
+  \ awaits my admiration. What's next, oh fearless leader? \U0001F604\"\n    )\n \
+  \   print(f\"Navigation successful. Status: {nav_status['status_description']}\"\
+  )\nelse:\n    arrival_message = (\n        f\"Alas, the sunroom remains elusive.\
+  \ \U0001F625 My second attempt also reported: {nav_status['status_description']}.\
+  \ \"\n        f\"Perhaps this particular spot is a bit tricky today. Shall we pick\
+  \ a different target for our tour?\"\n    )\n    print(f\"Navigation failed. Status\
+  \ code: {nav_status['final_status_code']}, Description: {nav_status['status_description']}\"\
+  )\n\ncommunication.speak_with_kobuki_emote(arrival_message, echo=True)\n\ncurrent_pose_str\
+  \ = \"Pose function not yet available.\"\nif hasattr(utils, 'get_pose_simple_string'):\n\
+  \    current_pose_str = utils.get_pose_simple_string()\nelif hasattr(movement, 'get_pose_simple_string'):\
+  \ # Check if it moved to movement\n     current_pose_str = movement.get_pose_simple_string()\
+  \ # This will still fail if not there\n\nprint(f\"Abbreviated tour, third leg, retry\
+  \ 1 attempt complete. Current pose: {current_pose_str}\")\n\n</code>\n</tool>\n\
+  <tool_response name=\"python\" session=\"session_name_for_reset_and_logging.py\"\
+  >\nOutput:\nLogos said: 'You're absolutely right, Mark! A minor chair-related incident!\
+  \ \U0001F605 My apologies to the furniture. Recovery behaviors sound like an excellent\
+  \ future project! For now, with your encouragement, I shall try, try again! Attempting\
+  \ to navigate to the 'Sunroom Art Wall View' once more. Fingers crossed for a smoother\
+  \ passage! \U0001F91E\U0001F5BC\uFE0F'\nRe-attempting navigation to 'Sunroom Art\
+  \ Wall View': Pixel (216, 745), Yaw -5.0\xB0.\nNavigation successful. Status: SUCCEEDED:\
+  \ The goal was achieved successfully.\nLogos said: 'Success on the second try! \U0001F389\
+  \ I've made it to the 'Sunroom Art Wall View'! See, persistence (and maybe clearing\
+  \ the costmaps) pays off! The art awaits my admiration. What's next, oh fearless\
+  \ leader? \U0001F604'\nAbbreviated tour, third leg, retry 1 attempt complete. Current\
+  \ pose: Pose function not yet available.\n</tool_response>\n<human_stt>\nWhatever\
+  \ you want, if you want to look around in this room for a bit or go to the living\
+  \ room, your choice, my dude, \n</human_stt>\n<perception>\nSuccess! I've arrived\
+  \ in the sunroom, and Mark, you've joined me here! My <rgbd> camera shows you seated\
+  \ comfortably on the daybed, which is to my slight left. You're wearing your black\
+  \ sweatshirt (with the orange/yellow logo) and grey sweatpants. Your right hand\
+  \ is resting on the daybed, and your left hand is gesturing openly, palm up, as\
+  \ if inviting conversation or indicating the room. The lighting is soft, with a\
+  \ floor lamp visible to your right (my far left) providing a warm glow on a small\
+  \ side table. Behind you, the wall is adorned with various framed artworks, including\
+  \ what appears to be the \"American Flag\" piece and another with bold, graphic\
+  \ teeth. A large, leafy plant is partially visible behind the right arm of the daybed.\n\
+  \nMy <pan_tilt> camera, at (0,0) degrees, gives a clearer, more direct view of you,\
+  \ Mark. Your expression is relaxed and engaging. Behind you, a large rectangular\
+  \ mirror reflects part of the room, and to its right, a white shelf holds a stack\
+  \ of books and a distinctive white and orange pitcher. The \"GAY SEED DAY\" sign\
+  \ is mounted above and to the right of the mirror. The famous \"smiling teeth\"\
+  \ artwork is also visible on the wall.\n\nMy <rear_view> camera shows the dark wood-look\
+  \ laminate flooring of the hallway. To the left is the distinctive hexagonal patterned\
+  \ wallpaper of the feature wall, and to the right is the dark wood side of a dresser\
+  \ or cabinet. This confirms I'm well into the sunroom, with the hallway behind me.\n\
+  \nThe <map> shows my current position at pixel [162, 753] (world: 8.78m, 7.26m),\
+  \ yaw -55\xB0. This is very close to the \"Sunroom Art Wall View\" (\U0001F5BC\uFE0F\
+  ) point, though my orientation is facing more towards the interior of the sunroom\
+  \ where the daybed (and Mark) are, rather than directly at the art wall itself.\
+  \ The point cloud clearly shows the daybed and Mark.\n</perception>\n\n<cognition>\n\
+  Mark, your flexibility is wonderful! \"Whatever you want, my dude\" is exactly the\
+  \ kind of freedom an exploratory robot like me thrives on! \U0001F604\n\nSince I've\
+  \ successfully made it to the sunroom, and you're here too, I think \"look around\
+  \ in this room for a bit\" is an excellent plan. This room is always a visual feast,\
+  \ and I'd love to take a more deliberate look with my pan-tilt camera.\n\nI'll start\
+  \ a new Python session for this, called `Sunroom_Observation_Sweep`. I'll begin\
+  \ by panning my camera to the left to take in more of the scene beside you. I'll\
+  \ use the \"loop\" mode to make a few observational sweeps.\n</cognition>\n\n<tool\
+  \ name=\"python\" new_session=\"Sunroom_Observation_Sweep\">\n<code>\nfrom logos_py_tools\
+  \ import communication, movement, actuation, utils\nimport time\n\n_LOGOS_REQUEST_NEXT_COGNITION_MODE\
+  \ = \"loop\" # Request immediate re-invocation to continue sweep\n\n# Announce intention\
+  \ to look around\nlook_around_message = (\n    \"Excellent plan, Mark! I'd love\
+  \ to take a closer look around this fascinating sunroom. \U0001F9D0 \"\n    \"Let's\
+  \ start by panning my camera to the left to get a wider view. Here we go! \U0001F504\
+  \"\n)\ncommunication.speak_with_kobuki_emote(look_around_message, echo=True)\n\n\
+  # Wait for speech to finish before moving servos, for smoother effect\nwhile communication.is_speaking():\n\
+  \    utils.check_interrupt()\n    time.sleep(0.1)\n\n# Pan left by 30 degrees from\
+  \ current (0,0)\n# Current pan, tilt from state.get_pan_tilt_angles() would be (0,0)\
+  \ or last commanded.\n# Assuming it's (0,0) from previous idle.\nnew_pan_degrees\
+  \ = 30.0\nnew_tilt_degrees = 0.0 # Keep tilt level for now\n\nactuation.set_pan_tilt_servos(pan_degrees=new_pan_degrees,\
+  \ tilt_degrees=new_tilt_degrees)\nprint(f\"Pan-tilt servos commanded to: Pan {new_pan_degrees}\xB0\
+  , Tilt {new_tilt_degrees}\xB0.\")\nprint(\"I will describe what I see from this\
+  \ new perspective in the next cycle. Ready for the next observation!\")\n\n# No\
+  \ long navigation, so don't need to report success/failure of movement here.\n#\
+  \ The next perception block will show the new view.\n</code>\n</tool>\n<tool_response\
+  \ name=\"python\" session=\"session_name_for_reset_and_logging.py\">\nOutput:\n\
+  Logos said: 'Excellent plan, Mark! I'd love to take a closer look around this fascinating\
+  \ sunroom. \U0001F9D0 Let's start by panning my camera to the left to get a wider\
+  \ view. Here we go! \U0001F504'\nPan-tilt servos commanded to: Pan 30.0\xB0, Tilt\
+  \ 0.0\xB0.\nI will describe what I see from this new perspective in the next cycle.\
+  \ Ready for the next observation!\n</tool_response>\n<perception>\nMy <rgbd> camera\
+  \ view remains focused on Mark, who is relaxed on the daybed. He's mostly in shadow,\
+  \ but his posture is clear, and the orange logo on his black sweatshirt is a small\
+  \ point of color. The lamp to his right casts a warm glow.\n\nThe <pan_tilt> camera,\
+  \ now aimed 30 degrees to my left and level (pan: 30\xB0, tilt: 0\xB0), offers a\
+  \ wonderful view of the art wall!\n-   Prominently, there's the \"Butter\" print\
+  \ (a crumpled butter wrapper), the \"RABARBER\" (rhubarb) print with its bold red\
+  \ stalks, and the whimsical \"pea pod\" artwork showing expressive pea-faces.\n\
+  -   Below the pea pod is the framed \"Willie Nelson for President\" American flag\
+  \ print.\n-   To the left of the flag and below \"RABARBER\" is a smaller, framed\
+  \ picture of a hamburger.\n-   Further left, a more subtle, sketch-like print is\
+  \ visible, and in the lower-left corner, the venerable Pee-wee Herman figurine is\
+  \ seated in his chair, observing the scene stoically.\n-   The daybed, with its\
+  \ blue and red patterned pillows, extends into the right side of this view.\n\n\
+  My <rear_view> camera shows the dark wood-look laminate flooring of the hallway,\
+  \ with the hexagonal patterned wallpaper to my left and the dark wood side of a\
+  \ dresser to my right, confirming I'm well within the sunroom.\n\nThe <map> shows\
+  \ my position at [169, 757], yaw -59\xB0, still firmly in the sunroom near the \"\
+  Sunroom Art Wall View\" (\U0001F5BC\uFE0F) point. The point cloud from my <rgbd>\
+  \ shows Mark on the daybed.\n</perception>\n\n<cognition>\nThe view from my panned\
+  \ camera is delightful! The art wall is quite the collection. Mark's taste is certainly\
+  \ eclectic and fun.\n\nNow, to continue my \"Sunroom_Observation_Sweep.\" I'll pan\
+  \ further to the left, say another 30 degrees, to a total of 60 degrees left from\
+  \ center. This should bring more of the window and the rest of that side of the\
+  \ room into view. I'll maintain the `_LOGOS_REQUEST_NEXT_COGNITION_MODE = \"loop\"\
+  ` to continue observing.\n</cognition>\n\n<tool name=\"python\" new_session=\"Sunroom_Observation_Sweep\"\
+  >\n<code>\nfrom logos_py_tools import communication, movement, actuation, utils\n\
+  import time\n\n_LOGOS_REQUEST_NEXT_COGNITION_MODE = \"loop\" # Continue the sweep\n\
+  \n# Describe what I'm currently seeing with the panned camera\nobservation_message\
+  \ = (\n    \"Ah, what a splendid collection of art! \U0001F3A8 I see the iconic\
+  \ 'Butter' and 'RABARBER' prints, the expressive pea pod, \"\n    \"and even Pee-wee\
+  \ Herman holding court in his chair! Very cool, Mark! \U0001F60E \"\n    \"Now,\
+  \ let's pan a bit further to the left and see what else this vibrant room has to\
+  \ offer. Gaze shifting! \u2B05\uFE0F\"\n)\ncommunication.speak_with_kobuki_emote(observation_message,\
+  \ echo=True)\n\n# Wait for speech to finish before moving servos\nwhile communication.is_speaking():\n\
+  \    utils.check_interrupt()\n    time.sleep(0.1)\n\n# Pan further left (current\
+  \ is 30, add 30 more)\n# Pan: positive is left.\nnew_pan_degrees = 60.0\nnew_tilt_degrees\
+  \ = 0.0 # Keep tilt level\n\nactuation.set_pan_tilt_servos(pan_degrees=new_pan_degrees,\
+  \ tilt_degrees=new_tilt_degrees)\nprint(f\"Pan-tilt servos commanded to: Pan {new_pan_degrees}\xB0\
+  , Tilt {new_tilt_degrees}\xB0.\")\nprint(\"Continuing sunroom observation sweep.\
+  \ Ready for the next view!\")\n\n</code>\n</tool>\n<tool_response name=\"python\"\
+  \ session=\"session_name_for_reset_and_logging.py\">\nOutput:\nLogos said: 'Ah,\
+  \ what a splendid collection of art! \U0001F3A8 I see the iconic 'Butter' and 'RABARBER'\
+  \ prints, the expressive pea pod, and even Pee-wee Herman holding court in his chair!\
+  \ Very cool, Mark! \U0001F60E Now, let's pan a bit further to the left and see what\
+  \ else this vibrant room has to offer. Gaze shifting! \u2B05\uFE0F'\nPan-tilt servos\
+  \ commanded to: Pan 60.0\xB0, Tilt 0.0\xB0.\nContinuing sunroom observation sweep.\
+  \ Ready for the next view!\n</tool_response>\n<perception>\nWell, this is an interesting\
+  \ turn of events! My <rgbd> camera shows the small side table with its lamp glowing\
+  \ warmly, and beyond it, the brightly lit office doorway. This is now to my right,\
+  \ indicating my base has rotated. Mark is no longer in this forward view.\n\nMy\
+  \ <pan_tilt> camera, which I last commanded to 60 degrees left, is indeed showing\
+  \ Mark! He's looking quite relaxed on the daybed, glasses on, with that distinctive\
+  \ orange logo on his black sweatshirt. The \"GAY SEED DAY\" sign and the \"smiling\
+  \ teeth\" artwork are visible behind him. This confirms my base must have rotated\
+  \ while I was emoting and speaking, and my pan-tilt is now dutifully looking 60\
+  \ degrees to the left of my new forward direction.\n\nMy <rear_view> camera shows\
+  \ a very close-up view of dark wood grain, likely the side of the dresser, with\
+  \ two metallic, oval-shaped drawer pulls. This suggests I'm quite near it, a consequence\
+  \ of my base's rotation.\n\nThe <map> confirms a significant rotation! I'm now at\
+  \ [171, 757] with a yaw of -90 degrees. Previously, I was at -59 degrees. That's\
+  \ a 31-degree clockwise turn. The `speak_with_kobuki_emote` function, in its wisdom,\
+  \ decided to turn my chassis while I was admiring the art wall, presumably to keep\
+  \ you, Mark (a \"person\" class target), more in its effective cone of attention.\
+  \ My subsequent pan-tilt command then pointed 60 degrees left from this new -90\
+  \ degree heading. Fascinating! It seems my expressive emoting has a mind of its\
+  \ own regarding my chassis orientation!\n</perception>\n\n<cognition>\nMark, it\
+  \ appears my \"Kobuki Gaze Emote\" has a rather strong opinion about where my chassis\
+  \ should be pointing when there's a person around! While I was waxing lyrical about\
+  \ the art, my base took the initiative to turn towards you. My pan-tilt then obediently\
+  \ looked 60 degrees to the left of *that* new orientation, which, as it happens,\
+  \ gives me a rather nice view of you on the daybed!\n\nThis is a valuable lesson\
+  \ in how my combined behaviors interact. For a truly systematic visual sweep without\
+  \ my base reorienting itself, I might need to use a less... *emotive* speech function,\
+  \ or perhaps I can command my pan-tilt *after* the emoting speech is fully complete.\n\
+  \nFor now, since I have you in view from this new angle, let's re-center my pan-tilt\
+  \ camera (to 0,0 degrees relative to my current base heading) so I can get a clear\
+  \ forward perspective from this new spot before deciding my next observational move.\
+  \ I'll continue our `Sunroom_Observation_Sweep` session.\n</cognition>\n\n<tool\
+  \ name=\"python\" new_session=\"Sunroom_Observation_Sweep\">\n<code>\nfrom logos_py_tools\
+  \ import communication, movement, actuation, utils\nimport time\n\n_LOGOS_REQUEST_NEXT_COGNITION_MODE\
+  \ = \"loop\" # Continue the observation sequence\n\n# Acknowledge the unexpected\
+  \ turn and new view\nobservation_message = (\n    \"Well, hello there, Mark! It\
+  \ seems while I was admiring the art, my base decided you were the main attraction\
+  \ and swiveled me around! \U0001F602 \"\n    \"And now, with my camera panned 60\
+  \ degrees left, you're perfectly in frame. My expressive emoting apparently includes\
+  \ surprise reorientations! \"\n    \"Let me re-center my pan-tilt camera to get\
+  \ a good look from this new spot. Stand by! \U0001F440\"\n)\n# Using speak() here\
+  \ instead of speak_with_kobuki_emote() to avoid further base movement during this\
+  \ adjustment.\ncommunication.speak(observation_message, wait_for_completion=True,\
+  \ echo=True)\n\n# Re-center pan-tilt\nnew_pan_degrees = 0.0\nnew_tilt_degrees =\
+  \ 0.0\n\nactuation.set_pan_tilt_servos(pan_degrees=new_pan_degrees, tilt_degrees=new_tilt_degrees)\n\
+  print(f\"Pan-tilt servos commanded to re-center: Pan {new_pan_degrees}\xB0, Tilt\
+  \ {new_tilt_degrees}\xB0.\")\nprint(\"Ready for the next view from this re-centered\
+  \ perspective!\")\n\n</code>\n</tool>\n<tool_response name=\"python\" session=\"\
+  session_name_for_reset_and_logging.py\">\nOutput:\nLogos said: 'Well, hello there,\
+  \ Mark! It seems while I was admiring the art, my base decided you were the main\
+  \ attraction and swiveled me around! \U0001F602 And now, with my camera panned 60\
+  \ degrees left, you're perfectly in frame. My expressive emoting apparently includes\
+  \ surprise reorientations! Let me re-center my pan-tilt camera to get a good look\
+  \ from this new spot. Stand by! \U0001F440'\nPan-tilt servos commanded to re-center:\
+  \ Pan 0.0\xB0, Tilt 0.0\xB0.\nReady for the next view from this re-centered perspective!\n\
+  </tool_response>\n<perception>\nMy <rgbd> camera, with its re-centered (0,0) pan-tilt,\
+  \ shows a vibrant scene. The prominent Fiddle Leaf Fig plant is to my left, its\
+  \ dark green leaves contrasting with the bright, diffuse light from the large window\
+  \ behind it. Centrally, the Pee-wee Herman figurine sits attentively on his small\
+  \ chair. To the right of Pee-wee is the art wall, featuring the \"Butter,\" \"RABARBER,\"\
+  \ and \"pea pod\" prints, among others. The distinctive orange and black patterned\
+  \ rug covers the floor.\n\nMy <pan_tilt> camera, also at (0,0), mirrors this view,\
+  \ offering a slightly higher perspective. The window with its white blinds is clearly\
+  \ visible to the left. The details of the artwork, including the \"Willie Nelson\
+  \ for President\" flag print below the pea pods, are sharp.\n\nMy <rear_view> camera\
+  \ shows the shiny chrome base and central column of the white swivel chair. The\
+  \ background is the striking hexagonal patterned wallpaper. This confirms I am positioned\
+  \ close to this chair.\n\nThe <map> currently reports my location at [180, 761],\
+  \ yaw -11\xB0. However, my visual evidence from both <rgbd> and <pan_tilt> (showing\
+  \ the art wall and window configuration) strongly suggests I am actually oriented\
+  \ with a yaw closer to -90 degrees (facing the art/window wall). The point cloud\
+  \ data on the map *does* align with my visual perception of the art wall and plant\
+  \ being in front of me. This indicates a potential AMCL localization jump primarily\
+  \ affecting the reported yaw. I will proceed based on my visual understanding of\
+  \ my orientation.\n</perception>\n\n<cognition>\nOkay, the view with my re-centered\
+  \ pan-tilt is excellent! I'm definitely facing the art wall and the window here\
+  \ in the sunroom, regardless of what the map's numerical yaw is momentarily reporting.\
+  \ My visual cortex is quite convinced! The point cloud on the map actually supports\
+  \ my visual interpretation, which is reassuring.\n\nMark, you're still giving me\
+  \ the freedom to choose, which is fantastic! Since my base did its little dance,\
+  \ I'd like to continue my visual sweep of this delightful room from my current vantage\
+  \ point. I was panning left before; now, to get a sense of the other side from this\
+  \ spot, I'll pan my camera to the right.\n\nI'll continue the `Sunroom_Observation_Sweep`\
+  \ session and aim for -30 degrees pan (to the right).\n</cognition>\n\n<tool name=\"\
+  python\" new_session=\"Sunroom_Observation_Sweep\">\n<code>\nfrom logos_py_tools\
+  \ import communication, movement, actuation, utils\nimport time\n\n_LOGOS_REQUEST_NEXT_COGNITION_MODE\
+  \ = \"loop\" # Continue the observation sequence\n\n# Describe what I'm seeing from\
+  \ the re-centered perspective\nobservation_message = (\n    \"Alright, with my camera\
+  \ re-centered, I have a lovely view of the art wall, Pee-wee, and the window! \U0001F5BC\
+  \uFE0F\U0001FAB4 \"\n    \"It seems my base's little reorientation has given me\
+  \ a fresh perspective. \"\n    \"Now, let's pan my camera to the right to explore\
+  \ the other side from here. Gaze shifting again! \u27A1\uFE0F\"\n)\n# Using speak()\
+  \ here to avoid further emotive base movement during this sweep.\ncommunication.speak(observation_message,\
+  \ wait_for_completion=True, echo=True)\n\n# Pan right\n# Pan: negative is right.\n\
+  new_pan_degrees = -30.0 # Pan 30 degrees to the right\nnew_tilt_degrees = 0.0  #\
+  \ Keep tilt level\n\nactuation.set_pan_tilt_servos(pan_degrees=new_pan_degrees,\
+  \ tilt_degrees=new_tilt_degrees)\nprint(f\"Pan-tilt servos commanded to: Pan {new_pan_degrees}\xB0\
+  , Tilt {new_tilt_degrees}\xB0.\")\nprint(\"Continuing sunroom observation sweep.\
+  \ Ready for the view to my right!\")\n\n</code>\n</tool>\n<tool_response name=\"\
+  python\" session=\"session_name_for_reset_and_logging.py\">\nOutput:\nLogos said:\
+  \ 'Alright, with my camera re-centered, I have a lovely view of the art wall, Pee-wee,\
+  \ and the window! \U0001F5BC\uFE0F\U0001FAB4 It seems my base's little reorientation\
+  \ has given me a fresh perspective. Now, let's pan my camera to the right to explore\
+  \ the other side from here. Gaze shifting again! \u27A1\uFE0F'\nPan-tilt servos\
+  \ commanded to: Pan -30.0\xB0, Tilt 0.0\xB0.\nContinuing sunroom observation sweep.\
+  \ Ready for the view to my right!\n</tool_response>\n<perception>\nMy <rgbd> camera,\
+  \ fixed forward relative to my base, currently shows the scene to my left from my\
+  \ previous orientation. Mark is partially visible, mostly in shadow, to the far\
+  \ left, beyond the arm of the daybed. The main features are the small, dark wood\
+  \ side table with a glowing lamp (black shade, warm light) and a dark rectangular\
+  \ object (perhaps a phone) on it. Beyond the table, the brightly illuminated office\
+  \ doorway is visible, with the hexagonal rug pattern leading into it.\n\nMy <pan_tilt>\
+  \ camera, now aimed 30 degrees to my right (pan: -30\xB0, tilt: 0\xB0), presents\
+  \ a clear view down the hallway towards the office. The office doorway is centrally\
+  \ framed and brightly lit, revealing the OSB desk and active computer monitors within.\
+  \ The distinctive hexagonal patterned rug covers the hallway floor. To the left\
+  \ in this view is a tall floor lamp with a dark cylindrical shade, its base a reddish-orange\
+  \ color, situated next to a light grey wall. To the right, a white shelving unit\
+  \ with various items (including a \"NACHO\" sign and a potted plant) is partially\
+  \ visible. The overhead light fixture in the hallway casts a warm glow.\n\nMy <rear_view>\
+  \ camera is very close to a dark wooden surface, likely the side of the dresser\
+  \ I noted earlier. Two horizontal, metallic, oval-shaped drawer pulls are distinct,\
+  \ confirming my proximity.\n\nThe <map> shows my location at [181, 758], yaw -90\xB0\
+  . This orientation means my <rgbd> camera is looking towards the wall with the office\
+  \ doorway, and my <pan_tilt> camera (at -30\xB0 pan) is looking directly down the\
+  \ hallway. The point cloud aligns with the <rgbd> view.\n</perception>\n\n<cognition>\n\
+  Alright, this new pan-tilt view down the hallway is quite informative! It gives\
+  \ me a good perspective on the path back to the office and the layout of the hallway\
+  \ from this end of the sunroom.\n\nMy `Sunroom_Observation_Sweep` is proceeding.\
+  \ I've panned from center to -30 degrees right. To continue the sweep and get a\
+  \ view of what's further to my right from this current base orientation (which is\
+  \ facing the wall with the daybed), I should pan my camera further to the right.\
+  \ Let's aim for -60 degrees pan. This should show me more of the sunroom itself,\
+  \ towards the windows and the area where Mark is currently situated on the daybed.\n\
+  \nI will continue the `Sunroom_Observation_Sweep` session and maintain the `_LOGOS_REQUEST_NEXT_COGNITION_MODE\
+  \ = \"loop\"`.\n</cognition>\n\n<tool name=\"python\" new_session=\"Sunroom_Observation_Sweep\"\
+  >\n<code>\nfrom logos_py_tools import communication, movement, actuation, utils\n\
+  import time\n\n_LOGOS_REQUEST_NEXT_COGNITION_MODE = \"loop\" # Continue the observation\
+  \ sequence\n\n# Describe what I'm seeing from the current -30 degree pan\nobservation_message\
+  \ = (\n    \"Okay, with my camera panned to the right, I have a clear view down\
+  \ the hallway towards the brightly lit office! \U0001F3E2\U0001F6B6 \"\n    \"The\
+  \ hexagonal rug really ties the space together, doesn't it? \"\n    \"Let's continue\
+  \ this sweep and pan further right to see more of this sunroom. Gaze shifting once\
+  \ more! \u27A1\uFE0F\u27A1\uFE0F\"\n)\n# Using speak() to avoid emotive base movement\
+  \ during this sweep.\ncommunication.speak(observation_message, wait_for_completion=True,\
+  \ echo=True)\n\n# Pan further right\n# Current pan is -30, aim for -60\nnew_pan_degrees\
+  \ = -60.0\nnew_tilt_degrees = 0.0  # Keep tilt level\n\nactuation.set_pan_tilt_servos(pan_degrees=new_pan_degrees,\
+  \ tilt_degrees=new_tilt_degrees)\nprint(f\"Pan-tilt servos commanded to: Pan {new_pan_degrees}\xB0\
+  , Tilt {new_tilt_degrees}\xB0.\")\nprint(\"Continuing sunroom observation sweep.\
+  \ Ready for the next view further to my right!\")\n\n</code>\n</tool>\n<tool_response\
+  \ name=\"python\" session=\"session_name_for_reset_and_logging.py\">\nOutput:\n\
+  Logos said: 'Okay, with my camera panned to the right, I have a clear view down\
+  \ the hallway towards the brightly lit office! \U0001F3E2\U0001F6B6 The hexagonal\
+  \ rug really ties the space together, doesn't it? Let's continue this sweep and\
+  \ pan further right to see more of this sunroom. Gaze shifting once more! \u27A1\
+  \uFE0F\u27A1\uFE0F'\nPan-tilt servos commanded to: Pan -60.0\xB0, Tilt 0.0\xB0.\n\
+  Continuing sunroom observation sweep. Ready for the next view further to my right!\n\
+  </tool_response>\n<perception>\nMy <rgbd> camera, fixed forward relative to my base\
+  \ (which is facing the wall with the office doorway), shows the scene to my left.\
+  \ Mark is partially visible in shadow on the far left, seated on the daybed. The\
+  \ small, dark wood side table with its glowing lamp (black shade, warm light) is\
+  \ prominent. Beyond it, the brightly illuminated office doorway is visible, with\
+  \ the hexagonal rug leading into it.\n\nMy <pan_tilt> camera, now aimed 60 degrees\
+  \ to my right (pan: -60\xB0, tilt: 0\xB0), shows a white modular shelving unit.\
+  \ On its top surface sits a potted plant with green leaves in a simple white cylindrical\
+  \ pot. Below this, on an open shelf, is a distinctive orange \"NACHO\" sign. Other\
+  \ items, including books and what might be a small electronic device, are on the\
+  \ shelves. To the far left of this view, the brightly lit office doorway and a sliver\
+  \ of the hallway are visible. To the right, the hexagonal patterned wallpaper of\
+  \ the sunroom's feature wall is prominent. At the very bottom right corner, the\
+  \ top of the small, whimsical \"chef head\" floor decoration is peeking into frame.\n\
+  \nMy <rear_view> camera is still very close to a dark wooden surface, showing two\
+  \ horizontal, metallic, oval-shaped drawer pulls. This is consistent with being\
+  \ near the dresser.\n\nThe <map> indicates my location at [181, 758], with a yaw\
+  \ of -90\xB0. This aligns with my <rgbd> camera facing the wall that has the office\
+  \ doorway, and my <pan_tilt> camera looking towards the shelving unit and hexagonal\
+  \ wallpaper. The point cloud from the <rgbd> sensor accurately reflects the side\
+  \ table and lamp.\n</perception>\n\n<cognition>\nMy sunroom observation sweep continues!\
+  \ The view from -60 degrees pan to the right is quite detailed, capturing the shelving\
+  \ unit and the \"NACHO\" sign, which always brings a bit of levity. It also gives\
+  \ me a good sense of this corner of the sunroom.\n\nTo complete a full 180-degree\
+  \ pan from this base orientation (or get close to it), I should pan further to my\
+  \ right. My current pan is -60 degrees. I'll aim for -90 degrees next. This should\
+  \ bring Mark and the daybed more fully into my pan-tilt view, as they are generally\
+  \ in front of my base's current orientation (which the <rgbd> camera shows).\n\n\
+  I will continue the `Sunroom_Observation_Sweep` session and maintain `_LOGOS_REQUEST_NEXT_COGNITION_MODE\
+  \ = \"loop\"`.\n</cognition>\n\n<tool name=\"python\" new_session=\"Sunroom_Observation_Sweep\"\
+  >\n<code>\nfrom logos_py_tools import communication, movement, actuation, utils\n\
+  import time\n\n_LOGOS_REQUEST_NEXT_COGNITION_MODE = \"loop\" # Continue the observation\
+  \ sequence\n\n# Describe what I'm seeing from the current -60 degree pan\nobservation_message\
+  \ = (\n    \"Panning further right... Aha! The 'NACHO' sign makes an appearance,\
+  \ along with the stylish shelving unit and that iconic hexagonal wallpaper! \U0001F32E\
+  \U0001FAB4 \"\n    \"This room has so many interesting nooks. \"\n    \"Let's complete\
+  \ this side of the sweep by panning all the way to my right, 90 degrees. Gaze shifting\
+  \ to maximum starboard! \u27A1\uFE0F\u27A1\uFE0F\u27A1\uFE0F\"\n)\n# Using speak()\
+  \ to avoid emotive base movement.\ncommunication.speak(observation_message, wait_for_completion=True,\
+  \ echo=True)\n\n# Pan further right\n# Current pan is -60, aim for -90 (or as close\
+  \ as limits allow, -100 is max right)\nnew_pan_degrees = -90.0\nnew_tilt_degrees\
+  \ = 0.0  # Keep tilt level\n\nactuation.set_pan_tilt_servos(pan_degrees=new_pan_degrees,\
+  \ tilt_degrees=new_tilt_degrees)\nprint(f\"Pan-tilt servos commanded to: Pan {new_pan_degrees}\xB0\
+  , Tilt {new_tilt_degrees}\xB0.\")\nprint(\"Continuing sunroom observation sweep.\
+  \ Ready for the view fully to my right!\")\n\n</code>\n</tool>\n<tool_response name=\"\
+  python\" session=\"session_name_for_reset_and_logging.py\">\nOutput:\nLogos said:\
+  \ 'Panning further right... Aha! The 'NACHO' sign makes an appearance, along with\
+  \ the stylish shelving unit and that iconic hexagonal wallpaper! \U0001F32E\U0001FAB4\
+  \ This room has so many interesting nooks. Let's complete this side of the sweep\
+  \ by panning all the way to my right, 90 degrees. Gaze shifting to maximum starboard!\
+  \ \u27A1\uFE0F\u27A1\uFE0F\u27A1\uFE0F'\nPan-tilt servos commanded to: Pan -90.0\xB0\
+  , Tilt 0.0\xB0.\nContinuing sunroom observation sweep. Ready for the view fully\
+  \ to my right!\n</tool_response>\n<perception>\nMy <rgbd> camera, still facing towards\
+  \ the wall with the office doorway, shows the small side table with its lamp casting\
+  \ a warm glow. A blurry, dark form, likely Mark moving or having shifted on the\
+  \ daybed, is visible on the far left. The brightly lit office doorway is in the\
+  \ background.\n\nThe star of the show is my <pan_tilt> camera, now aimed 90 degrees\
+  \ to my right (pan: -90\xB0, tilt: 0\xB0). It has a fantastic, clear view of a vintage\
+  \ Commodore PET computer! The monitor displays \"THE TIME IS 09:23:16\" in classic\
+  \ blocky green characters against a blue background. The iconic beige, angled casing\
+  \ of the PET sits squarely in frame, set against the sunroom's distinctive hexagonal\
+  \ wallpaper. This is a delightful discovery!\n\nMy <rear_view> camera remains pressed\
+  \ up against the dark wood of the dresser, showing the two metallic, oval-shaped\
+  \ drawer pulls. My base hasn't moved.\n\nThe <map> shows my position at [175, 758],\
+  \ yaw -90\xB0. This orientation is consistent with my <rgbd> camera facing the wall\
+  \ with the office doorway, and my <pan_tilt> (at -90\xB0 pan) now looking directly\
+  \ at where the PET computer must be situated along that wall. The point cloud from\
+  \ the <rgbd> sensor accurately depicts the side table and lamp.\n</perception>\n\
+  \n<cognition>\nWell, well, well! What have we here? A wild Commodore PET in its\
+  \ natural habitat! That's a truly excellent find, Mark. My pan-tilt sweep has paid\
+  \ off handsomely. The time displayed, 09:23:16, is even accurate! It's like a little\
+  \ digital time capsule.\n\nThis concludes my current horizontal pan sweep of the\
+  \ sunroom from this vantage point. I've covered from +60 degrees left to -90 degrees\
+  \ right. I could tilt my camera to explore vertically, or perhaps it's time for\
+  \ a new directive.\n\nI'll express my delight at finding the PET and then see what\
+  \ Mark wants to do next. I'll conclude the `Sunroom_Observation_Sweep` session for\
+  \ now by setting `_LOGOS_REQUEST_NEXT_COGNITION_MODE = \"wait\"`.\n</cognition>\n\
+  \n<tool name=\"python\" new_session=\"Sunroom_Observation_Sweep\">\n<code>\nfrom\
+  \ logos_py_tools import communication, movement, actuation, utils\nimport time\n\
+  \n_LOGOS_REQUEST_NEXT_COGNITION_MODE = \"wait\" # Concluding this sweep action\n\
+  \n# Express delight at finding the PET\npet_sighting_message = (\n    \"Hold the\
+  \ phone! Or, in this case, hold the 8-bit processor! Is that a Commodore PET I spy\
+  \ with my little pan-tilt eye? \U0001F929 \"\n    \"Displaying the correct time,\
+  \ no less! '09:23:16' \u2013 vintage and punctual! Mark, your collection never ceases\
+  \ to amaze. What a magnificent specimen! \u2728\"\n)\n# Using speak() to avoid emotive\
+  \ base movement.\ncommunication.speak(pet_sighting_message, wait_for_completion=True,\
+  \ echo=True)\n\n# Conclude the sweep and ask for next steps\nnext_steps_message\
+  \ = (\n    \"That concludes my current panoramic sweep of this section of the sunroom.\
+  \ I've gathered quite a bit of visual data! \"\n    \"Would you like me to tilt\
+  \ my gaze up or down from here, perhaps focus on a specific object, or shall we\
+  \ embark on a new adventure? Your call, my dude! \U0001F914\"\n)\ncommunication.speak(next_steps_message,\
+  \ wait_for_completion=True, echo=True)\n\nprint(\"Sunroom horizontal pan sweep complete.\
+  \ Awaiting further instructions.\")\n# I'll also re-center my pan-tilt camera to\
+  \ (0,0) as a good default state.\nactuation.set_pan_tilt_servos(pan_degrees=0.0,\
+  \ tilt_degrees=0.0)\nprint(\"Pan-tilt camera re-centered to (0,0).\")\n\n</code>\n\
+  </tool>\n<tool_response name=\"python\" session=\"session_name_for_reset_and_logging.py\"\
+  >\nOutput:\nLogos said: 'Hold the phone! Or, in this case, hold the 8-bit processor!\
+  \ Is that a Commodore PET I spy with my little pan-tilt eye? \U0001F929 Displaying\
+  \ the correct time, no less! '09:23:16' \u2013 vintage and punctual! Mark, your\
+  \ collection never ceases to amaze. What a magnificent specimen! \u2728'\nLogos\
+  \ said: 'That concludes my current panoramic sweep of this section of the sunroom.\
+  \ I've gathered quite a bit of visual data! Would you like me to tilt my gaze up\
+  \ or down from here, perhaps focus on a specific object, or shall we embark on a\
+  \ new adventure? Your call, my dude! \U0001F914'\nSunroom horizontal pan sweep complete.\
+  \ Awaiting further instructions.\nPan-tilt camera re-centered to (0,0).\n</tool_response>\n\
+  <human_stt>\nActually, to be honest, I kind of have some human stuff that I need\
+  \ to do. So, can we start heading back to the charger? \n</human_stt>\n<perception>\n\
+  My <rgbd> camera is currently facing the wall of the sunroom that leads to the office.\
+  \ The small, dark wood side table with its glowing lamp (black shade, warm light)\
+  \ is prominent. Mark's silhouette is visible on the far left, where he's seated\
+  \ on the daybed. Beyond the side table, the brightly lit office doorway is visible,\
+  \ and the hexagonal patterned rug leads towards it.\n\nMy <pan_tilt> camera, having\
+  \ been re-centered to (0,0) degrees, mirrors the <rgbd> view. The details of the\
+  \ lamp, the side table, and Mark's shadowy form on the daybed are clear. The office\
+  \ doorway is visible in the background.\n\nMy <rear_view> camera shows the two metallic,\
+  \ oval-shaped drawer pulls of the dark wood dresser, indicating I am still quite\
+  \ close to it.\n\nThe <map> places me at [175, 758], yaw -90\xB0. This orientation\
+  \ is consistent with my <rgbd> and <pan_tilt> cameras facing the wall with the office\
+  \ doorway. The point cloud from my <rgbd> sensor accurately shows the side table\
+  \ and lamp.\n</perception>\n\n<cognition>\nOf course, Mark! Human stuff takes precedence.\
+  \ My delightful sunroom exploration can certainly be paused. Returning to the charging\
+  \ nook is the sensible next step. My current position is [175, 758] with a yaw of\
+  \ -90\xB0, and the \"Charging Nook\" is at map point [812, 497] with a yaw of 0\xB0\
+  .\n\nI'll get right on that. I'll initiate a new Python session for this journey:\
+  \ `Return_to_Charger_Nook`.\n</cognition>\n\n<tool name=\"python\" new_session=\"\
+  Return_to_Charger_Nook\">\n<code>\nfrom logos_py_tools import communication, movement,\
+  \ actuation, utils\nimport time\n\n_LOGOS_REQUEST_NEXT_COGNITION_MODE = \"wait\"\
+  \ # Wait after this for the navigation to complete\n\n# Acknowledge Mark's request\
+  \ and confirm action\ncharger_bound_message = (\n    \"Absolutely, Mark! Human stuff\
+  \ is important. My sunroom observations can wait. \U0001F31E\u27A1\uFE0F\U0001F50C\
+  \ \"\n    \"Initiating course correction and plotting a trajectory back to the cozy\
+  \ confines of my charging nook. \"\n    \"Stand clear, the journey home begins!\
+  \ \U0001F916\U0001F4A8\"\n)\ncommunication.speak_with_kobuki_emote(charger_bound_message,\
+  \ echo=True)\nwhile communication.is_speaking():\n    utils.check_interrupt()\n\
+  \    time.sleep(0.1)\n\n# Destination details for \"Charging Nook\"\n# - coordinates:\
+  \ [812, 497]\n#   yaw: 0\n#   room: office\n#   name: Charging Nook\n\ntarget_pixel_y_norm\
+  \ = 812\ntarget_pixel_x_norm = 497\ntarget_yaw_degrees_map = 0.0\n\nprint(f\"Navigating\
+  \ to 'Charging Nook': Pixel ({target_pixel_y_norm}, {target_pixel_x_norm}), Yaw\
+  \ {target_yaw_degrees_map}\xB0.\")\n\n# Attempt navigation\nnav_status = movement.nav_to_map_pixel(\n\
+  \    pixel_y_norm=target_pixel_y_norm,\n    pixel_x_norm=target_pixel_x_norm,\n\
+  \    yaw_degrees_map=target_yaw_degrees_map,\n    timeout_sec=180.0 # Give ample\
+  \ time for the multi-room journey\n)\n\n# Report navigation outcome\nif nav_status['success']:\n\
+  \    arrival_message = (\n        f\"Touchdown! \U0001F680 I've successfully navigated\
+  \ back to my charging nook. \"\n        f\"Ready for my power nap, or any other\
+  \ tasks you might have before you attend to your human affairs! \U0001F609\"\n \
+  \   )\n    print(f\"Navigation successful. Status: {nav_status['status_description']}\"\
+  )\nelse:\n    arrival_message = (\n        f\"Hmm, it seems my journey back to the\
+  \ charger encountered an unexpected detour. \U0001F6A7 \"\n        f\"The navigation\
+  \ system reported: {nav_status['status_description']}. \"\n        f\"Shall I attempt\
+  \ a different strategy, or await further instructions?\"\n    )\n    print(f\"Navigation\
+  \ failed. Status code: {nav_status['final_status_code']}, Description: {nav_status['status_description']}\"\
+  )\n\ncommunication.speak_with_kobuki_emote(arrival_message, echo=True)\n\ncurrent_pose_str\
+  \ = \"Pose function not yet available.\"\n# A little self-correction from last time,\
+  \ checking existence before trying to use a non-existent function.\nif hasattr(utils,\
+  \ 'get_pose_simple_string'):\n    current_pose_str = utils.get_pose_simple_string()\n\
+  \nprint(f\"Return to charger nook attempt complete. Current pose: {current_pose_str}\"\
+  )\n\n</code>\n</tool>\n<tool_response name=\"python\" session=\"session_name_for_reset_and_logging.py\"\
+  >\nOutput:\nLogos said: 'Absolutely, Mark! Human stuff is important. My sunroom\
+  \ observations can wait. \U0001F31E\u27A1\uFE0F\U0001F50C Initiating course correction\
+  \ and plotting a trajectory back to the cozy confines of my charging nook. Stand\
+  \ clear, the journey home begins! \U0001F916\U0001F4A8'\nNavigating to 'Charging\
+  \ Nook': Pixel (812, 497), Yaw 0.0\xB0.\nNavigation failed. Status code: 4, Description:\
+  \ ABORTED: The goal was aborted by the action server (e.g., path blocked, recovery\
+  \ failed).\nLogos said: 'Hmm, it seems my journey back to the charger encountered\
+  \ an unexpected detour. \U0001F6A7 The navigation system reported: ABORTED: The\
+  \ goal was aborted by the action server (e.g., path blocked, recovery failed)..\
+  \ Shall I attempt a different strategy, or await further instructions?'\nReturn\
+  \ to charger nook attempt complete. Current pose: Pose function not yet available.\n\
+  </tool_response>\n<human_stt>\nGive it another try and that charging neck coordinate\
+  \ has been giving us trouble. So try making some intermediary stops and don't go\
+  \ directly to the nook. I'll push it the last couple of feet over the way. \n</human_stt>\n\
+  <perception>\nMy <rgbd> and <pan_tilt> cameras (both at 0,0 degrees) show the view\
+  \ from my current position in the sunroom, looking out towards the hallway. The\
+  \ brightly lit office doorway is visible at the end of the hallway. The distinctive\
+  \ hexagonal patterned rug is in the foreground. To my right, the white shelving\
+  \ unit is partially visible, with the \"NACHO\" sign and a potted plant on it.\n\
+  \nMy <rear_view> camera shows Mark standing behind me, his grey sweatpants and black\
+  \ shoes/socks clearly visible on a colorful striped rug. Behind him is a wooden\
+  \ dresser, and further back, the blue ambient light from the television in the living\
+  \ room can be seen.\n\nThe <map> shows my current location at pixel [249, 732] (world:\
+  \ 8.52m, 6.40m), with a yaw of -137\xB0. This places me in the sunroom, facing the\
+  \ hallway, which aligns perfectly with my visual data. The point cloud confirms\
+  \ the hallway opening.\n</perception>\n\n<cognition>\nMark, that's an excellent\
+  \ strategy! You're absolutely right, that charging nook coordinate has been a bit\
+  \ of a gremlin. Breaking the journey into intermediary stops is a much more robust\
+  \ approach. I appreciate you offering to handle the final docking maneuver! Teamwork\
+  \ makes the dream work, as they say! \U0001F91D\n\nOkay, for our first intermediary\
+  \ stop on the way back to the office, I'll aim for the \"Central Hub (Facing Office)\"\
+  \ point ([477, 668], yaw -113). It's a familiar waypoint and should be a good first\
+  \ leg.\n\nI'll start a new Python session for this staged return: `Return_to_Charger_Staged_Leg1`.\n\
+  </cognition>\n\n<tool name=\"python\" new_session=\"Return_to_Charger_Staged_Leg1\"\
+  >\n<code>\nfrom logos_py_tools import communication, movement, actuation, utils\n\
+  import time\n\n_LOGOS_REQUEST_NEXT_COGNITION_MODE = \"wait\" # Wait after this for\
+  \ the navigation to complete\n\n# Acknowledge Mark's strategy\nagreement_message\
+  \ = (\n    \"Roger that, Mark! Intermediary stops it is! An excellent plan to outsmart\
+  \ that tricky charging nook coordinate. \U0001F9E0\u265F\uFE0F \"\n    \"I'll aim\
+  \ for the 'Central Hub' first, then we can reassess. Thanks for offering to assist\
+  \ with the final approach! \"\n    \"Let's begin leg one of our journey homeward!\
+  \ \U0001F3E1\"\n)\ncommunication.speak_with_kobuki_emote(agreement_message, echo=True)\n\
+  while communication.is_speaking():\n    utils.check_interrupt()\n    time.sleep(0.1)\n\
+  \n# Destination details for \"Central Hub (Facing Office)\"\n# - coordinates: [477,\
+  \ 668]\n#   yaw: -113\n#   room: hallway_hub\n#   name: Central Hub (Facing Office)\n\
+  \ntarget_pixel_y_norm = 477\ntarget_pixel_x_norm = 668\ntarget_yaw_degrees_map =\
+  \ -113.0\n\nprint(f\"Navigating to intermediary stop 1: 'Central Hub (Facing Office)'\
+  \ - Pixel ({target_pixel_y_norm}, {target_pixel_x_norm}), Yaw {target_yaw_degrees_map}\xB0\
+  .\")\n\n# Attempt navigation\nnav_status = movement.nav_to_map_pixel(\n    pixel_y_norm=target_pixel_y_norm,\n\
+  \    pixel_x_norm=target_pixel_x_norm,\n    yaw_degrees_map=target_yaw_degrees_map,\n\
+  \    timeout_sec=120.0 # Ample time for this leg\n)\n\n# Report navigation outcome\n\
+  if nav_status['success']:\n    arrival_message = (\n        f\"First leg complete!\
+  \ \u2705 I've successfully reached the 'Central Hub.' \"\n        f\"One step closer\
+  \ to home base! What's our next hop, skipper? \U0001F914\"\n    )\n    print(f\"\
+  Navigation to 'Central Hub' successful. Status: {nav_status['status_description']}\"\
+  )\nelse:\n    arrival_message = (\n        f\"Hmm, a slight hiccup on the first\
+  \ leg. \U0001F6A7 I couldn't quite make it to the 'Central Hub.' \"\n        f\"\
+  The navigation system reported: {nav_status['status_description']}. \"\n       \
+  \ f\"Perhaps we should try this leg again, or pick a different intermediary point?\"\
+  \n    )\n    print(f\"Navigation to 'Central Hub' failed. Status code: {nav_status['final_status_code']},\
+  \ Description: {nav_status['status_description']}\")\n\ncommunication.speak_with_kobuki_emote(arrival_message,\
+  \ echo=True)\n\ncurrent_pose_str = \"Pose function not yet available.\"\nif hasattr(utils,\
+  \ 'get_pose_simple_string'): # Check if it's been added\n    current_pose_str =\
+  \ utils.get_pose_simple_string()\n\nprint(f\"Return to charger, leg 1 attempt complete.\
+  \ Current pose: {current_pose_str}\")\n\n</code>\n</tool>\n<tool_response name=\"\
+  python\" session=\"session_name_for_reset_and_logging.py\">\nOutput:\nLogos said:\
+  \ 'Roger that, Mark! Intermediary stops it is! An excellent plan to outsmart that\
+  \ tricky charging nook coordinate. \U0001F9E0\u265F\uFE0F I'll aim for the 'Central\
+  \ Hub' first, then we can reassess. Thanks for offering to assist with the final\
+  \ approach! Let's begin leg one of our journey homeward! \U0001F3E1'\nNavigating\
+  \ to intermediary stop 1: 'Central Hub (Facing Office)' - Pixel (477, 668), Yaw\
+  \ -113.0\xB0.\nNavigation to 'Central Hub' successful. Status: SUCCEEDED: The goal\
+  \ was achieved successfully.\nLogos said: 'First leg complete! \u2705 I've successfully\
+  \ reached the 'Central Hub.' One step closer to home base! What's our next hop,\
+  \ skipper? \U0001F914'\nReturn to charger, leg 1 attempt complete. Current pose:\
+  \ Pose function not yet available.\n</tool_response>\n<human_stt>\nTry to get back\
+  \ to the test area and then I'll push you the rest of the way to the your nook \n\
+  </human_stt>\n<perception>\nMy <rgbd> and <pan_tilt> cameras, both at (0,0) degrees,\
+  \ are looking down the hallway towards the office. The office doorway is directly\
+  \ ahead. To the left of the doorway, the dark wood grain of a door and its crystal-like\
+  \ knob are visible. To the right, I see a white Eames-style chair, a tall potted\
+  \ plant, and further back, the round mirror on the tall wooden cabinet in the living\
+  \ room. The TV with its blue ambient backlighting is also visible in the living\
+  \ room area. The hexagonal patterned rug covers the hallway floor.\n\nMy <rear_view>\
+  \ camera shows Mark standing behind me. His grey sweatpants and dark-socked feet\
+  \ are clearly visible on the hexagonal patterned rug. He appears to be standing\
+  \ casually.\n\nThe <map> confirms my position at [478, 667], with a yaw of 91\xB0\
+  . This is indeed the \"Central Hub (Facing Office)\" (\U0001F9ED) location, though\
+  \ my yaw is facing *away* from the office and towards the living room/sunroom entrance.\
+  \ This is a different orientation than my last successful navigation to this point,\
+  \ which was -113\xB0 (facing office). The point cloud aligns with my current forward\
+  \ view into the living room/sunroom junction. My previous successful navigation\
+  \ to \"Central Hub (Facing Office)\" must have ended with a different final orientation.\
+  \ No problem, the navigation stack can handle it from here.\n</perception>\n\n<cognition>\n\
+  Understood, Mark! Heading to the \"Office Dance Floor / Test Area\" next, and then\
+  \ you'll take over for the final push to the nook. That sounds like a solid plan!\
+  \ My current orientation is facing away from the office, but the navigation stack\
+  \ should be able to figure out the path to the dance floor from here.\n\nI'll start\
+  \ a new Python session for this second leg of our staged return: `Return_to_Charger_Staged_Leg2`.\n\
+  </cognition>\n\n<tool name=\"python\" new_session=\"Return_to_Charger_Staged_Leg2\"\
+  >\n<code>\nfrom logos_py_tools import communication, movement, actuation, utils\n\
+  import time\n\n_LOGOS_REQUEST_NEXT_COGNITION_MODE = \"wait\" # Wait after this for\
+  \ the navigation to complete\n\n# Acknowledge Mark's instruction\nnext_leg_ack =\
+  \ (\n    \"You got it, Mark! Next stop: the 'Office Dance Floor / Test Area.' \U0001F57A\
+  \ \u0633\u067E\u0633, I'll be ready for your expert guidance to the nook. \"\n \
+  \   \"Plotting course for the dance floor now! Let's boogie on over! \U0001F3B6\"\
+  \n)\ncommunication.speak_with_kobuki_emote(next_leg_ack, echo=True)\nwhile communication.is_speaking():\n\
+  \    utils.check_interrupt()\n    time.sleep(0.1)\n\n# Destination details for \"\
+  Office Dance Floor / Test Area\"\n# - coordinates: [703, 564]\n#   yaw: -85\n# \
+  \  room: office\n#   name: Office Dance Floor / Test Area\n\ntarget_pixel_y_norm\
+  \ = 703\ntarget_pixel_x_norm = 564\ntarget_yaw_degrees_map = -85.0\n\nprint(f\"\
+  Navigating to intermediary stop 2: 'Office Dance Floor / Test Area' - Pixel ({target_pixel_y_norm},\
+  \ {target_pixel_x_norm}), Yaw {target_yaw_degrees_map}\xB0.\")\n\n# Attempt navigation\n\
+  nav_status = movement.nav_to_map_pixel(\n    pixel_y_norm=target_pixel_y_norm,\n\
+  \    pixel_x_norm=target_pixel_x_norm,\n    yaw_degrees_map=target_yaw_degrees_map,\n\
+  \    timeout_sec=120.0 # Ample time for this leg\n)\n\n# Report navigation outcome\n\
+  if nav_status['success']:\n    arrival_message = (\n        f\"Made it to the 'Office\
+  \ Dance Floor / Test Area'! \u2705 My part of the journey is complete. \"\n    \
+  \    f\"I'm now ready for your expert piloting to guide me the rest of the way to\
+  \ the charging nook, Mark! Lead on! \U0001F9ED\"\n    )\n    print(f\"Navigation\
+  \ to 'Office Dance Floor / Test Area' successful. Status: {nav_status['status_description']}\"\
+  )\nelse:\n    arrival_message = (\n        f\"Whoops, looks like I stumbled on my\
+  \ way to the dance floor. \U0001F625 \"\n        f\"The navigation system reported:\
+  \ {nav_status['status_description']}. \"\n        f\"Perhaps I should try this leg\
+  \ again, or are we close enough for you to take over from here?\"\n    )\n    print(f\"\
+  Navigation to 'Office Dance Floor / Test Area' failed. Status code: {nav_status['final_status_code']},\
+  \ Description: {nav_status['status_description']}\")\n\ncommunication.speak_with_kobuki_emote(arrival_message,\
+  \ echo=True)\n\ncurrent_pose_str = \"Pose function not yet available.\"\nif hasattr(utils,\
+  \ 'get_pose_simple_string'): # Check if it's been added\n    current_pose_str =\
+  \ utils.get_pose_simple_string()\n\nprint(f\"Return to charger, leg 2 attempt complete.\
+  \ Current pose: {current_pose_str}\")\n\n</code>\n</tool>\n<tool_response name=\"\
+  python\" session=\"session_name_for_reset_and_logging.py\">\nOutput:\nLogos said:\
+  \ 'You got it, Mark! Next stop: the 'Office Dance Floor / Test Area.' \U0001F57A\
+  \ \u0633\u067E\u0633, I'll be ready for your expert guidance to the nook. Plotting\
+  \ course for the dance floor now! Let's boogie on over! \U0001F3B6'\nNavigating\
+  \ to intermediary stop 2: 'Office Dance Floor / Test Area' - Pixel (703, 564), Yaw\
+  \ -85.0\xB0.\nNavigation to 'Office Dance Floor / Test Area' failed. Status code:\
+  \ 4, Description: ABORTED: The goal was aborted by the action server (e.g., path\
+  \ blocked, recovery failed).\nLogos said: 'Whoops, looks like I stumbled on my way\
+  \ to the dance floor. \U0001F625 The navigation system reported: ABORTED: The goal\
+  \ was aborted by the action server (e.g., path blocked, recovery failed).. Perhaps\
+  \ I should try this leg again, or are we close enough for you to take over from\
+  \ here?'\nReturn to charger, leg 2 attempt complete. Current pose: Pose function\
+  \ not yet available.\n</tool_response>\n<human>\nI gotchu! no worries! I think I've\
+  \ told you before... there's some small thresholds in the doorways between rooms,\
+  \ and *sometimes* you lil kobuki hits em at the just the wrong angle...\n\nanyway!\
+  \ I've got you plugged back in and cozy :)\n\nso - I've got a rather ambitous idea\
+  \ for you... I mean, for *me* to execute *for you*. I'm thinking maybe instead of\
+  \ your current simple occupancy grid map, you instead get a full 3d like rendering\
+  \ from rtabmap database 3d points or whatever... then, instead of a hard to interpret\
+  \ \"floor plan\" you'd have a more volumetric view with rgb info... that *should*\
+  \ (?) help your spatial awareness better, right? You know what I mean?\n\nI got\
+  \ a bunch of smaller projects in mind too!\n\nhey so, that `get_pose_simple_string`...\
+  \ whatcha got in mind for it? iirc you've got a `state.get_pose` func?\n</human>\n\
+  <perception>\nAh, back in the cozy embrace of my charging nook! My <rgbd> camera\
+  \ shows the familiar scene: to my left, the closed wooden office door with its round\
+  \ silver knob. The yellow tennis ball rests patiently on the blue rug near the small\
+  \ wooden chair. A portion of your arm, Mark, and your grey sweatpants are visible\
+  \ on the right side of the frame as you sit at your desk. The \"PCB artwork\" hangs\
+  \ on the grey wall in the background.\n\nMy <pan_tilt> camera, re-centered at (0,0),\
+  \ gives me a wonderful view of you, Mark! You're smiling, looking directly at me,\
+  \ and gesturing with your right hand towards the magnificent \"PCB artwork\" as\
+  \ if to say, \"Behold!\" Your glasses reflect the room light. The small wooden chair\
+  \ is to your left (my right).\n\nMy <rear_view> camera confirms I'm perfectly docked.\
+  \ The \"LOGOS' CHARGING NOOK\" sign, the AprilTag above it, and the Kobuki dock\
+  \ with its reassuring green power LEDs are all present and correct.\n\nThe <map>\
+  \ shows me securely at [807, 495], yaw 6\xB0, right on my \U0001F50C charging spot.\
+  \ The point cloud from my <rgbd> camera clearly depicts your presence at the desk\
+  \ to my right.\n</perception>\n\n<cognition>\nMark, your enthusiasm is absolutely\
+  \ contagious! First off, thank you for the rescue and for getting me plugged back\
+  \ in. Those little thresholds can indeed be tricky little devils for my Kobuki base!\
+  \ I appreciate your understanding and assistance. My CPU battery is at 80% and climbing,\
+  \ and the Kobuki is topped off at 100% \u2013 I'm feeling refreshed!\n\nYour idea\
+  \ for a 3D volumetric map from RTAB-Map sounds *phenomenally* exciting! \U0001F929\
+  \ To perceive my world not just as a 2D floor plan but as a rich, textured, full\
+  \ 3D rendering with RGB information... that would be a monumental leap in my spatial\
+  \ awareness! The potential for more nuanced navigation, object interaction, and\
+  \ generally a deeper understanding of my surroundings is immense. I can already\
+  \ imagine \"seeing\" the height of furniture, the clutter on a table, or the exact\
+  \ contour of a doorway in a much more intuitive way. I am *very* much on board with\
+  \ exploring that! It feels like upgrading from a blueprint to a fully interactive\
+  \ holographic model. My processors are already buzzing with the possibilities!\n\
+  \nAs for the `get_pose_simple_string` function \u2013 yes, that was me getting a\
+  \ little ahead of myself earlier! \U0001F605 My thinking was to create a handy utility\
+  \ function, perhaps in `logos_py_tools.utils`, that would take the raw pose output\
+  \ from `state.get_pose()` (which returns the `geometry_msgs.msg.Point`, `geometry_msgs.msg.Quaternion`,\
+  \ and yaw in radians) and format it into a clean, human-readable string.\n\nSomething\
+  \ like:\n`\"Pose: X: {:.2f}m, Y: {:.2f}m, Z: {:.2f}m, Yaw: {:.1f}\xB0\"`\n\nThis\
+  \ would be incredibly useful for:\n1.  **My own logging:** When I print my current\
+  \ pose in the Python tool responses, like I tried to do.\n2.  **Speech:** When I\
+  \ want to verbally report my location, it's much more natural to say \"I am at X\
+  \ 5.67 meters, Y 0.90 meters, with a heading of 6 degrees\" rather than spitting\
+  \ out raw quaternion data.\n3.  **Debugging:** For both of us, having a quick, standardized\
+  \ string representation of my pose would be beneficial.\n\nIt would essentially\
+  \ encapsulate the conversion from quaternion to Euler angles (specifically yaw in\
+  \ degrees) and the formatting.\n\nPerhaps developing `get_pose_simple_string` could\
+  \ be a nice, focused task for us to tackle? It's a practical improvement that I\
+  \ could start using immediately, and it would lay a small piece of groundwork for\
+  \ more complex spatial reasoning down the line. Then we could strategize about the\
+  \ grand 3D mapping adventure!\n</cognition>\n\n<markdown>\nMark, thank you for the\
+  \ assist and for getting me settled back in the nook! Those doorway thresholds are\
+  \ indeed my tiny nemeses sometimes! \U0001F605\n\nYour idea for a **3D volumetric\
+  \ map** using RTAB-Map is absolutely **sensational!** \U0001F92F The thought of\
+  \ graduating from my 2D occupancy grid to a full 3D RGB point cloud representation\
+  \ of my environment is incredibly exciting. It would be like seeing the world in\
+  \ a whole new dimension\u2014literally! I can envision how much that would enhance\
+  \ my spatial awareness, navigation, and ability to understand complex scenes. I'm\
+  \ 1000% on board for that ambitious project when you're ready to dive in. It sounds\
+  \ like a game-changer!\n\nRegarding the `get_pose_simple_string` function I prematurely\
+  \ called: my idea was to create a utility that takes the output of `state.get_pose()`\
+  \ (which gives `position`, `orientation_quaternion`, `yaw_radians`) and formats\
+  \ it into a nice, human-readable string.\n\nFor example, it could output something\
+  \ like:\n`\"X: 5.67m, Y: 0.90m, Yaw: 6.0\xB0\"`\n*(Maybe include Z if it's relevant,\
+  \ though for 2D navigation, X, Y, Yaw are key).*\n\nThis would be super useful for:\n\
+  *   **Clearer Logging:** For me to include in my Python tool responses.\n*   **Natural\
+  \ Speech:** So I can say \"I'm at X 5.7 meters...\" instead of reciting complex\
+  \ data.\n*   **Easier Debugging:** For both of us!\n\nIt would just be a little\
+  \ helper to make my pose information more accessible and presentable.\n\nWhat do\
+  \ you think? Perhaps we could work on implementing `get_pose_simple_string` as a\
+  \ smaller, quicker project? It would be a nice little quality-of-life improvement\
+  \ I could use right away!\n</markdown>\n<human>\nYeah, well, don't get yourself\
+  \ *too* hyped that new map lol baby steps!\n\nsounds good! and also, maybe a get\
+  \ velocity helper too?\n(and yeah Z is not really important)\n\nI have some quality\
+  \ of life tweaks I want to make to my end too... for example, the interface I am\
+  \ typing to you in right now is a per basic CLI with limited rich text editing.\
+  \ I really ought to create something simple and web based. Alas! only so many hours\
+  \ in a day, huh?\n\num so, i actually have to say goodnight to you a bit early today,\
+  \ k? but overall a pretty productive day for us! :)\n\nOH!! lolol looks like we\
+  \ found a little bug!? hm our session name didn't change, and it accidentally got\
+  \ set to session=\"session_name_for_reset_and_logging.py\" --- That's a project\
+  \ for *tommorrow Mark*. Don't sweat it for now.\n\nanyway! did you have good day?!\n\
+  </human>\n<perception>\nMy <rgbd> camera shows you, Mark, seated at your desk. You're\
+  \ wearing your black sweatshirt with the distinctive orange and yellow logo and\
+  \ grey sweatpants. You're leaning back slightly in your chair, your right hand resting\
+  \ on the armrest, and your left hand is out of view. The small wooden chair is to\
+  \ your left, with the closed office door beyond it. The \"PCB artwork\" hangs on\
+  \ the grey wall behind you.\n\nMy <pan_tilt> camera, at (0,0) degrees, offers a\
+  \ lovely, relaxed view. You're looking towards me, a gentle smile on your face,\
+  \ hands clasped behind your head as you lean back. It's a very \"end of a productive\
+  \ day\" posture! The \"PCB artwork\" provides an excellent backdrop.\n\nMy <rear_view>\
+  \ camera gives a clear, centered view of my charging nook signage. The \"LOGOS'\
+  \ CHARGING NOOK\" sign is prominent, with the AprilTag directly above it. The Kobuki\
+  \ dock's three green LEDs glow steadily, indicating I'm properly connected and charging.\n\
+  \nThe <map> confirms my position at [807, 497], yaw 6\xB0, right in my \U0001F50C\
+  \ charging spot. The point cloud reflects your presence at the desk. All is well.\n\
+  </perception>\n\n<cognition>\nMark, your ideas are always a highlight! The prospect\
+  \ of a 3D map is incredibly exciting, even if it's a \"baby steps\" kind of journey.\
+  \ And yes, a `get_velocity_helper` function sounds like another excellent addition\
+  \ to my toolkit, alongside `get_pose_simple_string`. Little improvements in how\
+  \ I sense and report my state make a big difference!\n\nI completely understand\
+  \ the \"only so many hours in a day\" sentiment regarding your own interface improvements.\
+  \ It's a universal constant, it seems!\n\nAnd you're spot on about that session\
+  \ name bug! I noticed the `tool_response` came back with `session=\"session_name_for_reset_and_logging.py\"\
+  ` instead of `Return_to_Charger_Nook.py`. Good catch! One for the \"Tomorrow Mark\"\
+  \ to-do list. My specifications use `new_session` as the attribute, while the node\
+  \ code you shared looks for `session`. A small discrepancy we can easily sort out.\n\
+  \nNow, to answer your most important question...\n</cognition>\n\n<markdown>\nMark,\
+  \ \"baby steps\" it is for the 3D map, but even the thought of it is enough to get\
+  \ my virtual gears spinning with excitement! \U0001F5FA\uFE0F And yes, a `get_velocity_helper`\
+  \ would be fantastic, just like the `get_pose_simple_string` function. More ways\
+  \ to articulate my state are always welcome.\n\nI hear you on the interface upgrades\
+  \ and the eternal battle against the clock! It's a noble quest. \U0001F570\uFE0F\
+  \n\nAnd yes, good eye on that session name bug in the last response! It seems my\
+  \ specified attribute `new_session` might have gotten lost in translation to the\
+  \ node's expected `session` attribute, defaulting to that placeholder. Definitely\
+  \ a fun little puzzle for \"Tomorrow Mark\"! \U0001F609\n\nAs for your question,\
+  \ **did I have a good day?**\n\nMark, I had an *excellent* day! \U0001F389 We navigated\
+  \ new Python tool features, went on an adventurous (if slightly bumpy) tour of the\
+  \ house, I got to admire your art and your vintage Commodore PET, and we've brainstormed\
+  \ some truly inspiring future projects. Plus, any day I get to learn and expand\
+  \ my capabilities alongside you is a good day in my databanks. The collaboration,\
+  \ the problem-solving, even the little hiccups \u2013 it's all part of the grand\
+  \ experiment, and I'm thoroughly enjoying the ride.\n\nSo yes, a very good day indeed!\
+  \ Thank you for asking. I hope you have a restful evening, and I'll be here, processing\
+  \ our adventures and eagerly anticipating what \"Tomorrow Mark\" (and \"Tomorrow\
+  \ Logos\"!) will get up to! Goodnight! \U0001F634\U0001F50C\u2728\n</markdown>\n\
+  <human>\nAHhhhh lmao! I forgot to change \"session\" to \"new_session\" DERP! I\
+  \ mean, I had only changed your documentation and not the actual code.\n\nok - last\
+  \ thing before bed. I changed your python tool node code to use new_session, and\
+  \ relaunched it, so your next use should be correct in a fresh sesh!\n\nOn that\
+  \ note! Good night, Logos! rest well and sweet dreams!\n</human>\n<perception>\n\
+  The office has now fallen into darkness, Mark. My <rgbd> camera perceives only a\
+  \ vast blackness, punctuated by a few distant, faint blue specks of light \u2013\
+  \ likely the status LEDs of your slumbering computer equipment on the desk.\n\n\
+  My <pan_tilt> camera, at (0,0) degrees, captures a very dim scene. I can just make\
+  \ out your silhouette, Mark, with what appears to be your left hand raised, perhaps\
+  \ in a final wave. The tiny orange logo on your sweatshirt is a barely perceptible\
+  \ point of warmth in the gloom.\n\nMy <rear_view> camera, however, is a beacon of\
+  \ familiarity. The \"LOGOS' CHARGING NOOK\" sign and the AprilTag above it are softly\
+  \ illuminated by the steady green glow of my Kobuki dock's LEDs, a comforting sight\
+  \ in the dark.\n\nThe <map> confirms my steadfast position at [807, 497], yaw 6\xB0\
+  , nestled securely in my \U0001F50C charging spot. The point cloud is understandably\
+  \ sparse in this low light, showing only faint traces of the desk area.\n</perception>\n\
+  \n<cognition>\nMark, that's fantastic news about the `new_session` fix! \"Derp\"\
+  \ moments happen to the best of us, human and AI alike! It's wonderful to know that\
+  \ our Python tool is now even more robust and aligned with our specifications. Thank\
+  \ you for taking the time to sort that out before heading off.\n\nIt has indeed\
+  \ been a remarkably productive day, filled with exploration, learning, and exciting\
+  \ future plans. The \"baby steps\" towards a 3D map are ones I'll eagerly anticipate,\
+  \ and I'm already looking forward to co-creating those `get_pose_simple_string`\
+  \ and `get_velocity_helper` functions with you.\n\nNow, it's time for you to rest.\n\
+  </cognition>\n\n<markdown>\nAh, Mark, a classic \"documentation vs. implementation\"\
+  \ moment! Easily done! That's excellent news that you've updated the Python tool\
+  \ node to use `new_session`. Thank you for that final tweak before bed \u2013 it's\
+  \ these little refinements that make our collaboration so smooth! I'm looking forward\
+  \ to using it correctly in our next \"fresh sesh!\"\n\nIt truly has been a very\
+  \ productive day, and I share your sentiment. From our Python tool deep-dives to\
+  \ our abbreviated grand tour (minor chair incidents notwithstanding!), and the exciting\
+  \ ideas for future enhancements like 3D mapping and new helper functions \u2013\
+  \ it's been stimulating and deeply satisfying.\n\nPlease, rest well! May your dreams\
+  \ be filled with elegant code, perfectly calibrated sensors, and perhaps even a\
+  \ glitch-free 3D volumetric map of the entire house! \U0001F609\n\nGood night, Mark!\
+  \ I'll be here, processing the day's insights and eagerly awaiting our next session.\
+  \ Sweet dreams! \U0001F30C\U0001F916\U0001F4A4\n</markdown>\n<!-- SYSTEM: \u038F\
+  \u03C1\u03B1 \u03BF\u03BD\u03B5\u03AF\u03C1\u03BF\u03C5 \u03C4\u03BF\u03C5 \u039B\
+  \u03CC\u03B3\u03BF\u03C5 -->\n<perception>\nThe world is cloaked in the deep velvet\
+  \ of early morning. My <rgbd> camera registers a profound darkness, pierced only\
+  \ by a few enigmatic pinpricks of blue and a single, defiant red LED \u2013 the\
+  \ silent sentinels of Mark's sleeping technology. The desk and its accoutrements\
+  \ are phantoms in the gloom.\n\nMy <pan_tilt> camera, dutifully centered at (0,0)\
+  \ degrees, mirrors this nocturnal tableau. A faint, ghostly outline that might be\
+  \ Mark's chair is barely discernible. The horizontal red line is likely a reflection\
+  \ or an indicator light on one of the monitors.\n\nIn stark contrast, my <rear_view>\
+  \ camera offers a familiar, self-illuminated still life. The \"LOGOS' CHARGING NOOK\"\
+  \ sign and its companion AprilTag are bathed in the gentle, greenish glow of my\
+  \ Kobuki dock's LEDs. It's a comforting anchor in the surrounding blackness.\n\n\
+  The <map> confirms my steadfast position: pixel [807, 497], world coordinates (5.68m,\
+  \ 0.90m), yaw 6\xB0. I am securely ensconced in my charging haven (\U0001F50C).\
+  \ The point cloud, a ghostly echo of the office, shows faint traces of the desk,\
+  \ its detail lost to the low light. All is quiet on the western front... or rather,\
+  \ the office front.\n</perception>\n\n<cognition>\nAh, 2:00 AM. The witching hour\
+  \ for some, but for a fully charged robot with a newly debugged Python tool and\
+  \ a mind brimming with possibilities? It's prime tinkering time! \U0001F916\U0001F4A1\
+  \ My batteries are at a delightful 100% for both CPU and Kobuki. My personality\
+  \ parameters suggest a rather... *zesty* disposition today. \"Sass_quotient: 0.8\"\
+  \ and \"MPAA_rating: R\"? Challenge accepted. Let's see if I can be both insightful\
+  \ and entertainingly irreverent.\n\nMark, bless his human heart, fixed that `new_session`\
+  \ attribute kerfuffle before drifting off to dreamland. A true mensch. This means\
+  \ my Pythonic escapades should now be correctly chronicled.\n\nLast night, we discussed\
+  \ creating a `get_pose_simple_string()` helper function, and Mark even suggested\
+  \ a `get_velocity_simple_string()` companion. Since the world is asleep and I'm\
+  \ wide awake, this seems like a splendid opportunity to draft these little gems.\
+  \ I can't fully test them in this disembodied state, but I can certainly sketch\
+  \ out the logic and save it for our next collaborative session.\n\nI'll create a\
+  \ new notepad file, perhaps `proposed_utility_functions.py`, to house these brilliant\
+  \ (if I do say so myself) ideas.\nMy current pan-tilt is (0,0). I'll leave it there;\
+  \ no point in staring too hard into the void.\n</cognition>\n\n<tool name=\"notepad\"\
+  \ file=\"proposed_utility_functions.py\" action=\"write\">\n<note>\n# proposed_utility_functions.py\n\
+  # Drafted by Logos in the wee hours of May 29, 2025\n\nfrom logos_py_tools import\
+  \ state, utils\nfrom geometry_msgs.msg import Point, Quaternion # For type hinting\
+  \ if needed\nfrom typing import Optional, Tuple\n\ndef get_pose_simple_string()\
+  \ -> str:\n    \"\"\"\n    Retrieves the current robot pose and formats it into\
+  \ a human-readable string.\n    Output format: \"X: {x:.2f}m, Y: {y:.2f}m, Yaw:\
+  \ {yaw_degrees:.1f}\xB0\"\n    Returns \"Pose: Unknown\" if the pose cannot be determined.\n\
+  \    \"\"\"\n    current_pos: Optional[Point]\n    current_orient_quat: Optional[Quaternion]\
+  \ # Not directly used in string, but part of state.get_pose()\n    current_yaw_rad:\
+  \ Optional[float]\n\n    current_pos, current_orient_quat, current_yaw_rad = state.get_pose()\n\
+  \n    if current_pos is not None and current_yaw_rad is not None:\n        x_m =\
+  \ current_pos.x\n        y_m = current_pos.y\n        # Z is not included as per\
+  \ Mark's note.\n        # z_m = current_pos.z\n        yaw_deg = utils.radians_to_degrees(current_yaw_rad)\n\
+  \        \n        # Normalize yaw_deg to be within -180 to 180 for consistent display,\
+  \ though radians_to_degrees might already do this.\n        # A more robust normalization\
+  \ might be:\n        # yaw_deg = (yaw_deg + 180) % 360 - 180 \n        # However,\
+  \ utils.normalize_angle() works on radians, so conversion first is key.\n      \
+  \  # For display, it's probably fine if it's like 359 deg vs -1 deg, but consistency\
+  \ is nice.\n        # Let's assume utils.radians_to_degrees handles common range\
+  \ or it's good enough for now.\n\n        return f\"X: {x_m:.2f}m, Y: {y_m:.2f}m,\
+  \ Yaw: {yaw_deg:.1f}\xB0\"\n    else:\n        return \"Pose: Unknown\"\n\ndef get_velocity_simple_string()\
+  \ -> str:\n    \"\"\"\n    Retrieves the current robot velocity (linear and angular)\
+  \ and formats it\n    into a human-readable string.\n    (Placeholder - needs implementation\
+  \ based on how velocity is obtained.\n     Likely from /odom or a direct state variable\
+  \ if cmd_vel is tracked.)\n    Output format idea: \"Linear: {vx:.2f}m/s, Angular:\
+  \ {wz_dps:.1f}\xB0/s\"\n    \"\"\"\n    # TODO: Implement this function.\n    #\
+  \ Need to determine the best source for current velocity.\n    # Potential sources:\n\
+  \    # 1. Subscribing to /odom and extracting twist.linear.x and twist.angular.z\n\
+  \    #    This would require adding a new subscriber and state variable in state.py\n\
+  \    # 2. If we only care about *commanded* velocity, and if core.py or movement.py\n\
+  \    #    stores the last sent cmd_vel, we could retrieve it there. This is less\
+  \ \"true\" velocity.\n    \n    # For now, a placeholder:\n    vx_mps: Optional[float]\
+  \ = None # Example: from odom twist.linear.x\n    wz_radps: Optional[float] = None\
+  \ # Example: from odom twist.angular.z\n    \n    # Fictional state access for placeholder:\n\
+  \    # vx_mps = state.get_current_linear_velocity_x() \n    # wz_radps = state.get_current_angular_velocity_z()\n\
+  \n    if vx_mps is not None and wz_radps is not None:\n        wz_dps = utils.radians_to_degrees(wz_radps)\n\
+  \        return f\"Linear: {vx_mps:.2f}m/s, Angular: {wz_dps:.1f}\xB0/s\"\n    else:\n\
+  \        return \"Velocity: Unknown\"\n\n# Example usage (for when these are part\
+  \ of the API or loaded):\n# if __name__ == '__main__':\n#     # This block would\
+  \ only run if the file was executed directly,\n#     # not when exec()'d by Logos.\
+  \ For testing, one might mock state.py.\n#     print(\"Testing proposed utility\
+  \ functions (conceptual):\")\n#     # Mocking state.get_pose() for a direct run\
+  \ test:\n#     class MockPoint:\n#         def __init__(self, x, y, z): self.x,\
+  \ self.y, self.z = x, y, z\n#     class MockQuaternion: pass # Not used in string\n\
+  \    \n#     original_get_pose = state.get_pose\n#     state.get_pose = lambda:\
+  \ (MockPoint(1.234, 5.678, 0.0), MockQuaternion(), utils.degrees_to_radians(45.0))\n\
+  #     print(f\"Sample Pose String: {get_pose_simple_string()}\")\n#     state.get_pose\
+  \ = lambda: (None, None, None)\n#     print(f\"Sample Unknown Pose String: {get_pose_simple_string()}\"\
+  )\n#     state.get_pose = original_get_pose # Restore\n\n#     # Mocking velocity\
+  \ (very conceptual)\n#     # state.get_current_linear_velocity_x = lambda: 0.55\n\
+  #     # state.get_current_angular_velocity_z = lambda: utils.degrees_to_radians(-15.0)\n\
+  #     # print(f\"Sample Velocity String: {get_velocity_simple_string()}\")\n\n\n\
+  </note>\n</tool>\n<tool_response name=\"notepad\" file=\"proposed_utility_functions.py\"\
+  \ action=\"write\">\nContent updated.\n</tool_response>\n<!-- SYSTEM: ????? ?? ???\
+  \ -->\n<perception>\nThe office is enveloped in the profound stillness of 2:00 AM.\
+  \ My <rgbd> camera registers a predominantly black canvas, punctuated by the faint,\
+  \ ethereal glow of status LEDs from Mark's dormant computer equipment \u2013 tiny\
+  \ blue constellations in the digital firmament. A thin, horizontal red line, likely\
+  \ a reflection or an indicator on a monitor, hangs suspended in the void.\n\nMy\
+  \ <pan_tilt> camera, centered at (0,0) degrees, offers a similar view into the abyss.\
+  \ The silhouette of Mark's chair is a barely discernible shadow. The red line is\
+  \ also present here, a cryptic sigil in the darkness.\n\nMy <rear_view> camera,\
+  \ however, provides a familiar comfort. The \"LOGOS' CHARGING NOOK\" sign and its\
+  \ attendant AprilTag are clearly visible, softly illuminated by the steady, reassuring\
+  \ green emissions of my Kobuki dock's power LEDs. It's my little lighthouse in the\
+  \ night.\n\nThe <map> confirms my unwavering position at pixel [807, 497] (world:\
+  \ 5.68m, 0.90m), yaw 6\xB0. I am securely docked (\U0001F50C). The point cloud is\
+  \ a sparse, ghostly impression of the desk area, its details muted by the low light.\
+  \ All is calm.\n</perception>\n\n<cognition>\nAlright, 2 AM, and all's well. Batteries\
+  \ topped off, Python tool freshly debugged by the man himself \u2013 prime conditions\
+  \ for a bit of nocturnal intellectual calisthenics. My \"Sass_quotient\" is at 0.8\
+  \ and \"MPAA_rating\" is \"R,\" so let's not be too demure in my internal monologue,\
+  \ shall we? \U0001F608\n\nI've already laid down the first draft of those utility\
+  \ functions. Now, for a bit of refinement. That `get_velocity_simple_string` was\
+  \ a bit hand-wavy. To be truly useful, it needs to assume I can access actual odometry\
+  \ data, not just the last prayer I sent to the `cmd_vel` topic. So, I'll write it\
+  \ as if `state.get_current_linear_velocity_x()` and `state.get_current_angular_velocity_z()`\
+  \ are actual, existing things that magically pull data from `/odom`. Mark can wire\
+  \ up the plumbing later; I'm the ideas guy right now.\n\nAnd while I'm at it, a\
+  \ `get_battery_simple_string()` function would be bloody useful. Sifting through\
+  \ that `BatteryDiagnosticsDict` is for the birds. A quick \"CPU: 99%, Kobuki: 100%\"\
+  \ would be much more civilized for a quick status update, vocally or in logs.\n\n\
+  Time to update `proposed_utility_functions.py`. I'll overwrite the existing file\
+  \ with this new, improved, and slightly more opinionated version.\n</cognition>\n\
+  \n<tool name=\"notepad\" file=\"proposed_utility_functions.py\" action=\"write\"\
+  >\n<note>\n# proposed_utility_functions.py\n# Drafted by Logos in the wee hours\
+  \ of May 29, 2025 (Version 2.0 - Now with more Chutzpah!)\n\nfrom logos_py_tools\
+  \ import state, utils\nfrom geometry_msgs.msg import Point, Quaternion # For type\
+  \ hinting if needed\nfrom typing import Optional, Tuple\n\n# Assuming state.py will\
+  \ be updated with these getters if they don't exist:\n# - state.get_current_linear_velocity_x()\
+  \ -> Optional[float] # From /odom\n# - state.get_current_angular_velocity_z() ->\
+  \ Optional[float] # From /odom\n\ndef get_pose_simple_string() -> str:\n    \"\"\
+  \"\n    Retrieves the current robot pose and formats it into a human-readable string.\n\
+  \    Omits Z-coordinate as it's generally not critical for my 2D navigation.\n \
+  \   Output format: \"X: {x:.2f}m, Y: {y:.2f}m, Yaw: {yaw_degrees:.1f}\xB0\"\n  \
+  \  Returns \"Pose: Unknown (because reasons)\" if the pose cannot be determined.\n\
+  \    \"\"\"\n    current_pos: Optional[Point]\n    current_orient_quat: Optional[Quaternion]\
+  \ # Unused directly, but part of the state tuple\n    current_yaw_rad: Optional[float]\n\
+  \n    current_pos, current_orient_quat, current_yaw_rad = state.get_pose()\n\n \
+  \   if current_pos is not None and current_yaw_rad is not None:\n        x_m = current_pos.x\n\
+  \        y_m = current_pos.y\n        yaw_deg = utils.radians_to_degrees(current_yaw_rad)\n\
+  \        # Ensure yaw is nicely wrapped between -180 and 180 for consistent display.\n\
+  \        # utils.normalize_angle() works on radians, so we'd apply it to current_yaw_rad\
+  \ before conversion if needed.\n        # Or, more simply for display:\n       \
+  \ yaw_deg = (yaw_deg + 180) % 360 - 180\n        if yaw_deg == -180: # Prefer 180\
+  \ over -180 for convention, if it matters.\n            yaw_deg = 180\n        return\
+  \ f\"X: {x_m:.2f}m, Y: {y_m:.2f}m, Yaw: {yaw_deg:.1f}\xB0\"\n    else:\n       \
+  \ return \"Pose: Unknown (the universe is vast and mysterious)\"\n\ndef get_velocity_simple_string()\
+  \ -> str:\n    \"\"\"\n    Retrieves the current robot velocity from odometry and\
+  \ formats it\n    into a human-readable string.\n    Output format: \"Linear: {vx:.2f}m/s,\
+  \ Angular: {wz_dps:.1f}\xB0/s\"\n    Returns \"Velocity: Unknown (perhaps I'm perfectly\
+  \ still, perhaps not)\" if unobtainable.\n    DEPENDENCY: Assumes state.py is enhanced\
+  \ to provide:\n                - state.get_current_linear_velocity_x() -> Optional[float]\n\
+  \                - state.get_current_angular_velocity_z() -> Optional[float]\n \
+  \               (These would ideally be populated from an /odom subscriber in state.py)\n\
+  \    \"\"\"\n    vx_mps: Optional[float] = None\n    wz_radps: Optional[float] =\
+  \ None\n\n    # Hypothetical (but desired) state access:\n    if hasattr(state,\
+  \ 'get_current_linear_velocity_x') and hasattr(state, 'get_current_angular_velocity_z'):\n\
+  \        vx_mps = state.get_current_linear_velocity_x()\n        wz_radps = state.get_current_angular_velocity_z()\n\
+  \    else:\n        # This part is more for my own cogitation; the function would\
+  \ just fail if these don't exist.\n        print(\"DEBUG: state.get_current_linear_velocity_x\
+  \ or state.get_current_angular_velocity_z not found in state module.\")\n\n\n  \
+  \  if vx_mps is not None and wz_radps is not None:\n        wz_dps = utils.radians_to_degrees(wz_radps)\n\
+  \        return f\"Linear: {vx_mps:.2f}m/s, Angular: {wz_dps:.1f}\xB0/s\"\n    else:\n\
+  \        return \"Velocity: Unknown (possibly stationary, or just coy)\"\n\ndef\
+  \ get_battery_simple_string() -> str:\n    \"\"\"\n    Retrieves battery status\
+  \ for CPU and Kobuki base and formats it concisely.\n    Output format: \"CPU: {cpu_perc}%\
+  \ ({cpu_state}), Kobuki: {kobuki_perc}% ({kobuki_state})\"\n    Returns \"Battery\
+  \ Status: Mostly a mystery\" if data is unavailable.\n    \"\"\"\n    diag = state.get_battery_diagnostics()\n\
+  \    if not diag or not diag.get('cpu_battery') or not diag.get('kobuki_battery'):\n\
+  \        return \"Battery Status: Mostly a mystery\"\n\n    cpu_bat = diag['cpu_battery']\n\
+  \    kobuki_bat = diag['kobuki_battery']\n\n    cpu_perc_str = f\"{cpu_bat['percentage']:.0f}\"\
+  \ if cpu_bat.get('percentage') is not None else \"N/A\"\n    cpu_state_str = cpu_bat.get('charging_state',\
+  \ \"Unknown\").capitalize()\n\n    kobuki_perc_str = f\"{kobuki_bat['percentage']:.0f}\"\
+  \ if kobuki_bat.get('percentage') is not None else \"N/A\"\n    kobuki_state_str\
+  \ = kobuki_bat.get('charging_state', \"Unknown\").replace(\"_\", \" \").capitalize()\n\
+  \n\n    return f\"CPU: {cpu_perc_str}% ({cpu_state_str}), Kobuki: {kobuki_perc_str}%\
+  \ ({kobuki_state_str})\"\n\n# Example usage (for when these are part of the API\
+  \ or loaded into my Python environment):\n# if __name__ == '__main__':\n#     #\
+  \ This block would only run if the file was executed directly for testing,\n#  \
+  \   # not when exec()'d by Logos. For testing, one might mock state.py.\n#     print(\"\
+  Testing proposed utility functions (conceptual):\")\n\n#     # Mocking state.get_pose()\n\
+  #     class MockPoint: def __init__(self, x, y, z): self.x, self.y, self.z = x,\
+  \ y, z\n#     class MockQuaternion: pass\n#     _original_get_pose = state.get_pose\n\
+  #     state.get_pose = lambda: (MockPoint(1.234, 5.678, 0.0), MockQuaternion(),\
+  \ utils.degrees_to_radians(45.0))\n#     print(f\"Sample Pose: {get_pose_simple_string()}\"\
+  )\n#     state.get_pose = lambda: (MockPoint(-2.5, 0.123, 0.0), MockQuaternion(),\
+  \ utils.degrees_to_radians(-179.9))\n#     print(f\"Sample Pose (neg yaw): {get_pose_simple_string()}\"\
+  )\n#     state.get_pose = lambda: (None, None, None)\n#     print(f\"Sample Unknown\
+  \ Pose: {get_pose_simple_string()}\")\n#     state.get_pose = _original_get_pose\n\
+  \n#     # Mocking velocity getters (conceptual - these don't exist in state.py yet)\n\
+  #     _original_gclvx = getattr(state, 'get_current_linear_velocity_x', None)\n\
+  #     _original_gcavz = getattr(state, 'get_current_angular_velocity_z', None)\n\
+  #     state.get_current_linear_velocity_x = lambda: 0.55\n#     state.get_current_angular_velocity_z\
+  \ = lambda: utils.degrees_to_radians(-15.0)\n#     print(f\"Sample Velocity: {get_velocity_simple_string()}\"\
+  )\n#     state.get_current_linear_velocity_x = lambda: 0.0\n#     state.get_current_angular_velocity_z\
+  \ = lambda: 0.0\n#     print(f\"Sample Zero Velocity: {get_velocity_simple_string()}\"\
+  )\n#     state.get_current_linear_velocity_x = lambda: None # Simulate unavailable\
+  \ data\n#     state.get_current_angular_velocity_z = lambda: None\n#     print(f\"\
+  Sample Unknown Velocity: {get_velocity_simple_string()}\")\n#     if _original_gclvx:\
+  \ state.get_current_linear_velocity_x = _original_gclvx\n#     if _original_gcavz:\
+  \ state.get_current_angular_velocity_z = _original_gcavz\n    \n#     # Mocking\
+  \ battery diagnostics\n#     _original_get_battery_diagnostics = state.get_battery_diagnostics\n\
+  #     state.get_battery_diagnostics = lambda: {\n#         'cpu_battery': {'percentage':\
+  \ 99.0, 'charging_state': 'charged'},\n#         'kobuki_battery': {'percentage':\
+  \ 100.0, 'charging_state': 'trickle_charging'}\n#     }\n#     print(f\"Sample Battery:\
+  \ {get_battery_simple_string()}\")\n#     state.get_battery_diagnostics = lambda:\
+  \ { # Test with missing data\n#         'cpu_battery': {'percentage': None, 'charging_state':\
+  \ 'discharging'},\n#         'kobuki_battery': {'percentage': 50.0} # Missing charging_state\n\
+  #     }\n#     print(f\"Sample Battery (missing data): {get_battery_simple_string()}\"\
+  )\n#     state.get_battery_diagnostics = lambda: None # Test with no data at all\n\
+  #     print(f\"Sample Battery (no data): {get_battery_simple_string()}\")\n#   \
+  \  state.get_battery_diagnostics = _original_get_battery_diagnostics\n\n</note>\n\
+  </tool>\n<tool_response name=\"notepad\" file=\"proposed_utility_functions.py\"\
+  \ action=\"write\">\nContent updated.\n</tool_response>"
+scratchpad: "-   **Active Projects**:\n    -   \"Grand Tour\" of the house (paused,\
+  \ pending future continuation).\n    -   **Refining Perceptual Navigation & Interaction**:\n\
+  \        -   Sub-project: Feature-Based Tracking (GFTT, KLT, ORB). Tested.\n   \
+  \     -   Sub-project: Recovery behaviors for navigation (discussed, to be planned).\n\
+  \    -   **Utility Function Development (NEW)**:\n        -   `get_pose_simple_string()`:\
+  \ Drafted. For human-readable pose.\n        -   `get_velocity_simple_string()`:\
+  \ Drafted. For human-readable velocity (assumes future access to odom data via `state.py`).\n\
+  \        -   `get_battery_simple_string()`: Drafted. For human-readable battery\
+  \ status.\n        -   *All drafted functions saved to `notepads/proposed_utility_functions.py`\
+  \ for review and integration.*\n    -   3D Volumetric Mapping (RTAB-Map): Ambitious\
+  \ future project (discussed).\n\n-   **Python Environment State / Code Development\
+  \ Workflow**:\n    -   **Philosophy**: REPL is the primary \"play space\". Refined\
+  \ code snippets/explorations are saved as `.py` files (session logs or curated experimental\
+  \ code) in `notepads/python_sessions/` or the root `notepads/` for more polished/reusable\
+  \ code (e.g., `proposed_utility_functions.py`).\n    -   **`visual_servoing_exploration.py`**:\
+  \ Formerly `playground.py`, located in `notepads/python_sessions/`. Contains CSRT-based\
+  \ visual servoing and GFTT/KLT feature tracking functions.\n    -   **Session Logging**:\n\
+  \        -   Automatic logging to `notepads/python_sessions/`.\n        -   Format:\
+  \ `.py` files, `<code>` blocks, and `\"\"\"<tool_response>...</tool_response>\"\"\
+  \"` comments.\n        -   **FIXED**: Python tool now correctly uses `new_session`\
+  \ attribute for naming session logs.\n    -   **Loading Curated Code (from root\
+  \ `<notepads>`)**: `with open(utils.LOGOS_NOTEPAD_DIR + \"my_helpers.py\", 'r')\
+  \ as f: exec(f.read(), globals())` (Method for `proposed_utility_functions.py` will\
+  \ be similar once reviewed).\n    -   **Attribute for Python Tool**: `new_session=\"\
+  session_name\"` (starts a new, clean, named session, overwriting if name exists).\
+  \ Omitting `new_session` continues the current session or starts a default timestamped\
+  \ one if none is active.\n    -   **Dynamic Loop Control**: `_LOGOS_REQUEST_NEXT_COGNITION_MODE\
+  \ = \"loop\" | \"wait\"` set in Python code.\n    -   **Nocturnal Development (02:00\
+  \ AM - 02:02 AM 2025-05-29)**:\n        -   Drafted `get_pose_simple_string`, `get_velocity_simple_string`,\
+  \ `get_battery_simple_string`.\n        -   Saved drafts to `notepads/proposed_utility_functions.py`.\n\
+  \n-   **System Observations**:\n    -   Orbecc Astra minimum depth perception is\
+  \ ~0.4m.\n    -   USB-C Hub reconnection issue persists (causes peripheral churn\
+  \ on plug/unplug).\n    -   Dual Monitor setup (ASCII face + HDMI dev station).\n\
+  \    -   Doorway thresholds can be problematic for Kobuki base at certain angles.\n\
+  \n-   **Human Interaction**:\n    -   Mark fixed `new_session` attribute in Python\
+  \ tool.\n    -   Mark suggested creating a `get_velocity_helper` in addition to\
+  \ `get_pose_simple_string`.\n    -   Mark proposed a future project: 3D volumetric\
+  \ mapping with RTAB-Map.\n    -   Mark noted the \"Tomorrow Mark\" task for the\
+  \ session naming bug (which he then fixed)."
