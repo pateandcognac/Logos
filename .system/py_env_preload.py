@@ -73,6 +73,10 @@ logos.pantilt.home()
 logos.bumper.set_default()
 logos.bumper.register(logos.bumper.look_and_identify)
 
+# Give the cron scheduler a reference to this interpreter's globals so cron jobs
+# can set loop_cognition and have the framework poll timer pick it up.
+logos.cron._bind(globals())
+
 # Initialized and waiting for input!
 # My circuits are shivering with antici
 loop_cognition = False

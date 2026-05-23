@@ -411,7 +411,10 @@ def logos.files.insert_after(path: str, anchor: str, content: str, expected_coun
 #   logos.config.save() # (Optional) persists to my_config.yaml
 # Always READ from `logos.config.merged`.
 
-# --- HOOKS ---
+# --- HOOKS (loop-based context injection) ---
+# Hooks run as special <py> blocks immediately BEFORE each cognition cycle.
+# They inject context, initialize objects, or trigger small reflexes — but only
+# when a cognition cycle is already firing. They are not time-aware.
 def logos.hooks.upsert(location: str, name: str, code: str, description: str=None, enabled: bool=True) -> None:
     # location = 'arche' or 'ephemera'. The code runs in my shared Python namespace!
     # Importantly, `enabled` controls whether my cognition node runs the hook and shows output.
@@ -421,6 +424,54 @@ def logos.hooks.upsert(location: str, name: str, code: str, description: str=Non
     ...
 def logos.hooks.show(location: str) -> str: ...
 def logos.hooks.remove(location: str, name: str) -> None: ...
+
+# --- CRON JOBS (time-based triggers) — `logos.cron` ---
+# Cron jobs fire from a background daemon thread at a scheduled clock time,
+# with no human or cognition cycle required. This is the key distinction:
+#
+#   Hooks  = loop-based  — run before every cognition cycle, always.
+#   Cron   = time-based  — fire once at a scheduled minute, even during epoché.
+#
+# Job code runs in a copy of the full interpreter namespace (logos, skills, stdlib).
+# Output goes to stdout → delivered as a py_async result by the framework.
+# Setting loop_cognition = True inside job code wakes me immediately.
+# Setting loop_cognition = False leaves output queued until I wake for any other reason.
+# Minimum recurring interval: 30 min (enforced). One-shot / rare schedules unrestricted.
+
+def logos.cron.show() -> str                    # list all jobs (name, schedule, status, desc)
+def logos.cron.upsert(name,                     # unique job key
+    schedule,                               # 5-field cron: "min hr dom mon dow"
+    description, enabled, code)             # code has full logos + skills env
+def logos.cron.remove(name)
+def logos.cron.enable(name) / logos.cron.disable(name)
+def logos.cron.run_now(name)                    # fire immediately, ignores schedule/enabled — for testing
+
+# EXAMPLE: Weekday morning briefing at 7:30 AM.
+# Fetches weather from wttr.in, checks if anyone is home via yolo11, then decides
+# whether I should wake up (loop_cognition = True) or stay in epoché with the report queued.
+# Total runtime: ~2s.
+logos.cron.upsert(
+    'morning_briefing',
+    schedule='30 7 * * 1-5',   # Mon–Fri at 07:30
+    description='Fetch weather; wake up only if someone is home.',
+    enabled=True,
+    code="""
+import urllib.request
+try:
+    with urllib.request.urlopen('https://wttr.in/?format=4', timeout=3) as resp:
+        weather = resp.read().decode('utf-8').strip()
+except Exception as e:
+    weather = "(weather unavailable: {})".format(e)
+print("🌤️ Morning briefing — {}".format(weather))
+
+img = logos.vision.capture('pan_tilt')
+dets = logos.models.yolo11(img, classes=['person'], conf=0.4)
+if dets:
+    loop_cognition = True   # someone's home — wake up and deliver the report
+else:
+    loop_cognition = False  # empty house — stay in epoché; report waits for whenever I wake
+"""
+)
 
 # --- UTILS ---
 def logos.utils.get_box_center(box_2d: List[float]) -> Tuple[float, float]: ... # -> (y, x)
