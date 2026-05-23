@@ -16,3 +16,11 @@ _llm_helper.py
 .codex
 CLAUDE.md
 AGENTS.md
+README.md
+CONTRIBUTING.md
+SECURITY.md
+LICENSE
+CITATION.cff
+docs/
+state/
+ipc/

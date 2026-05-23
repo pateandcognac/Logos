@@ -35,6 +35,11 @@ CMakeLists.txt.user
 srv/_*.py
 *.pcd
 *.pyc
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
 qtcreator-*
 *.user
 
@@ -52,6 +57,15 @@ CATKIN_IGNORE
 
 # Backup directories
 Logos.bak_just_before_Claude_run/
+
+# Local editor / assistant state
+.codex
+.claude/
+.agents/
+.vscode/
+.env
+.env.*
+!.env.example
 
 # ML model weights (large binary files)
 *.pt
@@ -97,24 +111,25 @@ Logos.bak_just_before_Claude_run/
 */mobileclip_blt.ts
 mobileclip_blt.ts
 
-# pics
-*.jpg
-*.png
+# Runtime state, local memories, and generated captures
+/state/
+/ipc/
+/hypomnemata/legacy_Logos_diaries/
+/hypomnemata/images/
 
-/ipc/astra/*.yaml
-/ipc/pan_tilt/*.yaml
-/ipc/composite/*.yaml
-/ipc/top_down/*.yaml
-
-/ipc/astra/*.png
-/ipc/pan_tilt/*.png
-/ipc/composite/*.png
-/ipc/top_down/*.png
-
-/ipc/astra/*.jpg
-/ipc/pan_tilt/*.jpg
-/ipc/composite/*.jpg
-/ipc/top_down/*.jpg
-
-
-/images
+# Generated media and local exports
+/images/
+/captures/
+/recordings/
+/bags/
+*.bag
+*.db3
+*.mcap
+*.pcap
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.wav
+*.mp3
+*.flac
