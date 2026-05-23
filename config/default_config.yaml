@@ -63,7 +63,7 @@ tree:
   show_hidden: false
   show_extensions: [.py, .yaml, .md, .txt, .png, .jpg, .jsonl]
   inline_meta_masks: '.meta'
-  summarize_dirs: ['ipc']
+  summarize_dirs: ['ipc', 'hypomnemata/legacy_Logos_diaries']
 
 vision_hook:
   astra:

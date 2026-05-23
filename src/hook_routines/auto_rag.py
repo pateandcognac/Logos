@@ -6,6 +6,7 @@ from typing import List, Dict, Set, Tuple
 import logos
 from logos.core import verbosity, Verbosity
 from logos.memory import rag
+from logos.memory.rag import _relative_time
 
 def _extract_query(cell_type: str, content: str) -> str:
     """Extract semantic intent from a palimpsest cell based on its type."""
@@ -117,19 +118,21 @@ def run():
             print(f"  {r['document'].strip().replace(chr(10), chr(10)+'  ')}")
             
     if ex_res:
-        print("\n[ Curated Example ]")
+        print("\n[ Example Output ]")
         for r in ex_res:
             # Print the example code, but indented to keep it visually contained
             print(f"  {r['document'].strip().replace(chr(10), chr(10)+'  ')}")
             
     if sum_res:
-        print("\n[ Recalled Experiences ]")
+        print("\n[ Local Workspace Summaries ]")
         for r in sum_res:
-            time_ago = r['metadata'].get('relative_time', '')
-            prefix = f"({time_ago}) " if time_ago else ""
+            ts = r['metadata'].get('timestamp')
+            prefix = f"({_relative_time(float(ts))}) " if ts is not None else ""
             print(f"- {prefix}{r['document'].strip()}")
-            
+
     if fact_res:
-        print("\n[ Known Facts ]")
+        print("\n[ Logoi Collective Memory ]")
         for r in fact_res:
-            print(f"- {r['document'].strip()}")
+            ts = r['metadata'].get('timestamp')
+            prefix = f"({_relative_time(float(ts))}) " if ts is not None else ""
+            print(f"- {prefix}{r['document'].strip()}")
