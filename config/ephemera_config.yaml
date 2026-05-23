@@ -20,6 +20,7 @@
       print("Usage: Control via `logos.config.prefs.ambient_audio.last_minutes.speech/classifier`.")
       import hook_routines.ambient_audio
       hook_routines.ambient_audio.run()
+
   - name: vision_hook
     description: My primary camera feeds. 
     enabled: true

@@ -8,7 +8,7 @@ map3d:
   phantasmata_dir: src/logos/phantasmata
   chora_config: hypomnemata/chora/mind_palace_00.yaml
   map_frame: [map, odom, rgb_optical_frame]
-  enabled: true 
+  enabled: true
   render_params:
     resolution: [1000, 1000]
     camera_pos_relative: [-1.5, -0.65, 2.5]
@@ -18,19 +18,12 @@ map3d:
     cloud_alpha: 1.0
     cloud_density: 1.0
     laser_scan_show: true
-memory_policy:
-  enabled: true
-  max_cells: 32
-  max_tokens: 32767
-  untouchable_tail: 8
-  age_weight: 0.75
-  size_weight: 0.25
-  min_cells_to_summarize: 16
-  max_contiguous_summaries: 5
+memory_policy: {enabled: true, max_cells: 64, max_tokens: 32767, untouchable_tail: 16, age_weight: 0.8, size_weight: 0.2, min_cells_to_summarize: 32, max_contiguous_summaries: 5}
 tree:
   max_depth: 5
   show_hidden: false
   show_extensions: [.py, .yaml, .md, .txt, .png, .jpg, .jsonl]
+  summarize_dirs: ['ipc', 'hypomnemata/legacy_Logos_diaries']
   inline_meta_masks: .meta
 vision_hook:
   astra:
@@ -49,15 +42,7 @@ vision_hook:
     meta_keys: []
 auto_rag_hook:
   lookback_cells: 2
-  n_results:  
-    api_refs: 3
-    examples: 1
-    summaries: 0
-    facts: 5
+  n_results: {api_refs: 2, examples: 1, summaries: 1, facts: 2}
 ambient_audio:
-  last_minutes:
-    speech: 3
-    classifier: 3
-sound:
-  default_volume: 0.35
-  sample_rate: 44100
+  last_minutes: {speech: 3, classifier: 3}
+sound: {default_volume: 0.35, sample_rate: 44100}

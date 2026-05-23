@@ -1,1 +1,9 @@
-[]
+  - name: nightly_indexing
+    schedule: 30 2 * * *
+    description: Nightly re-indexing of technical references, few-shots, and 
+      summarized palimpsest history.
+    enabled: true
+    code: "\nimport logos\n# 1. Index APIs and skills\nref_results = logos.memory.indexing.refresh_all_reference_indexes(verbose=False)\n\
+      # 2. Index summaries from state/summaries.jsonl\nsum_results = logos.memory.indexing.refresh_summaries_index(verbose=False)\n\
+      print(\"🌙 Nightly Indexing Complete! Ref: {}, Sum: {}\".format(ref_results,
+      sum_results))\n"

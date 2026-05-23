@@ -1,5 +1,5 @@
   - name: hook_config
-    description: An overview of my currently configured cognitive hooks.
+    description: An overview of my current cognitive hooks.
     enabled: true
     code: |
       print("\n--- Hook Config ---")
@@ -7,15 +7,6 @@
       print(logos.hooks.show('arche'))
       print("\n---\nEphemera:")
       print(logos.hooks.show('ephemera'))
-
-  - name: my_workspace
-    description: Shows the CWD and output of `logos.files.tree(**logos.config.merged.tree)`.
-    enabled: true
-    code: |-
-      from pathlib import Path
-      print("--- My Workspace ---")
-      print(f"CWD: {Path.cwd()}")
-      print(logos.files.tree(**logos.config.merged.tree))
 
   - name: quick_start_ref
     description: A curated quick start guide to my API.
@@ -37,11 +28,19 @@
     code: |
       print(logos.cron.show())
 
+  - name: my_workspace
+    description: A concise tree of my CWD.
+    enabled: true
+    code: |
+      print("\n--- My Workspace ---")
+      print(f"CWD: {Path.cwd()}")
+      print(logos.files.tree(**logos.config.merged.tree))
+
   - name: proximity_snapshot
     description: 360-degree-ish visual sweep of the floor around me, captured 
-      from top_down and pan_tilt, and stitched into a quad image. Updates are gated by pose and time to reduce latency and preserve KV cache prefix.
+      from top_down and pan_tilt, and stitched into a quad image. Updates are gated by pose and time to reduce 
+      latency and maintain KV cache.
     enabled: true
     code: |
       import hook_routines.proximity_snapshot as ps
       ps.run()
-
