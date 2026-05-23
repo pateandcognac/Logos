@@ -58,3 +58,6 @@ ambient_audio:
   last_minutes:
     speech: 3
     classifier: 3
+sound:
+  default_volume: 0.35
+  sample_rate: 44100

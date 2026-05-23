@@ -31,6 +31,12 @@
       print("--- Skills Reference ---")
       skills.skills_help()
 
+  - name: cron_jobs
+    description: Shows my currently configured cron jobs.
+    enabled: true
+    code: |
+      print(logos.cron.show())
+
   - name: proximity_snapshot
     description: 360-degree-ish visual sweep of the floor around me, captured 
       from top_down and pan_tilt, and stitched into a quad image. Updates are gated by pose and time to reduce latency and preserve KV cache prefix.
