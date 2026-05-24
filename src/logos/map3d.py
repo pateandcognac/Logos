@@ -297,6 +297,12 @@ class RenderResult:
     pose: Optional[Dict[str, float]] = None
     meta: Optional[Dict[str, Any]] = None
 
+    def add_meta(self, **kwargs) -> None:
+        """Attach debug or semantic metadata to this render result."""
+        if self.meta is None:
+            self.meta = {}
+        self.meta.update(kwargs)
+
     def save(self, view: bool = False, path: Optional[str] = None) -> str:
         if self.path is None:
             import cv2
@@ -3441,6 +3447,7 @@ class Map3d:
         include_astra: bool = True,
         include_robot: bool = True,
         include_objects: bool = True,
+        debug_publish: bool = True,
     ) -> RaycastHit:
         """
         Projects a 2D pixel from a `map3d` render back into the 3D world.
@@ -3520,7 +3527,7 @@ class Map3d:
             hits.sort(key=lambda x: x[0])
             dist, hit_name, pt, meta = hits[0]
             floor_state = meta.get("floor_state")
-            return RaycastHit(
+            hit_result = RaycastHit(
                 hit=hit_name,
                 point=(float(pt[0]), float(pt[1]), float(pt[2])),
                 distance_m=float(dist),
@@ -3530,10 +3537,13 @@ class Map3d:
                     "pixel_norm1000": (float(y_norm), float(x_norm)),
                 },
             )
+            if debug_publish and isinstance(render, RenderResult):
+                self._publish_raycast_debug(render, hit_result)
+            return hit_result
 
         dist = float(snapshot.ray_infinity_distance_m)
         pt = ray_origin + ray_dir * dist
-        return RaycastHit(
+        hit_result = RaycastHit(
             hit="infinity",
             point=(float(pt[0]), float(pt[1]), float(pt[2])),
             distance_m=dist,
@@ -3543,6 +3553,33 @@ class Map3d:
                 "pixel_norm1000": (float(y_norm), float(x_norm)),
             },
         )
+        if debug_publish and isinstance(render, RenderResult):
+            self._publish_raycast_debug(render, hit_result)
+        return hit_result
+
+    def _publish_raycast_debug(self, render: RenderResult, hit: RaycastHit) -> None:
+        """Publish a bold debug marker for the pixel I just raycast into Chora."""
+        try:
+            from logos import vision as logos_vision
+            y_norm, x_norm = hit.meta.get("pixel_norm1000", (None, None))
+            if y_norm is None or x_norm is None:
+                return
+            label = (
+                f"raycast {hit.hit}: "
+                f"map({hit.point[0]:.2f}, {hit.point[1]:.2f})"
+            )
+            logos_vision.publish_debug(
+                render,
+                {
+                    "label": label,
+                    "point": [float(y_norm), float(x_norm)],
+                    "source": "map3d",
+                    "debug_radius": 18,
+                },
+                source="map3d_goal",
+            )
+        except Exception:
+            pass
 
 
 # --------------------------- Module Singleton ---------------------------

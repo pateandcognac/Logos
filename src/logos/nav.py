@@ -338,7 +338,9 @@ def approach_astra_detection(
     import logos
 
     # 1. Unpack detection dictionaries if provided
+    target_label = "approach target"
     if isinstance(target, dict):
+        target_label = str(target.get("label") or target.get("class") or target_label)
         # Look for the best available spatial data
         target_data = target.get("box_3d") or target.get("box_2d") or target.get("center_2d") or target.get("point")
         if not target_data:
@@ -350,9 +352,24 @@ def approach_astra_detection(
     if len(target) == 9:
         cx, cy, cz, sx, sy, sz, *_ = target
         source_frame = astra_result.depth_points_msg.header.frame_id
+        try:
+            logos.vision.publish_debug(
+                astra_result,
+                {
+                    "label": f"approach: {target_label}",
+                    "box_3d": target,
+                    "source": "astra",
+                },
+                source="astra_goal",
+            )
+        except Exception:
+            pass
         
         # Use the EXACT timestamp of the image capture!
-        map_coords = logos.ros.transform_point_to_map(cx, cy, cz, source_frame, astra_result.timestamp)
+        map_coords = logos.ros.transform_point_to_map(
+            cx, cy, cz, source_frame, astra_result.timestamp,
+            transform=getattr(astra_result, "tf_to_map", None)
+        )
         if not map_coords:
             print(f"nav: Could not transform 3D box from {source_frame} to map.")
             return NavTask(None, 0, 0, 0, 0)
@@ -362,7 +379,10 @@ def approach_astra_detection(
 
     # 3. Handle 2D Box [y1, x1, y2, x2] or Point [y, x]
     elif len(target) in (2, 4):
-        map_coords = astra_result.derive_world_coordinate(target)
+        map_coords = astra_result.derive_world_coordinate(
+            target,
+            debug_label=f"approach: {target_label}",
+        )
         if not map_coords:
             print("nav: Could not derive world coordinate from 2D point/box (no valid depth).")
             return NavTask(None, 0, 0, 0, 0)

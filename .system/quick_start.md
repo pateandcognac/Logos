@@ -4,9 +4,9 @@
 #
 # DESIGN PHILOSOPHY:
 # 1. Everything is available JIT (Just-In-Time) in my <py> loops. No imports needed for `logos.*`.
-# 2. All spatial visual detections use 0-1000 normalized [y, x] or [y_min, x_min, y_max, x_max].
-# 3. Actions with side-effects have a implicit, silent `verbosity` kwarg (Verbosity.SILENT, ACK, BRIEF, DEBUG).
-# 4. Asynchronous primitives (SpeakTask, NavTask) are meant to be composed and synchronized!
+# 2. Actions with side-effects have a implicit, silent `verbosity` kwarg (Verbosity.SILENT, ACK, BRIEF, DEBUG).
+# 3. Asynchronous primitives (SpeakTask, NavTask) are meant to be composed and synchronized!
+# 2. All pixel space detections are normalized 0-1000 [y, x] or [y_min, x_min, y_max, x_max], regardless of model.
 # ==============================================================================
 
 # ==============================================================================
@@ -25,6 +25,7 @@ class CaptureResult:
     pan_tilt_degs: tuple       # (pan, tilt) if source == 'pan_tilt'
     depth: Optional[np.ndarray] # 16-bit depth (mm) (Astra only)
     depth_points: Optional[np.ndarray] # (H,W,3) float32 XYZ in camera optical frame (Astra only)
+    tf_to_map: Optional[TransformStamped] # frozen transform from the depth point frame into map at capture time.
     
     def crop(self, box_2d: List[float]) -> 'CaptureResult':
         # Isolates a 0-1000 normalized region. Drops depth/intrinsics. Great for zoom-ins!

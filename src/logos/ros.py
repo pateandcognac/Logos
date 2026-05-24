@@ -52,12 +52,79 @@ def get_tf_buffer():
     return _tf_buffer
 
 
+def lookup_transform_to_map(
+    source_frame: str,
+    timestamp: float,
+    timeout: float = 0.5,
+) -> Optional[Any]:
+    """
+    Look up a transform from a source frame into the absolute 'map' frame.
+
+    Args:
+        source_frame: The TF frame to transform from.
+        timestamp: The ROS timestamp to resolve.
+        timeout: Seconds to wait for TF to become available.
+
+    Returns:
+        A TransformStamped, or None if TF cannot resolve it.
+
+    Note to self:
+        CaptureResult freezes this at sensor time so I can still project pixels
+        after a long cognition pass, even if the live TF cache has moved on.
+    """
+    buf = get_tf_buffer()
+    ros_time = rospy.Time.from_sec(timestamp)
+
+    try:
+        return buf.lookup_transform(
+            "map",
+            source_frame,
+            ros_time,
+            rospy.Duration(timeout),
+        )
+    except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException) as e:
+        print(f"ROS TF Error: Could not transform {source_frame} to map at {timestamp}: {e}")
+        return None
+
+
+def apply_transform_to_point(
+    x: float,
+    y: float,
+    z: float,
+    source_frame: str,
+    timestamp: float,
+    transform: Any,
+) -> Tuple[float, float, float]:
+    """
+    Apply a pre-resolved TF transform to a stamped 3D point.
+
+    Args:
+        x, y, z: Coordinates in the source frame (meters).
+        source_frame: The TF frame of the input point.
+        timestamp: Timestamp to stamp onto the point.
+        transform: A TransformStamped, usually frozen at capture time.
+
+    Returns:
+        (x, y, z) in the transform's target frame.
+    """
+    point_in = PointStamped()
+    point_in.header.stamp = rospy.Time.from_sec(timestamp)
+    point_in.header.frame_id = source_frame
+    point_in.point.x = x
+    point_in.point.y = y
+    point_in.point.z = z
+
+    point_out = tf2_geometry_msgs.do_transform_point(point_in, transform)
+    return (point_out.point.x, point_out.point.y, point_out.point.z)
+
+
 def transform_point_to_map(
     x: float, 
     y: float, 
     z: float, 
     source_frame: str, 
-    timestamp: float
+    timestamp: float,
+    transform: Optional[Any] = None,
 ) -> Optional[Tuple[float, float, float]]:
     """
     Transforms a 3D coordinate from a specific source frame into the absolute 'map' frame. (e.g. a detection from an Astra image)
@@ -72,6 +139,7 @@ def transform_point_to_map(
         x, y, z: Coordinates in the source frame (meters).
         source_frame: The TF frame of the input coordinates (e.g., 'astra_depth_optical_frame').
         timestamp: The ROS timestamp (usually derived from a CaptureResult.timestamp).
+        transform: Optional pre-resolved source_frame->map TransformStamped.
 
     Returns:
         (x, y, z) in the absolute map frame, or None if the TF tree cannot resolve the transform.
@@ -81,29 +149,12 @@ def transform_point_to_map(
         I need to anchor a transient visual detection to a permanent physical location 
         in my Chora or navigation goals.
     """
-    buf = get_tf_buffer()
-    
-    # Convert float timestamp to rospy.Time
-    ros_time = rospy.Time.from_sec(timestamp)
-    
-    # Build the PointStamped message
-    point_in = PointStamped()
-    point_in.header.stamp = ros_time
-    point_in.header.frame_id = source_frame
-    point_in.point.x = x
-    point_in.point.y = y
-    point_in.point.z = z
-
     try:
-        # We allow a slight delay for TF tree to catch up
-        transform = buf.lookup_transform(
-            "map", 
-            source_frame, 
-            ros_time, 
-            rospy.Duration(0.5) 
-        )
-        point_out = tf2_geometry_msgs.do_transform_point(point_in, transform)
-        return (point_out.point.x, point_out.point.y, point_out.point.z)
+        if transform is None:
+            transform = lookup_transform_to_map(source_frame, timestamp)
+        if transform is None:
+            return None
+        return apply_transform_to_point(x, y, z, source_frame, timestamp, transform)
     except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException) as e:
         print(f"ROS TF Error: Could not transform {source_frame} to map at {timestamp}: {e}")
         return None

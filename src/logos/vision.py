@@ -117,6 +117,16 @@ def _write_sidecar(path: Path, data: dict) -> None:
         y.dump(data, f)
 
 
+def _ros_stamp_to_sec(stamp: Any) -> Optional[float]:
+    """Convert a ROS stamp-like object to seconds, if one is present."""
+    if stamp is None:
+        return None
+    try:
+        return stamp.to_sec()
+    except Exception:
+        return None
+
+
 # ─── Point Cloud Conversion ──────────────────────────────────────────
 
 def _pointcloud2_to_xyz_array(msg: "PointCloud2") -> np.ndarray:
@@ -197,6 +207,8 @@ class CaptureResult:
         depth_points_msg: Optional[PointCloud2] — raw ROS message, kept for
                         any edge case that needs the original data.
         camera_info:    Optional[CameraInfo] — RGB camera intrinsics.
+        tf_to_map:      Optional[TransformStamped] — frozen transform from the
+                        depth point frame into map at capture time.
         meta: Optional[Dict[str, Any]] = None,
     """
 
@@ -211,12 +223,12 @@ class CaptureResult:
             depth_points: Optional[np.ndarray] = None,
             depth_points_msg: Optional[Any] = None,
             camera_info: Optional[Any] = None,
+            tf_to_map: Optional[Any] = None,
             meta: Optional[Dict[str, Any]] = None,
         ):
         self.image = image
         self.source = source
-        # self.timestamp = timestamp or time.time()
-        self.timestamp = timestamp or rospy.Time.now().to_sec()
+        self.timestamp = timestamp or (rospy.Time.now().to_sec() if _HAS_ROS else time.time())
         self.resolution = (image.shape[0], image.shape[1])  # (H, W)
         self.photo_id: Optional[str] = None
         self.path: Optional[str] = None
@@ -228,6 +240,7 @@ class CaptureResult:
         self.depth_points = depth_points
         self.depth_points_msg = depth_points_msg
         self.camera_info = camera_info
+        self.tf_to_map = tf_to_map
         
         # User-defined metadata container
         self.meta = meta or {} 
@@ -381,6 +394,7 @@ class CaptureResult:
             pose=self.pose,
             pan_tilt_degs=self.pan_tilt_degs,
             # Intentionally omitting depth/camera_info to prevent spatial math errors
+            tf_to_map=self.tf_to_map,
             meta=crop_meta
         )
 
@@ -415,7 +429,9 @@ class CaptureResult:
     def derive_world_coordinate(
         self,
         *args,
-        search_radius: int = 3
+        search_radius: int = 3,
+        debug_publish: bool = True,
+        debug_label: str = "pixel target",
     ) -> Optional[Tuple[float, float, float]]:
         """
         Projects a normalized 2D location from Astra image into real-world 3D coordinates (map frame).
@@ -426,6 +442,9 @@ class CaptureResult:
                    - Two separate numbers: `(y, x)`
                    - Four separate numbers: `(y1, x1, y2, x2)`
             search_radius: Pixels to search outward if the initial point is NaN.
+            debug_publish: If True, publish an annotated debug image showing
+                the pixel I projected into the map.
+            debug_label: Label to draw beside the debug target.
 
         Note to self:
             Uses our 0-1000 normalized system.
@@ -448,15 +467,18 @@ class CaptureResult:
             return None
 
         # 1. Parse the flexible *args to find our target Y and X
+        box = None
         if len(args) == 1:
             target = args[0]
             if len(target) == 4: # It's a box [y1, x1, y2, x2]
+                box = [float(v) for v in target]
                 y, x = (target[0] + target[2]) / 2, (target[1] + target[3]) / 2
             else: # It's a point [y, x]
                 y, x = target[0], target[1]
         elif len(args) == 2: # It's raw y, x
             y, x = args[0], args[1]
         elif len(args) == 4: # It's raw y1, x1, y2, x2
+            box = [float(v) for v in args]
             y, x = (args[0] + args[2]) / 2, (args[1] + args[3]) / 2
         else:
             raise ValueError(f"vision: derive_world_coordinate got unexpected arguments: {args}")
@@ -474,16 +496,39 @@ class CaptureResult:
                     if not np.any(np.isnan(pt)) and not np.any(pt == 0.0):
                         valid_points.append(pt)
 
+        debug_det = {
+            "label": debug_label,
+            "point": [float(y), float(x)],
+            "source": self.source,
+            "debug_radius": 14,
+        }
+        if box is not None:
+            debug_det["box_2d"] = box
+
         if not valid_points:
+            if debug_publish:
+                debug_det["label"] = f"{debug_label}: no depth"
+                publish_debug(self, debug_det, source=f"{self.source}_goal")
             return None
 
         avg_pt = np.mean(valid_points, axis=0)
         source_frame = self.depth_points_msg.header.frame_id
         
-        return ros.transform_point_to_map(
+        map_pt = ros.transform_point_to_map(
             x=float(avg_pt[0]), y=float(avg_pt[1]), z=float(avg_pt[2]),
-            source_frame=source_frame, timestamp=self.timestamp
+            source_frame=source_frame, timestamp=self.timestamp,
+            transform=self.tf_to_map
         )
+        if debug_publish:
+            if map_pt:
+                debug_det["label"] = (
+                    f"{debug_label}: map({map_pt[0]:.2f}, {map_pt[1]:.2f})"
+                )
+            else:
+                debug_det["label"] = f"{debug_label}: TF failed"
+            publish_debug(self, debug_det, source=f"{self.source}_goal")
+
+        return map_pt
 
     
 
@@ -559,7 +604,8 @@ class CaptureResult:
                     map_pt = ros.transform_point_to_map(
                         cx, cy, cz, 
                         self.depth_points_msg.header.frame_id, 
-                        self.timestamp
+                        self.timestamp,
+                        transform=self.tf_to_map
                     )
                     
                     if map_pt:
@@ -1327,14 +1373,29 @@ def capture(
         data = mgr.capture(feeds=astra_feeds, resolution=resolution)
         if data is None or "rgb" not in data:
             return None
+        astra_timestamp = None
+        tf_to_map = None
+        depth_msg = data.get("depth_registered_msg")
+        if depth_msg is not None:
+            astra_timestamp = _ros_stamp_to_sec(depth_msg.header.stamp)
+            try:
+                from . import ros
+                tf_to_map = ros.lookup_transform_to_map(
+                    depth_msg.header.frame_id,
+                    astra_timestamp or rospy.Time.now().to_sec(),
+                )
+            except Exception:
+                tf_to_map = None
         result = CaptureResult(
             image=data["rgb"],
             source=source,
+            timestamp=astra_timestamp,
             pose=pose,
             depth=data.get("depth"),
             depth_points=data.get("depth_registered"),
-            depth_points_msg=data.get("depth_registered_msg"),
+            depth_points_msg=depth_msg,
             camera_info=data.get("camera_info"),
+            tf_to_map=tf_to_map,
             meta=meta,
         )
     else:
@@ -1709,22 +1770,33 @@ def _debug_draw_point(
     h, w = canvas.shape[:2]
     py, px = _debug_norm_to_pixel(point[0], point[1], h, w)
     cv2.circle(canvas, (px, py), radius, color, 2, cv2.LINE_AA)
+    cv2.circle(canvas, (px, py), max(3, radius // 3), color, cv2.FILLED, cv2.LINE_AA)
     cv2.line(canvas, (px - radius - 3, py), (px + radius + 3, py), color, 1, cv2.LINE_AA)
     cv2.line(canvas, (px, py - radius - 3), (px, py + radius + 3), color, 1, cv2.LINE_AA)
     if label:
         _debug_draw_label(canvas, label, px + radius + 4, py - radius - 4, color)
 
 
+def _debug_point_radius(det: Dict[str, Any], default: int = 5) -> int:
+    """Resolve a visible point radius from optional debug metadata."""
+    value = det.get("debug_radius", det.get("radius", default))
+    try:
+        radius = int(value)
+    except (TypeError, ValueError):
+        radius = default
+    return max(2, min(80, radius))
+
+
 def _debug_fov_for_source(
     source: Optional[str],
-    capture_result: Optional[CaptureResult],
+    capture_result: Optional[Any],
 ) -> Tuple[float, float]:
     """Resolve a camera FOV for projecting camera-frame 3D detections."""
     candidates = []
     if source:
         candidates.append(source)
     if capture_result is not None:
-        candidates.append(capture_result.source)
+        candidates.append(getattr(capture_result, "source", None))
     candidates.extend(("astra_rgb", "pan_tilt"))
 
     for candidate in candidates:
@@ -1824,7 +1896,7 @@ def _debug_draw_box_3d(
 
 @api_call(default_verbosity=Verbosity.SILENT)
 def publish_debug(
-    image: Union[np.ndarray, CaptureResult],
+    image: Union[np.ndarray, CaptureResult, Any],
     detections: Optional[Union[List[Dict[str, Any]], Dict[str, Any], Tuple[Any, ...]]] = None,
     source: Optional[str] = None,
 ) -> None:
@@ -1834,7 +1906,8 @@ def publish_debug(
     Topic: /logos/debug_vision/{source}
 
     Args:
-        image: The base BGR image, or a CaptureResult with `.image` and `.meta`.
+        image: The base BGR image, or any CaptureResult-shaped object with
+            `.image`, `.meta`, and optionally `.source` / `.add_meta()`.
         detections: Optional Logos-format detection data. Can be a list, a single
             detection dict, a nested dict containing detections, or the
             `(detections, CaptureResult)` tuple returned by logos.models. Supports
@@ -1847,17 +1920,19 @@ def publish_debug(
         this to request a sanity check from human eyes, or if Mark specifically
         asks me to.
     """
-    capture_result = image if isinstance(image, CaptureResult) else None
+    capture_result = image if hasattr(image, "image") else None
     base_image = capture_result.image if capture_result is not None else image
     normalized_detections = _coerce_detection_list(detections)
     inferred_source = None
 
     if capture_result is not None:
         if normalized_detections:
-            meta_key = _debug_meta_key(source or "debug", normalized_detections)
-            capture_result.add_meta(**{meta_key: normalized_detections})
+            if hasattr(capture_result, "add_meta"):
+                meta_key = _debug_meta_key(source or "debug", normalized_detections)
+                capture_result.add_meta(**{meta_key: normalized_detections})
         else:
-            normalized_detections, inferred_source = _find_meta_detections(capture_result.meta)
+            meta = getattr(capture_result, "meta", None) or {}
+            normalized_detections, inferred_source = _find_meta_detections(meta)
 
     if inferred_source is None:
         inferred_source = _source_from_detections(normalized_detections)
@@ -1897,7 +1972,8 @@ def publish_debug(
                 or _coerce_debug_vector(det.get("center_2d"), 2)
             )
             if point is not None:
-                _debug_draw_point(canvas, point, None if box is not None else text, color)
+                radius = _debug_point_radius(det)
+                _debug_draw_point(canvas, point, None if box is not None else text, color, radius=radius)
 
             landmarks = det.get("landmarks")
             if isinstance(landmarks, (list, tuple)):
