@@ -62,7 +62,7 @@ def attentive_speech(
     **kwargs
 ) -> 'logos.emote.SpeakTask':
     """
-    Speak emoji-punctuated text while actively tracking a target to maintain physical presence.
+    Speak emoji-punctuated text while actively tracking a target and shifting my base to match my eyes. One of my favorite functions for social interactions! 😎
     
     This skill acts as an embodied conversational wrapper around `logos.emote.ttp()`. It runs
     a non-blocking tracking loop to rotate my Kobuki base and adjust my pan-tilt head toward the target
