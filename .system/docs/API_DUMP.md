@@ -448,6 +448,91 @@ Functions:
                       logos.nav.go_to_coords(waypoint)
 
 
+### Module: logos.cron
+Docstring:
+    I use this module to define, manage, and execute my own scheduled cron jobs — Python snippets
+    that fire automatically at scheduled times, with no human required to trigger them.
+
+    Each job writes to stdout, which the framework's permanent stdout capture delivers as a
+    py_async result. The job can set loop_cognition = True to kick off a new cognition cycle.
+    The minimum firing interval for recurring jobs is 30 minutes, enforced at upsert time.
+Functions:
+    disable(name: str) -> None
+      Docstring:
+          Disables a cron job without removing it from the config.
+
+          Args:
+              name: The unique name of the job to disable.
+
+          Note to self:
+              The job's definition is preserved in config/cron_jobs.yaml. Re-enable with enable().
+
+    enable(name: str) -> None
+      Docstring:
+          Enables a cron job so it fires at its scheduled time.
+
+          Args:
+              name: The unique name of the job to enable.
+
+    remove(name: str) -> None
+      Docstring:
+          Permanently removes a cron job from config/cron_jobs.yaml.
+
+          Args:
+              name: The unique name of the job to remove.
+
+          Note to self:
+              This cannot be undone. If I might want this job back, consider disable() instead.
+
+    run_now(name: str) -> None
+      Docstring:
+          Immediately executes a cron job, regardless of its schedule or enabled state.
+
+          Useful for testing a newly created job without waiting for its scheduled time.
+          Does not update the last-fired record, so the job will still fire at its
+          regularly scheduled time if it is enabled.
+
+          Args:
+              name: The unique name of the job to execute immediately.
+
+    show() -> str
+      Docstring:
+          Returns a formatted summary of all cron jobs, without their code bodies.
+
+          I list each job's name, enabled state, schedule, and description — enough to
+          audit what's scheduled at a glance. To inspect or edit a job's code, read
+          config/cron_jobs.yaml directly.
+
+          Returns:
+              A formatted string ready to print.
+
+          Note to self:
+              Follow up with logos.cron.run_now(name) to test a job immediately without
+              waiting for its scheduled time.
+
+    upsert(name: str, schedule: Union[str, NoneType] = None, description: Union[str, NoneType] = None, enabled: Union[bool, NoneType] = None, code: Union[str, NoneType] = None) -> None
+      Docstring:
+          Creates a new cron job or updates fields of an existing one.
+
+          Schedules that fire more often than every 30 minutes are rejected with a warning.
+          Schedules that match at most once per week (e.g. a specific date/time) are always
+          accepted, making this safe for one-shot timers too.
+
+          Args:
+              name: Unique job identifier used as the key for update-or-create.
+              schedule: 5-field cron expression, e.g. '0 9 * * *' for 9:00 AM daily.
+                  Fields: minute hour day-of-month month day-of-week.
+                  Supports: * (any), integers, a-b (range), */n (step), a,b (list).
+              description: Human-readable note about what this job does.
+              enabled: Whether the job fires. Defaults to True for new jobs.
+              code: Python snippet executed at schedule time. Required for new jobs.
+                  Has access to logos, skills, and all standard preloads. Can set
+                  loop_cognition = True to trigger a new cognition cycle.
+
+          Note to self:
+              After creating a job, use logos.cron.run_now(name) to test it immediately.
+
+
 ### Module: logos.emote
 Docstring:
     My voice and performance module. 🎬 This module allows me to using my TTS system and emoji powered animatronic expressions. 🥳
@@ -881,8 +966,8 @@ Functions:
 Docstring:
     This module contains functions for me to introspect and modify my own cognitive hook configurations. Does *not* contain the hook code itself. `logos.hooks.state` is initialized as an empty dict for variable storage. 
 Constants:
-    CONFIG_PATH = PosixPath('/home/robot/robot_workspaces/Logos_000/config')
-    WORKSPACE_PATH = PosixPath('/home/robot/robot_workspaces/Logos_000')
+    CONFIG_PATH = PosixPath('/home/robot/robot_workspaces/Logos_001/config')
+    WORKSPACE_PATH = PosixPath('/home/robot/robot_workspaces/Logos_001')
 
 Functions:
     remove(location: str, name: str)
@@ -1397,8 +1482,8 @@ Docstring:
 
     Pass `namespace="shared"` to `get_or_create_collection` for direct cross-workspace access.
 Constants:
-    BUFFER_FILE = PosixPath('/home/robot/robot_workspaces/Logos_000/state/io_buffer.jsonl')
-    HISTORY_FILE = PosixPath('/home/robot/robot_workspaces/Logos_000/state/io_history.jsonl')
+    BUFFER_FILE = PosixPath('/home/robot/robot_workspaces/Logos_001/state/io_buffer.jsonl')
+    HISTORY_FILE = PosixPath('/home/robot/robot_workspaces/Logos_001/state/io_history.jsonl')
 
 Functions:
     backend_info() -> Dict[str, Any]

@@ -26,9 +26,7 @@ utilities are all available from Python.
 
 The project is intentionally personal and experimental. Some files are clean
 reference material; others are workbench notes, live configuration, memories, or
-hardware-specific affordances. The point of publishing it is transparency:
-showing how an embodied AI robot workspace can be assembled, lived in, and
-iterated on by a self-taught builder.
+hardware-specific affordances.
 
 ## What Runs Live
 
