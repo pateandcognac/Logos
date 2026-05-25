@@ -158,12 +158,12 @@ def get_wheel_drops() -> List[str]:
 
 def get_battery() -> Dict[str, Union[float, str]]:
     """
-    Read my current battery `percent`, `voltage`, and semantic `status`.
+    Read my current battery `percentage`, `voltage`, and semantic `status`.
 
     Returns:
         A dictionary:
         - 'voltage' (float): Current battery voltage (e.g., 15.8).
-        - 'percent' (float): Estimated charge percentage (0.0 to 100.0).
+        - 'percentage' (float): Estimated charge percentage (0.0 to 100.0).
         - 'status' (str): Semantic assessment ('healthy', 'low', 'critical').
 
     Note to self:
