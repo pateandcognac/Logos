@@ -1894,7 +1894,7 @@ def _debug_draw_box_3d(
         _debug_draw_label(canvas, label, px + 6, py - 8, color)
 
 
-@api_call(default_verbosity=Verbosity.SILENT)
+# @api_call(default_verbosity=Verbosity.SILENT)
 def publish_debug(
     image: Union[np.ndarray, CaptureResult, Any],
     detections: Optional[Union[List[Dict[str, Any]], Dict[str, Any], Tuple[Any, ...]]] = None,

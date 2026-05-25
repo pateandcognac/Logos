@@ -104,6 +104,15 @@ Angles are always degrees in public interfaces. Never expose radians.
 
 `__all__` is defined in modules that have a meaningful public surface to limit what shows in `logos.api_help()`.
 
+
+## Codex Bridge for Live Testing
+
+Codex may be configured with the local Logos MCP server from `/home/robot/robot_ws/tools/logos_mcp_server.py` for testing and debugging this live workspace. The MCP server runs in the repo virtualenv because that is where the MCP SDK is installed, but its `logos_python` tool shells out to `/usr/bin/python3 /home/robot/robot_ws/tools/codex_logos_exec.py` so ROS imports (`rospy`, `logos_framework` messages) work.
+
+The bridge sends tagged `<py>` blocks through the normal `/cognition/output` -> Python worker -> `/cognition/input` path using request type `codex_tool`. It suppresses `loop_cognition` by default and intentionally records results in `state/io_buffer.jsonl`, making it useful for live camera, API, hook, and behavior probes without replacing Logos's main LLM loop. When the active runtime is a checkpoint workspace such as `Logos_001`, pass that workspace name or explicit workspace path so returned `<file path="...">` image tags resolve correctly.
+
+See `/home/robot/robot_ws/docs/LOGOS_CODEX_BRIDGE.md` for usage and MCP config details.
+
 ## No Traditional Build/Test System
 
 There is no official build step, test runner, or CI. Testing happens live on the robot via `<py>` blocks. When writing new modules, keep ROS imports gated so code can be read/linted offline! The `_llm_helper.py` bridge runs under a separate Python 3.11 venv with the Google GenAI SDK for out-of-band LLM calls.
