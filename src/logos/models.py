@@ -22,6 +22,9 @@ _PY311 = os.getenv("LOGOS_VENV_PY311", "/home/robot/robot_ws/.venv/bin/python3")
 # The helper script will live next to this file as _llm_helper.py
 WORKER_PATH = Path(__file__).with_name("_llm_helper.py")
 
+# Shared model weights directory — override with LOGOS_MODELS_DIR env var
+_MODELS_DIR = Path(os.getenv("LOGOS_MODELS_DIR", Path.home() / "robot_workspaces" / "shared" / "models"))
+
 # Lazy Singletons for Vision Models
 _yolo11_model = None
 _yolo_world_model = None
@@ -35,8 +38,8 @@ _yoloe_text_prompt_key: Optional[Tuple[str, ...]] = None
 
 # YOLOE defaults:
 # 11s is my recommended starting point for on-robot latency.
-_YOLOE_TEXT_WEIGHTS = "yoloe-11s-seg.pt"
-_YOLOE_PROMPT_FREE_WEIGHTS = "yoloe-11s-seg-pf.pt"
+_YOLOE_TEXT_WEIGHTS = str(_MODELS_DIR / "yoloe-11s-seg.pt")
+_YOLOE_PROMPT_FREE_WEIGHTS = str(_MODELS_DIR / "yoloe-11s-seg-pf.pt")
 
 __all__ = ["llm", "yolo11", "yolo_world", "yoloe", "hands"]
 
@@ -386,7 +389,7 @@ def yolo11(
     # Lazy-load singleton
     if _yolo11_model is None:
         # yolo11n.pt will automatically download to current dir if not present
-        _yolo11_model = YOLO("yolo11n.pt") 
+        _yolo11_model = YOLO(str(_MODELS_DIR / "yolo11n.pt"))
 
     img_h, img_w = image_array.shape[:2]
     
@@ -461,7 +464,7 @@ def yolo_world(
 
     # Lazy-load singleton
     if _yolo_world_model is None:
-        _yolo_world_model = YOLO("yolov8s-world.pt")
+        _yolo_world_model = YOLO(str(_MODELS_DIR / "yolov8s-world.pt"))
 
     img_h, img_w = image_array.shape[:2]
 

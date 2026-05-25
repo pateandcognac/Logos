@@ -42,7 +42,7 @@ vision_hook:
     meta_keys: []
 auto_rag_hook:
   lookback_cells: 2
-  n_results: {api_refs: 2, examples: 1, summaries: 1, facts: 2}
+  n_results: {api_refs: 2, examples: 1, summaries: 1, facts: 5}
 ambient_audio:
-  last_minutes: {speech: 3, classifier: 3}
+  last_minutes: {speech: 2, classifier: 5}
 sound: {default_volume: 0.35, sample_rate: 44100}
