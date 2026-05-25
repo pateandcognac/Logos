@@ -184,13 +184,13 @@ def get_battery() -> Dict[str, Union[float, str]]:
                 if percent > 35.0: status = "healthy"
                 elif percent > 14.0: status = "low"
                 else: status = "critical"
-                return {'voltage': round(voltage, 2), 'percent': round(percent, 1), 'status': status}
+                return {'voltage': round(voltage, 2), 'percentage': round(percent, 1), 'status': status, 'volts': round(voltage, 2), 'percent': round(percent, 1)} # redundancy cuz sometime Logos makes wrong assumption
             else:
                 # _latest_state is None, increment retry counter and wait
                 retries += 1
                 time.sleep(delay_s)
     # If we exhaust retries and _latest_state is still None, return unknown
-    return {'voltage': 0.0, 'percent': 0.0, 'status': 'unknown'}
+    return {'voltage': 0.0, 'percentage': 0.0, 'status': 'unknown'}
 
 def get_charger_state() -> str:
     """
