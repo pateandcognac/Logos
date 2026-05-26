@@ -53,7 +53,7 @@ _face_cmd_pub: Optional['rospy.Publisher'] = None
 _arm_cmd_pub: Optional['rospy.Publisher'] = None
 _hud_event_pub: Optional['rospy.Publisher'] = None
 
-_HUD_PANES = ("status", "caption", "all")
+_HUD_PANES = ("face", "status", "all")
 _HUD_KINDS = ("text", "figlet", "caption", "clear")
 
 _face_state_cache: Dict[str, Any] = {}
@@ -101,6 +101,8 @@ def _make_hud_payload(
         raise ValueError("HUD pane 'all' is only valid for clear events.")
     if kind != "clear" and text is None:
         raise ValueError("HUD '{}' events require text.".format(kind))
+    if kind == "caption" and pane != "status":
+        raise ValueError("HUD captions target the status pane.")
 
     payload = {"pane": pane, "kind": kind}  # type: Dict[str, Any]
     if text is not None:
@@ -312,13 +314,13 @@ def ttp(
     """
     import logos # Local import to fetch dynamic config
 
-    logos.emote.hud_clear(pane='status')
+    logos.emote.hud_clear(pane='face')
 
     if not _HAS_ROS:
         print(f"Voice Error: ROS unavailable. (Would have said: {text})")
         return SpeakTask(None)
     
-    logos.emote.hud_clear(pane='status')
+    logos.emote.hud_clear(pane='face')
 
     client = ros.get_action_client("speak", SpeakAction, wait_time=4.0)
     if client is None:
@@ -412,7 +414,7 @@ def hud_event(
     performed retro-glitch effect.
 
     Args:
-        pane: "status", "caption", or "all". Use "all" only with kind="clear".
+        pane: "face", "status", or "all". Use "all" only with kind="clear".
         kind: "text", "figlet", "caption", or "clear".
         text: Text to display. Required unless kind is "clear".
         color: Optional HUD color name such as "bright_white" or "bright_blue".
@@ -425,7 +427,7 @@ def hud_event(
     Note to self:
         I should use this when I need a shape the convenience helpers do not
         cover yet. For ordinary moments, `hud_text()`, `hud_figlet()`,
-        `hud_caption()`, and `hud_clear()` are easier to read.
+        `hud_clear()` are easier to read.
     """
     payload = _make_hud_payload(
         pane=pane,
@@ -441,18 +443,18 @@ def hud_event(
 @api_call(default_verbosity=Verbosity.ACK)
 def hud_text(
     text: str,
-    pane: str = "status",
+    pane: str = "face",
     color: str = "bright_white",
 ) -> Dict[str, Any]:
     """
-    Show plain text on my face HUD status pane.
+    Show plain text on my face canvas.
 
-    I use this for small ambient status beats, labels, quoted snippets, or
-    momentary inner monologue that should feel visible but not authoritative.
+    I use this for small ambient face-canvas beats, labels, quoted snippets,
+    or momentary inner monologue that can be playful instead of authoritative.
 
     Args:
         text: Plain text to overlay on my face.
-        pane: The HUD pane to target. Usually "status".
+        pane: The HUD pane to target. Usually "face".
         color: 16 color name such as "bright_white", "green", or "cyan".
 
     Returns:
@@ -470,19 +472,19 @@ def hud_text(
 @api_call(default_verbosity=Verbosity.ACK)
 def hud_figlet(
     text: str,
-    pane: str = "status",
+    pane: str = "face",
     font: str = "standard",
     color: str = "bright_blue",
 ) -> Dict[str, Any]:
     """
     Show figlet-style text on my face HUD.
 
-    This is the punchier status effect: good for words like "thinking",
+    This is the punchier face-canvas effect: good for words like "thinking",
     "searching", "oops", or a tiny dramatic label while my face keeps moving.
 
     Args:
         text: Text to render in the HUD figlet style.
-        pane: The HUD pane to target. Usually "status".
+        pane: The HUD pane to target. Usually "face".
         font: Figlet font name such as "small".
         color: 16 color name such as "bright_blue" or "bright_magenta".
 
@@ -529,7 +531,7 @@ def _hud_caption(
         still doing the emotionally important part.
     """
     payload = _make_hud_payload(
-        pane="caption",
+        pane="status",
         kind="caption",
         text=text,
         font=font,
@@ -545,14 +547,14 @@ def hud_clear(pane: str = "all") -> Dict[str, Any]:
     Clear one or all panes of my face HUD overlay.
 
     Args:
-        pane: "status", "caption", or "all".
+        pane: "face", "status", or "all".
 
     Returns:
         The exact payload dictionary I published.
 
     Note to self:
-        Use `pane="caption"` when a caption overstays its moment, and
-        `pane="all"` when I want my face clean again.
+        Use `pane="face"` when my effect layer gets busy, `pane="status"`
+        for the lower human-facing stream, and `pane="all"` for a full reset.
     """
     payload = _make_hud_payload(pane=pane, kind="clear")
     _publish_hud_payload(payload)
