@@ -25,16 +25,22 @@ try:
 except ImportError:
     _HAS_ROS = False
 
+try:
+    from sensor_msgs.msg import Image as RosImage
+    from cv_bridge import CvBridge
+    _HAS_IMAGE_ROS = True
+except ImportError:
+    _HAS_IMAGE_ROS = False
+
 __all__ = [
     "ttp",
     "is_speaking",
     "SpeakTask",
     "gesture",
     "get_face_state",
-    # "hud_event",
     "hud_text",
     "hud_figlet",
-     # "hud_caption",
+    "hud_image",
     "hud_clear",
 ]
 
@@ -52,11 +58,15 @@ DEFAULT_KOKORO_PARAMS = {
 _face_cmd_pub: Optional['rospy.Publisher'] = None
 _arm_cmd_pub: Optional['rospy.Publisher'] = None
 _hud_event_pub: Optional['rospy.Publisher'] = None
+_hud_image_pubs: Dict[int, 'rospy.Publisher'] = {}
+_hud_debug_image_pub: Optional['rospy.Publisher'] = None
+_hud_image_bridge: Optional['CvBridge'] = None
 _hud_pub_seen_connection = False
 _HUD_CONNECT_WAIT_SEC = 0.75
 
-_HUD_PANES = ("face", "status", "all")
-_HUD_KINDS = ("text", "figlet", "caption", "clear")
+_HUD_LAYERS = (0, 2)
+_HUD_KINDS = ("text", "figlet", "clear")
+_HUD_EFFECTS = ("terminal", "crawl", "rain")
 
 _face_state_cache: Dict[str, Any] = {}
 _face_state_lock = threading.Lock()
@@ -79,43 +89,87 @@ def _ensure_hud_pub():
     if _hud_event_pub is None:
         _hud_event_pub = rospy.Publisher("/face/hud/event", String, queue_size=10)
 
+def _ensure_hud_image_pubs(layer: int):
+    """Lazily initialize my layered face image publishers."""
+    global _hud_debug_image_pub, _hud_image_bridge
+    if not _HAS_ROS or not _HAS_IMAGE_ROS:
+        return None, None
+    if layer not in _hud_image_pubs:
+        _hud_image_pubs[layer] = rospy.Publisher(
+            "/face/layer{}/image".format(layer),
+            RosImage,
+            queue_size=2,
+            latch=True,
+        )
+    if _hud_debug_image_pub is None:
+        _hud_debug_image_pub = rospy.Publisher(
+            "/logos/debug_vision/face",
+            RosImage,
+            queue_size=2,
+            latch=True,
+        )
+    if _hud_image_bridge is None:
+        _hud_image_bridge = CvBridge()
+    return _hud_image_pubs[layer], _hud_debug_image_pub
+
+def _validate_hud_layer(layer: int) -> int:
+    """Return a normalized face HUD layer or raise ValueError."""
+    layer = int(layer)
+    if layer not in _HUD_LAYERS:
+        raise ValueError("Unknown face HUD layer '{}'. Choose 0 or 2.".format(layer))
+    return layer
+
 def _make_hud_payload(
-    pane: str,
     kind: str,
     text: Optional[str] = None,
+    layer: Optional[int] = 0,
+    effect: str = "terminal",
     color: Optional[str] = None,
     font: Optional[str] = None,
     duration: Optional[float] = None,
+    **effect_options: Any,
 ) -> Dict[str, Any]:
-    """Build and validate a face HUD JSON payload."""
-    pane = pane.strip().lower()
+    """Build and validate a layered face HUD JSON payload."""
     kind = kind.strip().lower()
+    effect = effect.strip().lower()
 
-    if pane not in _HUD_PANES:
-        raise ValueError("Unknown HUD pane '{}'. Choose from: {}".format(
-            pane, list(_HUD_PANES)
-        ))
     if kind not in _HUD_KINDS:
         raise ValueError("Unknown HUD kind '{}'. Choose from: {}".format(
             kind, list(_HUD_KINDS)
         ))
-    if pane == "all" and kind != "clear":
-        raise ValueError("HUD pane 'all' is only valid for clear events.")
     if kind != "clear" and text is None:
         raise ValueError("HUD '{}' events require text.".format(kind))
-    if kind == "caption" and pane != "status":
-        raise ValueError("HUD captions target the status pane.")
+    if effect not in _HUD_EFFECTS:
+        raise ValueError("Unknown HUD effect '{}'. Choose from: {}".format(
+            effect, list(_HUD_EFFECTS)
+        ))
 
-    payload = {"pane": pane, "kind": kind}  # type: Dict[str, Any]
+    payload = {"pane": "face", "kind": kind}  # type: Dict[str, Any]
+    if layer is not None:
+        payload["layer"] = _validate_hud_layer(layer)
     if text is not None:
         payload["text"] = text
+    if kind != "clear":
+        payload["effect"] = effect
     if color is not None:
         payload["color"] = color
     if font is not None:
         payload["font"] = font
     if duration is not None:
         payload["duration"] = float(duration)
+    for key, value in effect_options.items():
+        if value is not None:
+            payload[key] = value
     return payload
+
+def _wait_for_publisher_connection(pub, timeout: float = _HUD_CONNECT_WAIT_SEC) -> bool:
+    """Wait briefly for a ROS publisher to connect to an active subscriber."""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if pub.get_num_connections() > 0:
+            return True
+        time.sleep(0.05)
+    return pub.get_num_connections() > 0
 
 def _publish_hud_payload(payload: Dict[str, Any]) -> None:
     """Publish a prepared face HUD payload if ROS is available."""
@@ -126,12 +180,7 @@ def _publish_hud_payload(payload: Dict[str, Any]) -> None:
     _ensure_hud_pub()
     if _hud_event_pub is not None:
         if not _hud_pub_seen_connection:
-            deadline = time.time() + _HUD_CONNECT_WAIT_SEC
-            while time.time() < deadline:
-                if _hud_event_pub.get_num_connections() > 0:
-                    _hud_pub_seen_connection = True
-                    break
-                time.sleep(0.05)
+            _hud_pub_seen_connection = _wait_for_publisher_connection(_hud_event_pub)
         _hud_event_pub.publish(String(data=json.dumps(payload)))
 
 def _face_state_cb(msg):
@@ -324,13 +373,13 @@ def ttp(
     """
     import logos # Local import to fetch dynamic config
 
-    logos.emote.hud_clear(pane='face')
+    logos.emote.hud_clear()
 
     if not _HAS_ROS:
         print(f"Voice Error: ROS unavailable. (Would have said: {text})")
         return SpeakTask(None)
     
-    logos.emote.hud_clear(pane='face')
+    logos.emote.hud_clear()
 
     client = ros.get_action_client("speak", SpeakAction, wait_time=4.0)
     if client is None:
@@ -407,74 +456,38 @@ def gesture(emoji: str, duration: float = 3.0, channel: str = "both") -> None:
         _arm_cmd_pub.publish(msg)
 
 @api_call(default_verbosity=Verbosity.ACK)
-def hud_event(
-    pane: str,
-    kind: str,
-    text: Optional[str] = None,
-    color: Optional[str] = None,
-    font: Optional[str] = None,
-    duration: Optional[float] = None,
-) -> Dict[str, Any]:
-    """
-    Send a raw JSON event to my face HUD overlay.
-
-    This is my low-level escape hatch for the theatrical text layer drawn *under*
-    my animated face. It is intentionally not treated as reliable functional
-    feedback; the face animation owns the screen and this text is a little
-    performed retro-glitch effect.
-
-    Args:
-        pane: "face", "status", or "all". Use "all" only with kind="clear".
-        kind: "text", "figlet", "caption", or "clear".
-        text: Text to display. Required unless kind is "clear".
-        color: Optional HUD color name such as "bright_white" or "bright_blue".
-        font: Optional figlet/caption font name such as "small" or "thick".
-        duration: Optional display duration in seconds, mainly for captions.
-
-    Returns:
-        The exact payload dictionary I published.
-
-    Note to self:
-        I should use this when I need a shape the convenience helpers do not
-        cover yet. For ordinary moments, `hud_text()`, `hud_figlet()`,
-        `hud_clear()` are easier to read.
-    """
-    payload = _make_hud_payload(
-        pane=pane,
-        kind=kind,
-        text=text,
-        color=color,
-        font=font,
-        duration=duration,
-    )
-    _publish_hud_payload(payload)
-    return payload
-
-@api_call(default_verbosity=Verbosity.ACK)
 def hud_text(
     text: str,
-    pane: str = "face",
+    layer: int = 0,
+    effect: str = "terminal",
     color: str = "bright_white",
+    **effect_options: Any,
 ) -> Dict[str, Any]:
     """
-    Show plain text on my face canvas.
+    Show plain text on my layered face HUD canvas.
 
-    I use this for small ambient face-canvas beats, labels, quoted snippets,
-    or momentary inner monologue that can be playful instead of authoritative.
+    Layer 0 sits behind my animated face and is best for ambient texture.
+    Layer 2 sits in front of my face and is best for deliberate visible overlay.
+    Effects are "terminal", "crawl", or "rain".
 
     Args:
         text: Plain text to overlay on my face.
-        pane: The HUD pane to target. Usually "face".
+        layer: Face effect layer, either 0 behind my face or 2 in front.
+        effect: Text effect: "terminal", "crawl", or "rain".
         color: 16 color name such as "bright_white", "green", or "cyan".
+        **effect_options: Optional effect controls like speed, duration, density,
+            or bg_color.
 
     Returns:
         The exact payload dictionary I published.
     """
     payload = _make_hud_payload(
-        pane=pane,
         kind="text",
         text=text,
+        layer=layer,
+        effect=effect,
         color=color,
+        **effect_options,
     )
     _publish_hud_payload(payload)
     return payload
@@ -482,21 +495,26 @@ def hud_text(
 @api_call(default_verbosity=Verbosity.ACK)
 def hud_figlet(
     text: str,
-    pane: str = "face",
+    layer: int = 0,
     font: str = "standard",
+    effect: str = "terminal",
     color: str = "bright_blue",
+    **effect_options: Any,
 ) -> Dict[str, Any]:
     """
-    Show figlet-style text on my face HUD.
+    Show figlet-style text on my layered face HUD canvas.
 
     This is the punchier face-canvas effect: good for words like "thinking",
     "searching", "oops", or a tiny dramatic label while my face keeps moving.
 
     Args:
         text: Text to render in the HUD figlet style.
-        pane: The HUD pane to target. Usually "face".
+        layer: Face effect layer, either 0 behind my face or 2 in front.
         font: Figlet font name such as "small".
+        effect: Text effect: "terminal", "crawl", or "rain".
         color: 16 color name such as "bright_blue" or "bright_magenta".
+        **effect_options: Optional effect controls like speed, duration, density,
+            or bg_color.
 
     Returns:
         The exact payload dictionary I published.
@@ -505,68 +523,84 @@ def hud_figlet(
         Keep this short. Big words become visual confetti very quickly.
     """
     payload = _make_hud_payload(
-        pane=pane,
         kind="figlet",
         text=text,
+        layer=layer,
         font=font,
+        effect=effect,
         color=color,
-    )
-    _publish_hud_payload(payload)
-    return payload
-
-# @api_call(default_verbosity=Verbosity.ACK)
-def _hud_caption(
-    text: str,
-    duration: float = 1.2,
-    font: str = "thick",
-    color: str = "bright_magenta",
-) -> Dict[str, Any]:
-    """
-    Show a transient caption on my face HUD.
-
-    I use this for spoken-word flavor, quick reactions, or a caption-like echo
-    of something I am saying without pretending it is a dependable transcript.
-
-    Args:
-        text: Caption text to show.
-        duration: How long the caption should linger in seconds.
-        font: Caption font name such as "thick".
-        color: HUD color name such as "bright_magenta".
-
-    Returns:
-        The exact payload dictionary I published.
-
-    Note to self:
-        Captions should be brief enough to read at a glance while my face is
-        still doing the emotionally important part.
-    """
-    payload = _make_hud_payload(
-        pane="status",
-        kind="caption",
-        text=text,
-        font=font,
-        color=color,
-        duration=duration,
+        **effect_options,
     )
     _publish_hud_payload(payload)
     return payload
 
 @api_call(default_verbosity=Verbosity.ACK)
-def hud_clear(pane: str = "all") -> Dict[str, Any]:
+def hud_image(image: Any, layer: int = 2) -> Dict[str, Any]:
     """
-    Clear one or all panes of my face HUD overlay.
+    Show an image on a layered face HUD image slot and mirror it to debug vision.
+
+    Layer 0 renders behind my animated face. Layer 2 renders in front of it,
+    matching the old debug-image overlay feel. The same frame is also published
+    to `/logos/debug_vision/face` so the web/debug tools can see what I showed.
 
     Args:
-        pane: "face", "status", or "all".
+        image: A BGR numpy image, a grayscale image, or an object with `.image`.
+        layer: Face image layer, either 0 behind my face or 2 in front.
+
+    Returns:
+        A small dictionary describing the topics I published.
+    """
+    layer = _validate_hud_layer(layer)
+    if not _HAS_ROS or not _HAS_IMAGE_ROS:
+        print("Face HUD image unavailable. Would have published image to layer {}.".format(layer))
+        return {"layer": layer, "published": False}
+
+    base_image = image.image if hasattr(image, "image") else image
+    if base_image is None or not hasattr(base_image, "shape"):
+        raise ValueError("hud_image() needs a numpy image or an object with an .image numpy array.")
+
+    canvas = base_image.copy()
+    if len(canvas.shape) == 2:
+        import cv2
+        canvas = cv2.cvtColor(canvas, cv2.COLOR_GRAY2BGR)
+    elif len(canvas.shape) == 3 and canvas.shape[2] == 4:
+        import cv2
+        canvas = cv2.cvtColor(canvas, cv2.COLOR_BGRA2BGR)
+    elif len(canvas.shape) != 3 or canvas.shape[2] != 3:
+        raise ValueError("hud_image() expects a grayscale, BGR, or BGRA image array.")
+
+    layer_pub, debug_pub = _ensure_hud_image_pubs(layer)
+    if not layer_pub or not debug_pub or not _hud_image_bridge:
+        return {"layer": layer, "published": False}
+
+    msg = _hud_image_bridge.cv2_to_imgmsg(canvas, encoding="bgr8")
+    msg.header.stamp = rospy.Time.now()
+    _wait_for_publisher_connection(layer_pub)
+    layer_pub.publish(msg)
+    debug_pub.publish(msg)
+
+    return {
+        "layer": layer,
+        "published": True,
+        "topic": "/face/layer{}/image".format(layer),
+        "debug_topic": "/logos/debug_vision/face",
+    }
+
+@api_call(default_verbosity=Verbosity.ACK)
+def hud_clear(layer: Optional[int] = None) -> Dict[str, Any]:
+    """
+    Clear my face HUD effect layers without touching the status pane.
+
+    Args:
+        layer: Optional layer to clear. Use None to clear both face layers.
 
     Returns:
         The exact payload dictionary I published.
 
     Note to self:
-        Use `pane="face"` when my effect layer gets busy, `pane="status"`
-        for the lower human-facing stream, and `pane="all"` for a full reset.
+        This does not clear TTS captions or human-facing status output.
     """
-    payload = _make_hud_payload(pane=pane, kind="clear")
+    payload = _make_hud_payload(kind="clear", layer=layer)
     _publish_hud_payload(payload)
     return payload
 

@@ -87,8 +87,7 @@ def logos.vision.capture(
 
 def publish_debug(image: Union[np.ndarray, CaptureResult], detections: Optional[Union[List[Dict[str, Any]], Dict[str, Any], Tuple[Any, ...]]] = None, source: Optional[str] = None,) -> None:
     # Overlays bounding boxes/points/hands/labels and publishes to ROS /logos/debug_vision for Mark to see
-    # Use source='face' to publish the annotated image to my display face, where it is converted to ASCII.
-    ...
+    # emote.hud 
 
 # --- MODELS (Lazy-loaded local singletons) ---
 def logos.models.yolo11(image: Union[np.ndarray, CaptureResult], classes: List[str]=None, conf: float=0.5) -> Union[List[Dict], Tuple[List[Dict], CaptureResult]]:
@@ -309,23 +308,23 @@ def logos.emote.ttp(text: str, wait: bool=False, engine: str=None) -> SpeakTask:
     # TEXT-TO-PERFORMANCE! Punctuate every spoken clause with emojis. 
     # Emojis trigger physical animatronics synchronously.
     # Example: "Hello there! 👋 Let's explore. 🧭"
-    # I have thousands of emoji to choose from, yet...
+    # I have thousands of emoji to choose from, yet,
     # I should avoid compound emojis with skin-tone or gender modifiers.
     ...
 def logos.emote.gesture(emoji: str, duration: float=4.0, channel: str='both|arms|face') -> None:
     # Perform animatronics silently without speaking. 
     ...
-def logos.emote.hud_text(text: str, pane: str='status', color: str='bright_white') -> Dict:
-    # Show plain text on my face HUD overlay. It is theatrical, not reliable feedback.
+def logos.emote.hud_text(text: str, layer: int=0, effect: str='terminal', color: str='bright_white', **effect_options) -> Dict:
+    # Show plain text on my face effect layers. Effects: terminal, crawl, rain.
     ...
-def logos.emote.hud_figlet(text: str, pane: str='status', font: str='standard', color: str='bright_blue') -> Dict:
-    # Show short figlet-style status words on my face HUD, like "thinking" or "searching".
+def logos.emote.hud_figlet(text: str, layer: int=0, font: str='standard', effect: str='terminal', color: str='bright_blue', **effect_options) -> Dict:
+    # Show short figlet-style face effect words, like "thinking" or "searching".
     ...
-def logos.emote.hud_clear(pane: str='all') -> Dict:
-    # Clear "status", "caption", or "all" face HUD panes.
+def logos.emote.hud_image(image, layer: int=2) -> Dict:
+    # Show an image on face layer 0 or 2 and mirror it to /logos/debug_vision/face.
     ...
-def logos.emote.hud_event(pane: str, kind: str, text: str=None, color: str=None, font: str=None, duration: float=None) -> Dict:
-    # Low-level HUD JSON escape hatch for /face/hud/event. Panes: status, caption, all. Kinds: text, figlet, caption, clear.
+def logos.emote.hud_clear(layer: int=None) -> Dict:
+    # Clear face effect layer 0, layer 2, or both. Does not clear status captions.
     ...
 def logos.emote.get_face_state() -> Dict:
     # Returns live 4-16Hz-ish state of my animated ASCII face as triggered by
