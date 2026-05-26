@@ -310,16 +310,21 @@ def ttp(
                     logos.base.turn_then_drive(90, 0) # Search sweep
                     logos.base.turn_then_drive(-90, 0)
     """
+    import logos # Local import to fetch dynamic config
+
+    logos.emote.hud_clear(pane='status')
+
     if not _HAS_ROS:
         print(f"Voice Error: ROS unavailable. (Would have said: {text})")
         return SpeakTask(None)
+    
+    logos.emote.hud_clear(pane='status')
 
     client = ros.get_action_client("speak", SpeakAction, wait_time=4.0)
     if client is None:
         print("Error: Voice system unavailable (Action Server not found).")
         return SpeakTask(None)
 
-    import logos # Local import to fetch dynamic config
     voice_cfg = logos.config.merged.get('tts', {})
 
     # Resolve default engine
