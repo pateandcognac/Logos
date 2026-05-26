@@ -31,10 +31,10 @@ __all__ = [
     "SpeakTask",
     "gesture",
     "get_face_state",
-    "hud_event",
+    # "hud_event",
     "hud_text",
     "hud_figlet",
-    "hud_caption",
+     # "hud_caption",
     "hud_clear",
 ]
 
