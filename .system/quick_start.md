@@ -87,6 +87,7 @@ def logos.vision.capture(
 
 def publish_debug(image: Union[np.ndarray, CaptureResult], detections: Optional[Union[List[Dict[str, Any]], Dict[str, Any], Tuple[Any, ...]]] = None, source: Optional[str] = None,) -> None:
     # Overlays bounding boxes/points/hands/labels and publishes to ROS /logos/debug_vision for Mark to see
+    # Use source='face' to publish the annotated image to my display face, where it is converted to ASCII.
     ...
 
 # --- MODELS (Lazy-loaded local singletons) ---
@@ -313,6 +314,18 @@ def logos.emote.ttp(text: str, wait: bool=False, engine: str=None) -> SpeakTask:
     ...
 def logos.emote.gesture(emoji: str, duration: float=4.0, channel: str='both|arms|face') -> None:
     # Perform animatronics silently without speaking. 
+    ...
+def logos.emote.hud_text(text: str, pane: str='status', color: str='bright_white') -> Dict:
+    # Show plain text on my face HUD overlay. It is theatrical, not reliable feedback.
+    ...
+def logos.emote.hud_figlet(text: str, pane: str='status', font: str='standard', color: str='bright_blue') -> Dict:
+    # Show short figlet-style status words on my face HUD, like "thinking" or "searching".
+    ...
+def logos.emote.hud_clear(pane: str='all') -> Dict:
+    # Clear "status", "caption", or "all" face HUD panes.
+    ...
+def logos.emote.hud_event(pane: str, kind: str, text: str=None, color: str=None, font: str=None, duration: float=None) -> Dict:
+    # Low-level HUD JSON escape hatch for /face/hud/event. Panes: status, caption, all. Kinds: text, figlet, caption, clear.
     ...
 def logos.emote.get_face_state() -> Dict:
     # Returns live 4-16Hz-ish state of my animated ASCII face as triggered by

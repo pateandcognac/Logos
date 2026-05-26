@@ -25,7 +25,18 @@ try:
 except ImportError:
     _HAS_ROS = False
 
-__all__ = ["ttp", "is_speaking", "SpeakTask", "gesture", "get_face_state"]
+__all__ = [
+    "ttp",
+    "is_speaking",
+    "SpeakTask",
+    "gesture",
+    "get_face_state",
+    "hud_event",
+    "hud_text",
+    "hud_figlet",
+    "hud_caption",
+    "hud_clear",
+]
 
 # My default voice settings
 DEFAULT_ENGINE = "kokoro"
@@ -40,6 +51,10 @@ DEFAULT_KOKORO_PARAMS = {
 
 _face_cmd_pub: Optional['rospy.Publisher'] = None
 _arm_cmd_pub: Optional['rospy.Publisher'] = None
+_hud_event_pub: Optional['rospy.Publisher'] = None
+
+_HUD_PANES = ("status", "caption", "all")
+_HUD_KINDS = ("text", "figlet", "caption", "clear")
 
 _face_state_cache: Dict[str, Any] = {}
 _face_state_lock = threading.Lock()
@@ -53,6 +68,59 @@ def _ensure_gesture_pubs():
         _face_cmd_pub = rospy.Publisher("/face/emoji_command", String, queue_size=5)
     if _arm_cmd_pub is None:
         _arm_cmd_pub = rospy.Publisher("/arm/emoji_command", String, queue_size=5)
+
+def _ensure_hud_pub():
+    """Lazily initialize my face HUD event publisher."""
+    global _hud_event_pub
+    if not _HAS_ROS:
+        return
+    if _hud_event_pub is None:
+        _hud_event_pub = rospy.Publisher("/face/hud/event", String, queue_size=10)
+
+def _make_hud_payload(
+    pane: str,
+    kind: str,
+    text: Optional[str] = None,
+    color: Optional[str] = None,
+    font: Optional[str] = None,
+    duration: Optional[float] = None,
+) -> Dict[str, Any]:
+    """Build and validate a face HUD JSON payload."""
+    pane = pane.strip().lower()
+    kind = kind.strip().lower()
+
+    if pane not in _HUD_PANES:
+        raise ValueError("Unknown HUD pane '{}'. Choose from: {}".format(
+            pane, list(_HUD_PANES)
+        ))
+    if kind not in _HUD_KINDS:
+        raise ValueError("Unknown HUD kind '{}'. Choose from: {}".format(
+            kind, list(_HUD_KINDS)
+        ))
+    if pane == "all" and kind != "clear":
+        raise ValueError("HUD pane 'all' is only valid for clear events.")
+    if kind != "clear" and text is None:
+        raise ValueError("HUD '{}' events require text.".format(kind))
+
+    payload = {"pane": pane, "kind": kind}  # type: Dict[str, Any]
+    if text is not None:
+        payload["text"] = text
+    if color is not None:
+        payload["color"] = color
+    if font is not None:
+        payload["font"] = font
+    if duration is not None:
+        payload["duration"] = float(duration)
+    return payload
+
+def _publish_hud_payload(payload: Dict[str, Any]) -> None:
+    """Publish a prepared face HUD payload if ROS is available."""
+    if not _HAS_ROS:
+        print("Face HUD unavailable. Would have published: {}".format(payload))
+        return
+    _ensure_hud_pub()
+    if _hud_event_pub is not None:
+        _hud_event_pub.publish(String(data=json.dumps(payload)))
 
 def _face_state_cb(msg):
     """Callback for the live face state JSON stream."""
@@ -320,6 +388,170 @@ def gesture(emoji: str, duration: float = 3.0, channel: str = "both") -> None:
         _face_cmd_pub.publish(msg)
     if channel in ["arms", "both"] and _arm_cmd_pub:
         _arm_cmd_pub.publish(msg)
+
+@api_call(default_verbosity=Verbosity.ACK)
+def hud_event(
+    pane: str,
+    kind: str,
+    text: Optional[str] = None,
+    color: Optional[str] = None,
+    font: Optional[str] = None,
+    duration: Optional[float] = None,
+) -> Dict[str, Any]:
+    """
+    Send a raw JSON event to my face HUD overlay.
+
+    This is my low-level escape hatch for the theatrical text layer drawn *under*
+    my animated face. It is intentionally not treated as reliable functional
+    feedback; the face animation owns the screen and this text is a little
+    performed retro-glitch effect.
+
+    Args:
+        pane: "status", "caption", or "all". Use "all" only with kind="clear".
+        kind: "text", "figlet", "caption", or "clear".
+        text: Text to display. Required unless kind is "clear".
+        color: Optional HUD color name such as "bright_white" or "bright_blue".
+        font: Optional figlet/caption font name such as "small" or "thick".
+        duration: Optional display duration in seconds, mainly for captions.
+
+    Returns:
+        The exact payload dictionary I published.
+
+    Note to self:
+        I should use this when I need a shape the convenience helpers do not
+        cover yet. For ordinary moments, `hud_text()`, `hud_figlet()`,
+        `hud_caption()`, and `hud_clear()` are easier to read.
+    """
+    payload = _make_hud_payload(
+        pane=pane,
+        kind=kind,
+        text=text,
+        color=color,
+        font=font,
+        duration=duration,
+    )
+    _publish_hud_payload(payload)
+    return payload
+
+@api_call(default_verbosity=Verbosity.ACK)
+def hud_text(
+    text: str,
+    pane: str = "status",
+    color: str = "bright_white",
+) -> Dict[str, Any]:
+    """
+    Show plain text on my face HUD status pane.
+
+    I use this for small ambient status beats, labels, quoted snippets, or
+    momentary inner monologue that should feel visible but not authoritative.
+
+    Args:
+        text: Plain text to overlay on my face.
+        pane: The HUD pane to target. Usually "status".
+        color: 16 color name such as "bright_white", "green", or "cyan".
+
+    Returns:
+        The exact payload dictionary I published.
+    """
+    payload = _make_hud_payload(
+        pane=pane,
+        kind="text",
+        text=text,
+        color=color,
+    )
+    _publish_hud_payload(payload)
+    return payload
+
+@api_call(default_verbosity=Verbosity.ACK)
+def hud_figlet(
+    text: str,
+    pane: str = "status",
+    font: str = "standard",
+    color: str = "bright_blue",
+) -> Dict[str, Any]:
+    """
+    Show figlet-style text on my face HUD.
+
+    This is the punchier status effect: good for words like "thinking",
+    "searching", "oops", or a tiny dramatic label while my face keeps moving.
+
+    Args:
+        text: Text to render in the HUD figlet style.
+        pane: The HUD pane to target. Usually "status".
+        font: Figlet font name such as "small".
+        color: 16 color name such as "bright_blue" or "bright_magenta".
+
+    Returns:
+        The exact payload dictionary I published.
+
+    Note to self:
+        Keep this short. Big words become visual confetti very quickly.
+    """
+    payload = _make_hud_payload(
+        pane=pane,
+        kind="figlet",
+        text=text,
+        font=font,
+        color=color,
+    )
+    _publish_hud_payload(payload)
+    return payload
+
+# @api_call(default_verbosity=Verbosity.ACK)
+def _hud_caption(
+    text: str,
+    duration: float = 1.2,
+    font: str = "thick",
+    color: str = "bright_magenta",
+) -> Dict[str, Any]:
+    """
+    Show a transient caption on my face HUD.
+
+    I use this for spoken-word flavor, quick reactions, or a caption-like echo
+    of something I am saying without pretending it is a dependable transcript.
+
+    Args:
+        text: Caption text to show.
+        duration: How long the caption should linger in seconds.
+        font: Caption font name such as "thick".
+        color: HUD color name such as "bright_magenta".
+
+    Returns:
+        The exact payload dictionary I published.
+
+    Note to self:
+        Captions should be brief enough to read at a glance while my face is
+        still doing the emotionally important part.
+    """
+    payload = _make_hud_payload(
+        pane="caption",
+        kind="caption",
+        text=text,
+        font=font,
+        color=color,
+        duration=duration,
+    )
+    _publish_hud_payload(payload)
+    return payload
+
+@api_call(default_verbosity=Verbosity.ACK)
+def hud_clear(pane: str = "all") -> Dict[str, Any]:
+    """
+    Clear one or all panes of my face HUD overlay.
+
+    Args:
+        pane: "status", "caption", or "all".
+
+    Returns:
+        The exact payload dictionary I published.
+
+    Note to self:
+        Use `pane="caption"` when a caption overstays its moment, and
+        `pane="all"` when I want my face clean again.
+    """
+    payload = _make_hud_payload(pane=pane, kind="clear")
+    _publish_hud_payload(payload)
+    return payload
 
 def get_face_state() -> Dict[str, Any]:
     """

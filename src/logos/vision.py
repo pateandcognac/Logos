@@ -1904,6 +1904,9 @@ def publish_debug(
     Annotate an image with detection geometry and labels, then publish to ROS.
     
     Topic: /logos/debug_vision/{source}
+    Special case: source="face" publishes to /logos/debug_vision/face,
+    where the face renderer can convert the image to ASCII and show it on
+    my display face.
 
     Args:
         image: The base BGR image, or any CaptureResult-shaped object with
@@ -1913,7 +1916,8 @@ def publish_debug(
             `(detections, CaptureResult)` tuple returned by logos.models. Supports
             2D boxes, 2D points, hand landmarks, and camera optical-frame 3D boxes.
         source: Optional string used to name the ROS topic. If omitted for a
-            CaptureResult, it will be inferred from detection metadata.
+            CaptureResult, it will be inferred from detection metadata. Use
+            "face" to send the annotated image to my ASCII face display.
 
     Note to self:
         This is how I show Mark what I'm seeing and thinking. I would use
