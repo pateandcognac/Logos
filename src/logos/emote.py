@@ -201,6 +201,29 @@ def _ensure_state_sub():
     _state_sub_initialized = True
 
 
+def _coerce_hud_image_input(image: Any) -> Any:
+    """
+    Return a numpy-like image from raw, CaptureResult-shaped, or model output.
+
+    I keep this duck-typed so my face can accept `vision.CaptureResult`,
+    `map3d.RenderResult`, and the `(detections, CaptureResult)` tuples returned
+    by my model helpers without importing those classes at module load time.
+    """
+    if isinstance(image, tuple) and len(image) == 2 and hasattr(image[1], "image"):
+        detections, capture_result = image
+        try:
+            from . import vision
+            return vision.annotate_image(capture_result, detections=detections)
+        except Exception:
+            return capture_result.image
+
+    capture_image = getattr(image, "image", None)
+    if capture_image is not None:
+        return capture_image
+
+    return image
+
+
 
 class SpeakTask:
     """
@@ -544,7 +567,9 @@ def hud_image(image: Any, layer: int = 2) -> Dict[str, Any]:
     to `/logos/debug_vision/face` so the web/debug tools can see what I showed.
 
     Args:
-        image: A BGR numpy image, a grayscale image, or an object with `.image`.
+        image: A BGR numpy image, a grayscale image, a CaptureResult-shaped
+            object with `.image`, or a `(detections, CaptureResult)` tuple from
+            my model helpers.
         layer: Face image layer, either 0 behind my face or 2 in front.
 
     Returns:
@@ -555,7 +580,7 @@ def hud_image(image: Any, layer: int = 2) -> Dict[str, Any]:
         print("Face HUD image unavailable. Would have published image to layer {}.".format(layer))
         return {"layer": layer, "published": False}
 
-    base_image = image.image if hasattr(image, "image") else image
+    base_image = _coerce_hud_image_input(image)
     if base_image is None or not hasattr(base_image, "shape"):
         raise ValueError("hud_image() needs a numpy image or an object with an .image numpy array.")
 
