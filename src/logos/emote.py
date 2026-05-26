@@ -52,6 +52,8 @@ DEFAULT_KOKORO_PARAMS = {
 _face_cmd_pub: Optional['rospy.Publisher'] = None
 _arm_cmd_pub: Optional['rospy.Publisher'] = None
 _hud_event_pub: Optional['rospy.Publisher'] = None
+_hud_pub_seen_connection = False
+_HUD_CONNECT_WAIT_SEC = 0.75
 
 _HUD_PANES = ("face", "status", "all")
 _HUD_KINDS = ("text", "figlet", "caption", "clear")
@@ -117,11 +119,19 @@ def _make_hud_payload(
 
 def _publish_hud_payload(payload: Dict[str, Any]) -> None:
     """Publish a prepared face HUD payload if ROS is available."""
+    global _hud_pub_seen_connection
     if not _HAS_ROS:
         print("Face HUD unavailable. Would have published: {}".format(payload))
         return
     _ensure_hud_pub()
     if _hud_event_pub is not None:
+        if not _hud_pub_seen_connection:
+            deadline = time.time() + _HUD_CONNECT_WAIT_SEC
+            while time.time() < deadline:
+                if _hud_event_pub.get_num_connections() > 0:
+                    _hud_pub_seen_connection = True
+                    break
+                time.sleep(0.05)
         _hud_event_pub.publish(String(data=json.dumps(payload)))
 
 def _face_state_cb(msg):
