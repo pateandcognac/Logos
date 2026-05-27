@@ -1900,7 +1900,7 @@ def annotate_image(
     source: Optional[str] = None,
 ) -> np.ndarray:
     """
-    Return a copy of an image with Logos detection geometry drawn onto it.
+    Returns a copy of an image with Logos detection geometry drawn onto it.
 
     I use the same annotation rules as `publish_debug()`, but keep the ROS
     publishing part out. This lets me compose annotated images into HUD

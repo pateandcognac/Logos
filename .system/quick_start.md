@@ -86,8 +86,12 @@ def logos.vision.capture(
 ) -> Optional[CaptureResult]: ...
 
 def publish_debug(image: Union[np.ndarray, CaptureResult], detections: Optional[Union[List[Dict[str, Any]], Dict[str, Any], Tuple[Any, ...]]] = None, source: Optional[str] = None,) -> None:
-    # Overlays bounding boxes/points/hands/labels and publishes to ROS /logos/debug_vision for Mark to see
-    # emote.hud 
+    # Overlays available detections and labels and publishes to ROS /logos/debug_vision developer channel
+    # Uses the following helper to annotate the image
+def logos.vision.annotate_image(image: Union[np.ndarray, CaptureResult], detections=None, source: Optional[str]=None) -> np.ndarray:
+    # Returns a BGR copy of an image with bounding boxes/points/hands/labels detection geometry drawn onto it.
+    # Handy if I want to confirm my own detections, or before logos.emote.hud_image(...)
+    ...
 
 # --- MODELS (Lazy-loaded local singletons) ---
 def logos.models.yolo11(image: Union[np.ndarray, CaptureResult], classes: List[str]=None, conf: float=0.5) -> Union[List[Dict], Tuple[List[Dict], CaptureResult]]:
@@ -246,7 +250,7 @@ logos.bumper._run_handlers(['center'])
 # Backend debounces detections at 1.5s, so I don't need to.
 # ==============================================================================
 
-# Model names are subdirectory names under ~/robot_ws/wakewords/custom/
+# Hotword names are subdirectory names under ~/robot_ws/wakewords/custom/
 # Some useful hotwords to get started:
 # lets_start, turn_left, turn_right, go_forward, move_back, up, down
 # cancel_that, halt_now, stop, nevermind, good_bye, thank_you, orderly_stop
@@ -316,12 +320,21 @@ def logos.emote.gesture(emoji: str, duration: float=4.0, channel: str='both|arms
     ...
 def logos.emote.hud_text(text: str, layer: int=0, effect: str='terminal', color: str='bright_white', **effect_options) -> Dict:
     # Show plain text on my face effect layers. Effects: terminal, crawl, rain.
+    # Face HUD effects are current-beat visuals, not a reliable queue; crawl/rain
+    # override the current same-effect slot on that layer. terminal appends until
+    # cleared or expired by duration.
     ...
 def logos.emote.hud_figlet(text: str, layer: int=0, font: str='standard', effect: str='terminal', color: str='bright_blue', **effect_options) -> Dict:
     # Show short figlet-style face effect words, like "thinking" or "searching".
+    # Moving figlet effects override the current same-effect slot on that layer.
     ...
 def logos.emote.hud_image(image, layer: int=2) -> Dict:
     # Show an image on face layer 0 or 2 and mirror it to /logos/debug_vision/face.
+    # Each layer has one image slot. A new image replaces the old one; normal
+    # updates fade in/hold/fade out, while high-frequency updates behave like a
+    # hot live stream instead of blinking.
+    # Remember, an image needn't be a photo. It can be an effect I synthesize myself,
+    # even something as simple as ONE pixel for color!
     ...
 def logos.emote.hud_clear(layer: int=None) -> Dict:
     # Clear face effect layer 0, layer 2, or both. Does not clear status captions.

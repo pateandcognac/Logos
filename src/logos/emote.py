@@ -1,10 +1,24 @@
 # src/logos/emote.py
 
 """
-My voice and performance module. 🎬 This module allows me to using my TTS system and emoji powered animatronic expressions. 🥳
+My voice, performance, gesture, and face-HUD module. 🎬
 
-It provides asynchronous control, 🔀 allowing me to sync my physical body movements
-perfectly with the words and emojis I am currently speaking. 😎
+This module lets me speak through my TTS system, drive emoji-powered
+animatronic expressions, and paint playful effects onto my split terminal face.
+The face HUD helpers target only the upper face pane: layer 0 is behind my
+emoji controlled face layer 1, layer 2 is in front.
+
+HUD text effects are ambient current-beat visuals, not durable messages. A new
+moving effect replaces the previous effect of that type on the same layer;
+terminal text is the append-style exception and can be cleared or given a
+duration. HUD images replace the current image on their layer and normally fade
+in, hold, then fade out. If I publish images rapidly, the renderer treats them
+like a live stream by keeping the layer hot instead of restarting a visible fade
+from black each frame. Remember, an image needn't be a photo. It can be something
+I synthesize myself, even something as simple as a 1 pixel color!
+
+Speech provides asynchronous control, 🔀 allowing me to sync my physical body
+movements perfectly with the words and emojis I am currently speaking. 😎
 """
 
 import json
@@ -491,7 +505,10 @@ def hud_text(
 
     Layer 0 sits behind my animated face and is best for ambient texture.
     Layer 2 sits in front of my face and is best for deliberate visible overlay.
-    Effects are "terminal", "crawl", or "rain".
+    Effects are "terminal", "crawl", or "rain". These are face-effect beats, not
+    queued status messages: "crawl" and "rain" replace the current same-effect
+    slot on that layer, while "terminal" appends to the layer's terminal history
+    until cleared or expired by duration.
 
     Args:
         text: Plain text to overlay on my face.
@@ -529,6 +546,8 @@ def hud_figlet(
 
     This is the punchier face-canvas effect: good for words like "thinking",
     "searching", "oops", or a tiny dramatic label while my face keeps moving.
+    Like `hud_text()`, moving figlet effects override the current same-effect
+    slot on that layer; they are not queued.
 
     Args:
         text: Text to render in the HUD figlet style.
@@ -560,11 +579,14 @@ def hud_figlet(
 @api_call(default_verbosity=Verbosity.ACK)
 def hud_image(image: Any, layer: int = 2) -> Dict[str, Any]:
     """
-    Show an image on a layered face HUD image slot.  and mirror it to debug vision.
+    Show an image on a layered face HUD image slot (and mirrors it to debug vision).
 
     Layer 0 renders behind my animated face. Layer 2 renders in front of it,
     matching the old debug-image overlay feel. The same frame is also published
     to `/logos/debug_vision/face` so the web/debug tools can see what I showed.
+    Each layer has one image slot: a new image replaces the previous image on
+    that layer. Images normally fade in, hold, and fade out; high-frequency
+    updates behave like a hot live stream instead of visibly blinking.
 
     Args:
         image: A BGR numpy image, a grayscale image, a CaptureResult-shaped
