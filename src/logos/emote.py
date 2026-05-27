@@ -560,7 +560,7 @@ def hud_figlet(
 @api_call(default_verbosity=Verbosity.ACK)
 def hud_image(image: Any, layer: int = 2) -> Dict[str, Any]:
     """
-    Show an image on a layered face HUD image slot and mirror it to debug vision.
+    Show an image on a layered face HUD image slot.  and mirror it to debug vision.
 
     Layer 0 renders behind my animated face. Layer 2 renders in front of it,
     matching the old debug-image overlay feel. The same frame is also published
@@ -614,7 +614,7 @@ def hud_image(image: Any, layer: int = 2) -> Dict[str, Any]:
 @api_call(default_verbosity=Verbosity.ACK)
 def hud_clear(layer: Optional[int] = None) -> Dict[str, Any]:
     """
-    Clear my face HUD effect layers without touching the status pane.
+    Clear my face HUD effect layers.
 
     Args:
         layer: Optional layer to clear. Use None to clear both face layers.
@@ -623,7 +623,7 @@ def hud_clear(layer: Optional[int] = None) -> Dict[str, Any]:
         The exact payload dictionary I published.
 
     Note to self:
-        This does not clear TTS captions or human-facing status output.
+        This does not clear my persistent face, TTS captions, or human-facing status output.
     """
     payload = _make_hud_payload(kind="clear", layer=layer)
     _publish_hud_payload(payload)
