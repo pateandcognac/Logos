@@ -318,15 +318,47 @@ def logos.emote.ttp(text: str, wait: bool=False, engine: str=None) -> SpeakTask:
 def logos.emote.gesture(emoji: str, duration: float=4.0, channel: str='both|arms|face') -> None:
     # Perform animatronics silently without speaking. 
     ...
-def logos.emote.hud_text(text: str, layer: int=0, effect: str='terminal', color: str='bright_white', **effect_options) -> Dict:
-    # Show plain text on my face effect layers. Effects: terminal, crawl, rain.
-    # Face HUD effects are current-beat visuals, not a reliable queue; crawl/rain
-    # override the current same-effect slot on that layer. terminal appends until
-    # cleared or expired by duration.
+def logos.emote.hud_text(
+    text: str,
+    layer: int=0,
+    effect: str='terminal',
+    color: str='bright_white',
+    location=None,
+    direction=None,
+    tiling='x',
+    density=1000,
+    speed: float=None,
+    duration: float=None,
+    **effect_options
+) -> Dict:
+    # Show plain text on my face effect layers. Effects: terminal, crawl, scroll,
+    # marquee, move, motion. terminal appends to history until cleared or expired
+    # by duration. Moving effects replace the current moving slot on that layer.
+    # Moving controls are shared with hud_figlet():
+    #   location: 0-1000 (x,y), 0.0-1.0 pair, dict x/y, or named anchor
+    #     top_left, top, top_right, left, center, right, bottom_left, bottom, bottom_right
+    #   direction: left, right, up, down, diagonals, still/none, or -1000..1000 vector
+    #   tiling: 'x', 'y', 'xy', 'none', or bool. density: 0-1000 tile density.
     ...
-def logos.emote.hud_figlet(text: str, layer: int=0, font: str='standard', effect: str='terminal', color: str='bright_blue', **effect_options) -> Dict:
+def logos.emote.hud_figlet(
+    text: str,
+    layer: int=0,
+    font: str='standard',
+    effect: str='terminal',
+    color: str='bright_blue',
+    location=None,
+    direction=None,
+    tiling='x',
+    density=1000,
+    speed: float=None,
+    duration: float=None,
+    **effect_options
+) -> Dict:
     # Show short figlet-style face effect words, like "thinking" or "searching".
-    # Moving figlet effects override the current same-effect slot on that layer.
+    # Same terminal/moving behavior and motion controls as hud_text(); keep words short.
+    # Examples:
+    #   logos.emote.hud_figlet("WOW", effect="motion", location="center", direction="down_right", tiling="xy", speed=5)
+    #   logos.emote.hud_text("scan", layer=2, effect="scroll", location="top", direction="left", duration=4)
     ...
 def logos.emote.hud_image(image, layer: int=2) -> Dict:
     # Show an image on face layer 0 or 2 and mirror it to /logos/debug_vision/face.

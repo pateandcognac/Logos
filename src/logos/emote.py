@@ -80,7 +80,32 @@ _HUD_CONNECT_WAIT_SEC = 0.75
 
 _HUD_LAYERS = (0, 2)
 _HUD_KINDS = ("text", "figlet", "clear")
-_HUD_EFFECTS = ("terminal", "crawl", "rain")
+_HUD_EFFECTS = ("terminal", "crawl", "scroll", "marquee", "move", "motion")
+
+_HUD_LOCATIONS = {
+    "top_left": (0, 0),
+    "top": (500, 0),
+    "top_right": (1000, 0),
+    "left": (0, 500),
+    "center": (500, 500),
+    "right": (1000, 500),
+    "bottom_left": (0, 1000),
+    "bottom": (500, 1000),
+    "bottom_right": (1000, 1000),
+}
+
+_HUD_DIRECTIONS = {
+    "left": (-1000, 0),
+    "right": (1000, 0),
+    "up": (0, -1000),
+    "down": (0, 1000),
+    "up_left": (-1000, -1000),
+    "up_right": (1000, -1000),
+    "down_left": (-1000, 1000),
+    "down_right": (1000, 1000),
+    "still": (0, 0),
+    "none": (0, 0),
+}
 
 _face_state_cache: Dict[str, Any] = {}
 _face_state_lock = threading.Lock()
@@ -132,6 +157,88 @@ def _validate_hud_layer(layer: int) -> int:
     if layer not in _HUD_LAYERS:
         raise ValueError("Unknown face HUD layer '{}'. Choose 0 or 2.".format(layer))
     return layer
+
+def _normalize_hud_coord(value: Any, *, signed: bool = False) -> float:
+    """Normalize a face-HUD coordinate to Logos's 0-1000 or -1000..1000 range."""
+    value = float(value)
+    if signed and -1.0 <= value <= 1.0 and value not in (0.0, -0.0):
+        value *= 1000.0
+    elif not signed and 0.0 <= value <= 1.0:
+        value *= 1000.0
+
+    low = -1000.0 if signed else 0.0
+    return max(low, min(1000.0, value))
+
+def _normalize_hud_pair(
+    value: Any,
+    *,
+    names: Dict[str, Tuple[int, int]],
+    default: Tuple[int, int],
+    signed: bool = False,
+) -> Tuple[float, float]:
+    """Normalize a named, tuple/list, or dict HUD pair."""
+    if value is None:
+        return float(default[0]), float(default[1])
+    if isinstance(value, str):
+        key = value.strip().lower().replace("-", "_").replace(" ", "_")
+        if key not in names:
+            raise ValueError("Unknown HUD vector name '{}'. Choose from: {}".format(
+                value, sorted(names.keys())
+            ))
+        value = names[key]
+    if isinstance(value, dict):
+        x = value.get("x", value.get("u", default[0]))
+        y = value.get("y", value.get("v", default[1]))
+        return _normalize_hud_coord(x, signed=signed), _normalize_hud_coord(y, signed=signed)
+    if isinstance(value, (list, tuple)) and len(value) >= 2:
+        return _normalize_hud_coord(value[0], signed=signed), _normalize_hud_coord(value[1], signed=signed)
+    raise ValueError("HUD vector values must be a name, a 2-tuple/list, or a dict with x/y.")
+
+def _normalize_hud_tiling(tiling: Any) -> Tuple[bool, bool]:
+    """Normalize tiling into explicit x/y booleans for the renderer."""
+    if isinstance(tiling, bool):
+        return tiling, tiling
+    value = str(tiling).strip().lower().replace("-", "_").replace(" ", "_")
+    if value in ("none", "off", "false", "0"):
+        return False, False
+    if value in ("x", "horizontal", "h"):
+        return True, False
+    if value in ("y", "vertical", "v"):
+        return False, True
+    if value in ("xy", "yx", "both", "all", "true", "1"):
+        return True, True
+    raise ValueError("Unknown HUD tiling '{}'. Use 'x', 'y', 'xy', 'none', or a bool.".format(tiling))
+
+def _hud_motion_options(
+    location: Any = None,
+    direction: Any = None,
+    tiling: Any = "x",
+    density: Any = 1000,
+    speed: Optional[float] = None,
+    duration: Optional[float] = None,
+) -> Dict[str, Any]:
+    """Return normalized shared moving-effect options for text and figlet."""
+    location_x, location_y = _normalize_hud_pair(
+        location, names=_HUD_LOCATIONS, default=(0, 600), signed=False
+    )
+    direction_x, direction_y = _normalize_hud_pair(
+        direction, names=_HUD_DIRECTIONS, default=(-1000, 0), signed=True
+    )
+    tile_x, tile_y = _normalize_hud_tiling(tiling)
+    options = {
+        "location_x": location_x,
+        "location_y": location_y,
+        "direction_x": direction_x,
+        "direction_y": direction_y,
+        "tile_x": tile_x,
+        "tile_y": tile_y,
+        "density": _normalize_hud_coord(density, signed=False),
+    }
+    if speed is not None:
+        options["speed"] = float(speed)
+    if duration is not None:
+        options["duration"] = float(duration)
+    return options
 
 def _make_hud_payload(
     kind: str,
@@ -414,8 +521,6 @@ def ttp(
         print(f"Voice Error: ROS unavailable. (Would have said: {text})")
         return SpeakTask(None)
     
-    logos.emote.hud_clear()
-
     client = ros.get_action_client("speak", SpeakAction, wait_time=4.0)
     if client is None:
         print("Error: Voice system unavailable (Action Server not found).")
@@ -496,6 +601,12 @@ def hud_text(
     layer: int = 0,
     effect: str = "terminal",
     color: str = "bright_white",
+    location: Any = None,
+    direction: Any = None,
+    tiling: Any = "x",
+    density: Any = 1000,
+    speed: Optional[float] = None,
+    duration: Optional[float] = None,
     **effect_options: Any,
 ) -> Dict[str, Any]:
     """
@@ -503,29 +614,39 @@ def hud_text(
 
     Layer 0 sits behind my animated face and is best for ambient texture.
     Layer 2 sits in front of my face and is best for deliberate visible overlay.
-    Effects are "terminal", "crawl", or "rain". These are face-effect beats, not
-    queued status messages: "crawl" and "rain" replace the current same-effect
-    slot on that layer, while "terminal" appends to the layer's terminal history
-    until cleared or expired by duration.
+    Effects are "terminal" or moving effects like "crawl", "scroll", "move",
+    and "motion". These are face-effect beats, not queued status messages:
+    moving effects replace the current moving slot on that layer, while
+    "terminal" appends to the layer's terminal history until cleared or expired
+    by duration.
 
     Args:
         text: Plain text to overlay on my face.
         layer: Face effect layer, either 0 behind my face or 2 in front.
-        effect: Text effect: "terminal", "crawl", or "rain".
+        effect: Text effect: "terminal", "crawl", "scroll", "move", or "motion".
         color: 16 color name such as "bright_white", "green", or "cyan".
-        **effect_options: Optional effect controls like speed, duration, density,
-            or bg_color.
+        location: Top-left start location as a 0-1000 `(x, y)`, 0.0-1.0 pair,
+            dict with x/y, or name like "center".
+        direction: Motion vector as a 0-1000-ish `(x, y)` pair or name like
+            "left", "up", or "down_right".
+        tiling: "x", "y", "xy", "none", or bool.
+        density: 0-1000 tile density; 1000 is tight, lower values add spacing.
+        speed: Motion speed in terminal cells per second.
+        duration: Optional lifetime in seconds.
+        **effect_options: Optional extra controls like bg_color.
 
     Returns:
         The exact payload dictionary I published.
     """
+    motion_options = _hud_motion_options(location, direction, tiling, density, speed, duration)
+    motion_options.update(effect_options)
     payload = _make_hud_payload(
         kind="text",
         text=text,
         layer=layer,
         effect=effect,
         color=color,
-        **effect_options,
+        **motion_options,
     )
     _publish_hud_payload(payload)
     return payload
@@ -537,6 +658,12 @@ def hud_figlet(
     font: str = "standard",
     effect: str = "terminal",
     color: str = "bright_blue",
+    location: Any = None,
+    direction: Any = None,
+    tiling: Any = "x",
+    density: Any = 1000,
+    speed: Optional[float] = None,
+    duration: Optional[float] = None,
     **effect_options: Any,
 ) -> Dict[str, Any]:
     """
@@ -544,17 +671,24 @@ def hud_figlet(
 
     This is the punchier face-canvas effect: good for words like "thinking",
     "searching", "oops", or a tiny dramatic label while my face keeps moving.
-    Like `hud_text()`, moving figlet effects override the current same-effect
-    slot on that layer; they are not queued.
+    Like `hud_text()`, moving figlet effects override the current moving slot on
+    that layer; they are not queued.
 
     Args:
         text: Text to render in the HUD figlet style.
         layer: Face effect layer, either 0 behind my face or 2 in front.
         font: Figlet font name such as "small".
-        effect: Text effect: "terminal", "crawl", or "rain".
+        effect: Text effect: "terminal", "crawl", "scroll", "move", or "motion".
         color: 16 color name such as "bright_blue" or "bright_magenta".
-        **effect_options: Optional effect controls like speed, duration, density,
-            or bg_color.
+        location: Top-left start location as a 0-1000 `(x, y)`, 0.0-1.0 pair,
+            dict with x/y, or name like "center".
+        direction: Motion vector as a 0-1000-ish `(x, y)` pair or name like
+            "left", "up", or "down_right".
+        tiling: "x", "y", "xy", "none", or bool.
+        density: 0-1000 tile density; 1000 is tight, lower values add spacing.
+        speed: Motion speed in terminal cells per second.
+        duration: Optional lifetime in seconds.
+        **effect_options: Optional extra controls like bg_color.
 
     Returns:
         The exact payload dictionary I published.
@@ -562,6 +696,8 @@ def hud_figlet(
     Note to self:
         Keep this short. Big words become visual confetti very quickly.
     """
+    motion_options = _hud_motion_options(location, direction, tiling, density, speed, duration)
+    motion_options.update(effect_options)
     payload = _make_hud_payload(
         kind="figlet",
         text=text,
@@ -569,7 +705,7 @@ def hud_figlet(
         font=font,
         effect=effect,
         color=color,
-        **effect_options,
+        **motion_options,
     )
     _publish_hud_payload(payload)
     return payload
