@@ -410,8 +410,6 @@ def ttp(
     """
     import logos # Local import to fetch dynamic config
 
-    logos.emote.hud_clear()
-
     if not _HAS_ROS:
         print(f"Voice Error: ROS unavailable. (Would have said: {text})")
         return SpeakTask(None)
