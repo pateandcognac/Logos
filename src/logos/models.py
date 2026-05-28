@@ -44,6 +44,7 @@ _YOLOE_PROMPT_FREE_WEIGHTS = str(_MODELS_DIR / "yoloe-11s-seg-pf.pt")
 __all__ = ["llm", "yolo11", "yolo_world", "yoloe", "hands"]
 
 _llm_config: Dict[str, Any] = {}
+_ultralytics_paths_configured = False
 
 # ─── My LLM Intelligence ──────────────────────────────────────────────────
 
@@ -160,6 +161,70 @@ def llm(prompt: str, model_alias: str = "fast", temperature: float = 1.0) -> str
 
 # ─── YOLO Vision Models ────────────────────────────────────────────────
 
+def _configure_ultralytics_model_paths() -> None:
+    """
+    Point Ultralytics' implicit model downloads at my shared model directory.
+
+    Intent:
+        I usually receive explicit checkpoint paths under LOGOS_MODELS_DIR, but
+        some Ultralytics open-vocabulary models lazily request helper assets by
+        bare filename. In particular, YOLOE's text encoder asks for
+        `mobileclip_blt.ts`, and the default resolver checks the current
+        workspace first. This keeps cloned workspaces from growing their own
+        private model files when a shared copy already exists.
+
+    Note to self:
+        This is deliberately best-effort. If Ultralytics changes its internals,
+        my normal explicit checkpoint paths still work, and the original
+        downloader remains the fallback.
+    """
+    global _ultralytics_paths_configured
+    if _ultralytics_paths_configured:
+        return
+
+    _MODELS_DIR.mkdir(parents=True, exist_ok=True)
+
+    try:
+        import ultralytics.utils as ultralytics_utils
+
+        shared_dir = str(_MODELS_DIR)
+        settings = getattr(ultralytics_utils, "SETTINGS", None)
+        if (
+            settings is not None
+            and settings.get("weights_dir") not in (_MODELS_DIR, shared_dir)
+        ):
+            # Mutate the in-memory dict directly so I do not rewrite the
+            # user's global Ultralytics settings file from inside a clone.
+            dict.__setitem__(settings, "weights_dir", _MODELS_DIR)
+
+        # A few Ultralytics modules snapshot this value at import time.
+        ultralytics_utils.WEIGHTS_DIR = _MODELS_DIR
+    except Exception as e:
+        print(f"models: Could not configure Ultralytics settings: {e}")
+
+    try:
+        from ultralytics.utils import downloads
+
+        original = getattr(downloads, "attempt_download_asset", None)
+        if original is None or getattr(original, "_logos_shared_models", False):
+            _ultralytics_paths_configured = True
+            return
+
+        def logos_attempt_download_asset(file, *args, **kwargs):
+            candidate = Path(str(file).strip().replace("'", ""))
+            if not candidate.is_absolute():
+                shared_candidate = _MODELS_DIR / candidate.name
+                if shared_candidate.exists():
+                    return str(shared_candidate)
+            return original(file, *args, **kwargs)
+
+        logos_attempt_download_asset._logos_shared_models = True
+        downloads.attempt_download_asset = logos_attempt_download_asset
+    except Exception as e:
+        print(f"models: Could not patch Ultralytics asset lookup: {e}")
+
+    _ultralytics_paths_configured = True
+
 def _normalize_prompt_list(prompts: Optional[List[str]]) -> Tuple[str, ...]:
     """
     Clean prompt strings while preserving order.
@@ -210,10 +275,12 @@ def _get_yoloe_constructor():
     """
     try:
         from ultralytics import YOLOE
+        _configure_ultralytics_model_paths()
         return YOLOE
     except ImportError:
         try:
             from ultralytics import YOLO
+            _configure_ultralytics_model_paths()
             return YOLO
         except ImportError:
             return None
@@ -382,6 +449,7 @@ def yolo11(
     
     try:
         from ultralytics import YOLO
+        _configure_ultralytics_model_paths()
     except ImportError:
         print("models: ultralytics package not installed. Cannot run YOLO11.")
         return _with_capture_metadata(capture_result, "det_yolo11", [])
@@ -453,6 +521,7 @@ def yolo_world(
 
     try:
         from ultralytics import YOLO
+        _configure_ultralytics_model_paths()
     except ImportError:
         print("models: ultralytics package not installed. Cannot run YOLO-World.")
         return _with_capture_metadata(capture_result, "det_yolo_world", [])
