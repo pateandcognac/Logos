@@ -30,6 +30,40 @@ instances:
     render_visible: true
     raycast_visible: false
 
+  rtabmap_world_cloud:
+    object: rtabmap_world
+    description: "Static RTAB-Map world cloud for long-lived spatial context"
+    params:
+      asset_path: /home/robot/maps/chora_assets/rtabmap_world/cloud_voxel_0.08.ply
+      asset_kind: pointcloud
+      point_size: 2.0
+      max_points: 0
+      min_z: -1000.0
+      max_z: 1000.0
+      color_mode: asset
+      uniform_color: [0.72, 0.78, 0.84]
+      reload_token: ""
+    shader: defaultUnlit
+    render_visible: false           # Enable when I want the static world cloud
+    raycast_visible: true
+
+  rtabmap_mesh:
+    object: rtabmap_world
+    description: "Static RTAB-Map world cloud for long-lived spatial context"
+    params:
+      asset_path: /home/robot/maps/chora_assets/rtabmap_world/mesh_poisson_depth8_voxel0.08_decimated.ply
+      asset_kind: mesh
+      point_size: 2.0
+      max_points: 0
+      min_z: -500.0
+      max_z: 10.0
+      color_mode: asset
+      uniform_color: [0.72, 0.78, 0.84]
+      reload_token: ""
+    shader: defaultUnlit
+    render_visible: true           # Enable when I want the static world cloud
+    raycast_visible: true
+
   # ---- Debug Overlays (off by default) ----
 
   #obstacle_plane:
