@@ -68,13 +68,19 @@ SCHEMA = {
         'type': 'float',
         'default': -1000.0,
         'unit': 'm',
-        'description': 'Minimum world Z to keep',
+        'description': 'Minimum map-frame height to keep',
     },
     'max_z': {
         'type': 'float',
         'default': 1000.0,
         'unit': 'm',
-        'description': 'Maximum world Z to keep',
+        'description': 'Maximum map-frame height to keep; use ~2.13m to keep door tops but remove ceiling',
+    },
+    'camera_clip_radius_m': {
+        'type': 'float',
+        'default': 0.0,
+        'unit': 'm',
+        'description': 'Render-time bubble around the virtual camera where this geometry is clipped away',
     },
     'color_mode': {
         'type': 'choice',
@@ -255,7 +261,27 @@ def _load_processed_geometry(params: Dict[str, Any]) -> Tuple[str, Any]:
     return kind, geometry
 
 
-def build(params: Dict[str, Any], ctx: Any) -> Optional[SceneObject]:
+def _make_scene_object(
+    name: str,
+    kind: str,
+    geometry: Any,
+    point_size: float,
+    camera_clip_radius_m: float,
+) -> SceneObject:
+    obj = SceneObject(
+        name=name,
+        kind=kind,
+        geometry=geometry,
+        render_visible=True,
+        raycast_visible=True,
+        shader='defaultUnlit' if kind == "pointcloud" else 'defaultLit',
+        point_size=point_size,
+    )
+    obj.camera_clip_radius_m = max(0.0, float(camera_clip_radius_m))
+    return obj
+
+
+def build(params: Dict[str, Any], ctx: Any) -> Optional[Any]:
     """
     Build my static RTAB-Map world layer.
 
@@ -268,13 +294,12 @@ def build(params: Dict[str, Any], ctx: Any) -> Optional[SceneObject]:
 
     kind, geometry = _load_processed_geometry(params)
     point_size = float(params.get('point_size', 2.0))
+    camera_clip_radius_m = float(params.get('camera_clip_radius_m', 0.0))
 
-    return SceneObject(
-        name='__auto__',
-        kind=kind,
-        geometry=geometry,
-        render_visible=True,
-        raycast_visible=True,
-        shader='defaultUnlit' if kind == "pointcloud" else 'defaultLit',
-        point_size=point_size,
+    return _make_scene_object(
+        '__auto__',
+        kind,
+        geometry,
+        point_size,
+        camera_clip_radius_m,
     )

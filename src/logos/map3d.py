@@ -2692,6 +2692,70 @@ class Map3d:
                 continue
         return frozen
 
+    def _clip_object_around_camera(
+        self,
+        obj: SceneObject,
+        camera_world_pos: np.ndarray,
+    ) -> SceneObject:
+        """
+        Return a render-time copy with nearby geometry removed around my camera.
+
+        Some static world phantasmata can put a virtual wall between my preferred
+        over-the-shoulder camera and my body. A small exclusion bubble lets me
+        keep the camera usable without permanently modifying the cached asset.
+        """
+        radius = float(getattr(obj, "camera_clip_radius_m", 0.0) or 0.0)
+        if radius <= 0.0 or obj.geometry is None:
+            return obj
+
+        radius_sq = radius * radius
+        center = np.asarray(camera_world_pos, dtype=np.float64)
+
+        try:
+            if obj.kind == "pointcloud":
+                points = np.asarray(obj.geometry.points)
+                if points.size == 0:
+                    return obj
+                keep = np.sum((points - center) * (points - center), axis=1) >= radius_sq
+                if np.all(keep):
+                    return obj
+                clipped_geometry = obj.geometry.select_by_index(np.where(keep)[0].tolist())
+            elif obj.kind == "mesh":
+                mesh = obj.geometry
+                vertices = np.asarray(mesh.vertices)
+                triangles = np.asarray(mesh.triangles)
+                if vertices.size == 0 or triangles.size == 0:
+                    return obj
+                triangle_centers = vertices[triangles].mean(axis=1)
+                keep = (
+                    np.sum((triangle_centers - center) * (triangle_centers - center), axis=1)
+                    >= radius_sq
+                )
+                if np.all(keep):
+                    return obj
+                clipped_geometry = o3d.geometry.TriangleMesh(mesh)
+                clipped_geometry.remove_triangles_by_mask((~keep).tolist())
+                clipped_geometry.remove_unreferenced_vertices()
+                clipped_geometry.remove_degenerate_triangles()
+                clipped_geometry.compute_vertex_normals()
+            else:
+                return obj
+
+            clipped = SceneObject(
+                name=obj.name,
+                kind=obj.kind,
+                geometry=clipped_geometry,
+                render_visible=obj.render_visible,
+                raycast_visible=obj.raycast_visible,
+                costmap_affects=obj.costmap_affects,
+                shader=obj.shader,
+                point_size=obj.point_size,
+            )
+            return clipped
+        except Exception as e:
+            print(f"[map3d] camera clip failed for {obj.name}: {e}")
+            return obj
+
     def _render_scene(
         self,
         live_pcd_map: Optional[o3d.geometry.PointCloud],
@@ -2782,6 +2846,9 @@ class Map3d:
                     if obj is None or not getattr(obj, 'render_visible', True):
                         continue
 
+                    obj = self._clip_object_around_camera(obj, camera_world_pos)
+                    if getattr(obj.geometry, "is_empty", lambda: False)():
+                        continue
                     phantasma_objects.append(obj)
 
                     # Create material for this object
@@ -2984,6 +3051,37 @@ class Map3d:
             return None
         pt = ray_origin + t * ray_dir
         return float(t), pt
+
+    @staticmethod
+    def _raycast_hit_matches_target(hit_name: str, target: Optional[str]) -> bool:
+        if target is None:
+            return True
+
+        wanted = str(target).strip().lower()
+        hit = str(hit_name).strip().lower()
+        if not wanted:
+            return True
+
+        aliases = {
+            "astra": "astra_cloud",
+            "cloud": "astra_cloud",
+            "depth": "astra_cloud",
+            "objects": "object",
+            "phantasma": "object",
+            "phantasmata": "object",
+        }
+        wanted = aliases.get(wanted, wanted)
+
+        if wanted == hit:
+            return True
+        if wanted == "object" and hit.startswith("object:"):
+            return True
+        if wanted.startswith("object:"):
+            return hit == wanted
+        if hit.startswith("object:"):
+            object_name = hit.split(":", 1)[1]
+            return wanted == object_name
+        return False
 
     # ---------------- HUD overlay ----------------
 
@@ -3443,6 +3541,7 @@ class Map3d:
         self,
         render: Union[RenderResult, str],
         yx: Tuple[float, float],
+        target: Optional[str] = None,
         include_floor: bool = True,
         include_astra: bool = True,
         include_robot: bool = True,
@@ -3450,9 +3549,50 @@ class Map3d:
         debug_publish: bool = True,
     ) -> RaycastHit:
         """
-        Projects a 2D pixel from a `map3d` render back into the 3D world.
+        Project a pixel in my Chora render back into map-frame 3D space.
+
+        I use this after `render()` when I want a visual choice to become an
+        actionable coordinate. The input `yx` is in my usual normalized
+        0-1000 image coordinates: `(0, 0)` is top-left, `(1000, 1000)` is
+        bottom-right, and `(500, 500)` is the image center.
+
+        Args:
+            render: A `RenderResult` from `map3d.render()`, or a recent render
+                id string. Passing the object is safer because it carries its
+                exact frozen scene snapshot.
+            yx: Pixel coordinate in normalized `(y, x)` 0-1000 space.
+            target: Optional intended target. If omitted, I return the nearest
+                enabled hit. If set to `"floor"`, `"astra"`, `"robot"`,
+                `"object"`, `"object:<name>"`, or a bare object instance name,
+                I raycast through nearer non-target hits and return the first
+                matching target. If no target is reached, I return the nearest
+                hit anyway and record the requested target in `meta`.
+            include_floor: Whether the mathematical floor/map plane can be hit.
+            include_astra: Whether the live Astra point cloud can be hit.
+            include_robot: Whether my own body mesh can be hit.
+            include_objects: Whether raycast-visible phantasmata can be hit.
+            debug_publish: If True, publish a small visual debug marker.
+
+        Returns:
+            RaycastHit describing the chosen hit point. `hit` is one of:
+            `"floor"`, `"astra_cloud"`, `"robot"`, `"object:<name>"`, or
+            `"infinity"`. For floor hits, `floor_state` tells me whether that
+            map cell is open, occupied, or unknown.
+
+        Note to self:
+            This is how I turn sight into motion. If I want to navigate to an
+            open patch of floor, I should call `raycast(render, yx,
+            target="floor")`, then check `floor_state == "map_open"` before
+            using `logos.nav.go_to_abs(x, y)`. If the result says it hit a
+            non-floor object, that is useful too: it means something visually
+            occluded my intended floor target.
         """
         check_for_interrupt()
+        if isinstance(target, bool):
+            # Backward compatibility for older positional calls:
+            # raycast(render, yx, include_floor)
+            include_floor = target
+            target = None
 
         snapshot = None
         if isinstance(render, RenderResult):
@@ -3525,17 +3665,46 @@ class Map3d:
 
         if hits:
             hits.sort(key=lambda x: x[0])
-            dist, hit_name, pt, meta = hits[0]
+            first_dist, first_hit_name, first_pt, first_meta = hits[0]
+            chosen = None
+            if target is not None:
+                for candidate in hits:
+                    if self._raycast_hit_matches_target(candidate[1], target):
+                        chosen = candidate
+                        break
+            if chosen is None:
+                chosen = hits[0]
+
+            dist, hit_name, pt, meta = chosen
             floor_state = meta.get("floor_state")
+            all_hit_names = [h[1] for h in hits]
+            result_meta = {
+                "pixel_px": (float(py), float(px)),
+                "pixel_norm1000": (float(y_norm), float(x_norm)),
+                "target": target,
+                "first_hit": first_hit_name,
+                "target_reached": (
+                    target is None or self._raycast_hit_matches_target(hit_name, target)
+                ),
+                "all_hits": all_hit_names,
+            }
+            if hit_name != first_hit_name:
+                result_meta["occluding_first_hit"] = {
+                    "hit": first_hit_name,
+                    "point": (
+                        float(first_pt[0]),
+                        float(first_pt[1]),
+                        float(first_pt[2]),
+                    ),
+                    "distance_m": float(first_dist),
+                    "floor_state": first_meta.get("floor_state"),
+                }
             hit_result = RaycastHit(
                 hit=hit_name,
                 point=(float(pt[0]), float(pt[1]), float(pt[2])),
                 distance_m=float(dist),
                 floor_state=floor_state,
-                meta={
-                    "pixel_px": (float(py), float(px)),
-                    "pixel_norm1000": (float(y_norm), float(x_norm)),
-                },
+                meta=result_meta,
             )
             if debug_publish and isinstance(render, RenderResult):
                 self._publish_raycast_debug(render, hit_result)
@@ -3551,6 +3720,10 @@ class Map3d:
             meta={
                 "pixel_px": (float(py), float(px)),
                 "pixel_norm1000": (float(y_norm), float(x_norm)),
+                "target": target,
+                "target_reached": False,
+                "first_hit": "infinity",
+                "all_hits": [],
             },
         )
         if debug_publish and isinstance(render, RenderResult):
