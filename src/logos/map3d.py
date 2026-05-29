@@ -3569,7 +3569,7 @@ class Map3d:
         target: Optional[str] = None,
         include_floor: bool = True,
         include_astra: bool = True,
-        include_robot: bool = True,
+        include_robot: bool = False,
         include_objects: bool = True,
         debug_publish: bool = True,
     ) -> RaycastHit:
