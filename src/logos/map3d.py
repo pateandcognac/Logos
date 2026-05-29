@@ -2764,6 +2764,7 @@ class Map3d:
         width: int,
         height: int,
         include_robot: bool,
+        robot_camera_clip_radius_m: float,
         effective_point_size: float,
         fov_deg: float,
         fov_axis: str,
@@ -2822,6 +2823,21 @@ class Map3d:
         robot_mesh_frozen = None
         if include_robot:
             robot_mesh_render = self._create_robot_mesh_render_only()
+            if robot_mesh_render is not None and not robot_mesh_render.is_empty():
+                if robot_camera_clip_radius_m > 0.0:
+                    robot_obj = SceneObject(
+                        name="robot",
+                        kind="mesh",
+                        geometry=robot_mesh_render,
+                        render_visible=True,
+                        raycast_visible=True,
+                        shader="defaultLit",
+                    )
+                    robot_obj.camera_clip_radius_m = float(robot_camera_clip_radius_m)
+                    robot_obj = self._clip_object_around_camera(robot_obj, camera_world_pos)
+                    robot_mesh_render = robot_obj.geometry
+                if robot_mesh_render.is_empty():
+                    robot_mesh_render = None
             if robot_mesh_render is not None and not robot_mesh_render.is_empty():
                 scene.add_geometry("robot", robot_mesh_render, lit)
                 robot_mesh_frozen = self._freeze_mesh(robot_mesh_render)
@@ -3265,6 +3281,7 @@ class Map3d:
         cloud_density: Optional[float] = None,
         cloud_opacity: Optional[float] = None,
         cloud_point_size: Optional[float] = None,
+        robot_camera_clip_radius_m: Optional[float] = None,
         # Laser scan visualization — None = use self.settings value
         laser_scan_show: Optional[bool] = None,
         laser_scan_center_band_px: Optional[int] = None,
@@ -3300,6 +3317,9 @@ class Map3d:
             fov_deg: Field-of-view in degrees.
             fov_axis: "horizontal" or "vertical". Defaults to horizontal.
             include_robot: If True, includes a 3D model of myself in the scene.
+            robot_camera_clip_radius_m: Radius in meters around the virtual
+                camera where my robot self-model is clipped away. This is useful
+                for near-eye or physical-camera-like viewpoints.
             save: If True, saves the rendered image to disk.
             hud: An optional list of `HudElement` objects to overlay text on the
                 final image for debugging or annotation.
@@ -3347,6 +3367,10 @@ class Map3d:
             fov_axis = str(render_defaults["fov_axis"])
         if include_robot is None:
             include_robot = bool(render_defaults.get("include_robot", True))
+        if robot_camera_clip_radius_m is None:
+            robot_camera_clip_radius_m = float(
+                render_defaults.get("robot_camera_clip_radius_m", 0.35)
+            )
         if view is None:
             view = bool(render_defaults.get("view", True))
         if save is None:
@@ -3453,6 +3477,7 @@ class Map3d:
                 width=width,
                 height=height,
                 include_robot=include_robot,
+                robot_camera_clip_radius_m=float(robot_camera_clip_radius_m),
                 effective_point_size=effective_point_size,
                 fov_deg=float(effective_fov_deg),
                 fov_axis=str(effective_fov_axis),

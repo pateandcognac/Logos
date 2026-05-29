@@ -42,6 +42,7 @@ map3d:
     camera_pos_relative: [-1.5, -1.0, 2.0]
     look_at_relative: [1.0, 0.0, 0.35]
     include_robot: true
+    robot_camera_clip_radius_m: 0.35
     view: true
     cloud_alpha: 1.0
     cloud_density: 1.0

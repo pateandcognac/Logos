@@ -76,13 +76,13 @@ instances:
       max_points: 0
       min_z: 0.15
       max_z: 2.1
-      camera_clip_radius_m: 2.3
+      camera_clip_radius_m: 0.3
       color_mode: asset
       uniform_color: [0.72, 0.78, 0.84]
       reload_token: ""
     shader: defaultLit
-    render_visible: true           # Enable when I want the fuller TSDF surface
-    raycast_visible: false
+    render_visible: true 
+    raycast_visible: true
 
   # ---- Debug Overlays (off by default) ----
 
