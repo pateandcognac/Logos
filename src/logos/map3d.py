@@ -4,7 +4,8 @@ My 'mind palace.' A virtual 3D environment for advanced spatial reasoning.
 
 This module provides the tools to render a 3D scene of my environment from
 a virtual camera's perspective. The scene is constructed from the ROS map,
-my live Astra point cloud, and a 3D model of myself.
+my live Astra point cloud, and a 3D model of myself. New: a TSDF constructed
+from rtab-map db.
 
 The core workflow is a two-step process:
 1.  `render()`: Create a 2D image of the 3D scene. This returns a `RenderResult`
