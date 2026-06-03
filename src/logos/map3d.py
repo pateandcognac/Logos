@@ -831,6 +831,9 @@ class Map3d:
             return 0.0
 
     def _pc_raw_callback(self, pc_msg: PointCloud2) -> None:
+        # Ignore stub/header-only messages some depth topics emit on first subscription.
+        if not pc_msg.data:
+            return
         with self._frame_lock:
             self._latest_pc_raw = pc_msg
             self._latest_pc_raw_wall_time = time.time()
@@ -860,6 +863,9 @@ class Map3d:
             pass
 
     def _camera_sync_callback(self, pc_msg: PointCloud2, rgb_msg: Image) -> None:
+        # Ignore stub/header-only messages some depth topics emit on first subscription.
+        if not pc_msg.data:
+            return
         pc_t = self._msg_stamp_sec(pc_msg)
         rgb_t = self._msg_stamp_sec(rgb_msg)
         with self._frame_lock:
@@ -3410,10 +3416,15 @@ class Map3d:
                 f"({self._describe_map_state()})."
             )
 
-        pc_msg, rgb_msg, info_msg, _ = self._acquire_camera_triple(
-            timeout_s=4.0,
-            allow_unsynced_fallback=True,
-        )
+        pc_msg = rgb_msg = info_msg = None
+        try:
+            pc_msg, rgb_msg, info_msg, _ = self._acquire_camera_triple(
+                timeout_s=4.0,
+                allow_unsynced_fallback=True,
+            )
+        except RuntimeError as exc:
+            print(f"[map3d] camera acquisition failed: {exc}")
+            self._add_render_warning("No point cloud — rendering map-only view.")
 
         # TF can lag on the very first call — retry with short sleeps.
         tf_max_retries = 3
@@ -3445,17 +3456,21 @@ class Map3d:
                     continue
                 raise
 
-        live_pcd_map = self._build_live_colored_pcd_map(
-            pc_msg=pc_msg,
-            rgb_msg=rgb_msg,
-            info_msg=info_msg,
-            max_cloud_height_m=max_cloud_height_m,
-            cloud_density=cloud_density,
-            cloud_opacity=cloud_opacity,
-            laser_scan_show=laser_scan_show,
-            laser_scan_center_band_px=laser_scan_center_band_px,
-            laser_scan_color=laser_scan_color,
-        )
+        live_pcd_map = None
+        if pc_msg is not None:
+            live_pcd_map = self._build_live_colored_pcd_map(
+                pc_msg=pc_msg,
+                rgb_msg=rgb_msg,
+                info_msg=info_msg,
+                max_cloud_height_m=max_cloud_height_m,
+                cloud_density=cloud_density,
+                cloud_opacity=cloud_opacity,
+                laser_scan_show=laser_scan_show,
+                laser_scan_center_band_px=laser_scan_center_band_px,
+                laser_scan_color=laser_scan_color,
+            )
+            if live_pcd_map is None:
+                self._add_render_warning("Point cloud had no usable depth data.")
 
         effective_point_size = (
             cloud_point_size if cloud_point_size is not None
