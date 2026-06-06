@@ -222,7 +222,7 @@ def do_stop(bumpers: List[str]) -> None:
     _base.stop(topic='safety', verbosity=Verbosity.SILENT)
 
 
-def do_backup(bumpers: List[str], distance: float = 0.35, speed: float = 0.5) -> None:
+def do_backup(bumpers: List[str], distance: float = 0.3, speed: float = 0.2) -> None:
     """Back away from whatever I just bumped, steering to help clear the obstacle.
 
     I use the bumped side to pick a rotation direction: left contact steers me
@@ -236,14 +236,14 @@ def do_backup(bumpers: List[str], distance: float = 0.35, speed: float = 0.5) ->
     Args:
         bumpers:  List of bumped side strings from the event.
         distance: How far to reverse in meters (default 0.30).
-        speed:    Reverse speed in m/s (default 0.5).
+        speed:    Reverse speed in m/s (default 0.2).
 
     Note to self: To register a customised version, use functools.partial:
         register(functools.partial(do_backup, distance=0.25, speed=0.08))
     """
     from logos import base as _base
 
-    duration = distance / max(speed, 0.01) + 0.5
+    duration = distance / max(speed, 0.01)  # + 0.5
 
     has_left = 'left' in bumpers
     has_right = 'right' in bumpers
