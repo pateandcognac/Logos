@@ -227,7 +227,7 @@ def do_backup(bumpers: List[str], distance: float = 0.3, speed: float = 0.2) -> 
 
     I use the bumped side to pick a rotation direction: left contact steers me
     right during the reverse, right contact steers me left, and a center-only
-    hit goes straight back. The rotation targets roughly 25 degrees over the
+    hit goes straight back. The rotation targets roughly 35 degrees over the
     backup distance — enough to swing clear of typical corner obstacles without
     over-rotating. I publish to Logos's safety mux slot so the command goes
     through even if normal navigation is paused, while still yielding to the
@@ -252,10 +252,10 @@ def do_backup(bumpers: List[str], distance: float = 0.3, speed: float = 0.2) -> 
         angular_z = 0.0
     elif has_left:
         # Bumped left side — steer right (negative angular_z = clockwise)
-        angular_z = -25.0 / duration
+        angular_z = -35.0 / duration
     elif has_right:
         # Bumped right side — steer left (positive angular_z = counterclockwise)
-        angular_z = 25.0 / duration
+        angular_z = 35.0 / duration
     else:
         angular_z = 0.0
 
