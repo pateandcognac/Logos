@@ -55,9 +55,6 @@ qtcreator-*
 # Catkin custom files
 CATKIN_IGNORE
 
-# Backup directories
-Logos.bak_just_before_Claude_run/
-
 # Local editor / assistant state
 .codex
 .claude/
