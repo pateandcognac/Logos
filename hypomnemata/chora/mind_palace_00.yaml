@@ -70,11 +70,11 @@ instances:
     object: rtabmap_world
     description: "Experimental TSDF mesh reconstructed from RTAB-Map RGB-D frames"
     params:
-      asset_path: /home/robot/maps/chora_assets/rtabmap_tsdf/tsdf_mesh_voxel0.035.ply
+      asset_path: /home/robot/maps/chora_assets/rtabmap_tsdf/tsdf_mesh_current.ply
       asset_kind: mesh
       point_size: 2.0
       max_points: 0
-      min_z: 0.15
+      min_z: 0.35
       max_z: 2.1
       camera_clip_radius_m: 0.3
       color_mode: asset
@@ -82,7 +82,7 @@ instances:
       reload_token: ""
     shader: defaultLit
     render_visible: true 
-    raycast_visible: true
+    raycast_visible: false
 
   # ---- Debug Overlays (off by default) ----
 

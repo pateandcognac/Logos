@@ -108,6 +108,17 @@ def _write_mesh(path: str, mesh: Any) -> None:
         raise RuntimeError("failed to write mesh: {}".format(path))
 
 
+def _update_current_asset_link(asset_path: str, link_name: str) -> str:
+    """Point a stable asset name at the newest generated quality profile."""
+    link_path = os.path.join(os.path.dirname(asset_path), link_name)
+    temp_path = "{}.tmp".format(link_path)
+    if os.path.lexists(temp_path):
+        os.unlink(temp_path)
+    os.symlink(os.path.basename(asset_path), temp_path)
+    os.replace(temp_path, link_path)
+    return link_path
+
+
 def _clean_mesh(mesh: Any) -> Any:
     mesh.remove_degenerate_triangles()
     mesh.remove_duplicated_triangles()
@@ -429,20 +440,28 @@ def _integrate_tsdf(args: argparse.Namespace) -> Dict[str, Any]:
         mesh = _clean_mesh(mesh)
         _clamp_geometry_colors(mesh)
     _write_mesh(mesh_path, mesh)
+    current_mesh_path = os.path.join(out_dir, "tsdf_mesh_current.ply")
 
     cloud_asset = None
+    current_cloud_path = None
     if not args.no_tsdf_cloud:
         print("[chora-assets] extracting TSDF cloud")
         pcd = volume.extract_point_cloud()
         pcd = _clean_point_cloud(pcd, float(args.tsdf_cloud_voxel))
         _write_point_cloud(cloud_path, pcd)
+        current_cloud_path = os.path.join(out_dir, "tsdf_cloud_current.ply")
         cloud_asset = {
             "path": cloud_path,
+            "current_path": current_cloud_path,
             "kind": "pointcloud",
             "points": int(len(pcd.points)),
             "voxel_m": float(args.tsdf_cloud_voxel),
             "bounds": _bounds_dict(pcd),
         }
+
+    _update_current_asset_link(mesh_path, os.path.basename(current_mesh_path))
+    if current_cloud_path is not None:
+        _update_current_asset_link(cloud_path, os.path.basename(current_cloud_path))
 
     manifest = {
         "schema_version": 1,
@@ -481,6 +500,7 @@ def _integrate_tsdf(args: argparse.Namespace) -> Dict[str, Any]:
         },
         "mesh_asset": {
             "path": mesh_path,
+            "current_path": current_mesh_path,
             "kind": "mesh",
             "vertices": int(len(mesh.vertices)),
             "triangles": int(len(mesh.triangles)),
