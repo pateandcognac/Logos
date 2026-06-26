@@ -27,11 +27,12 @@ except ImportError as exc:
     raise SystemExit("Open3D is required: {}".format(exc))
 
 
-DEFAULT_SOURCE = "/home/robot/maps/cloud.ply"
+DEFAULT_SOURCE = "/home/robot/.ros/chora_rtabmap_cloud.ply"
 DEFAULT_OUT = "/home/robot/maps/chora_assets/rtabmap_world"
 DEFAULT_TSDF_DB = "/home/robot/.ros/logos_rtabmap.db"
 DEFAULT_TSDF_OUT = "/home/robot/maps/chora_assets/rtabmap_tsdf"
 DEFAULT_CLOUD_VOXELS = "0.05,0.08,0.10,0.15"
+DEFAULT_CURRENT_CLOUD_VOXEL = 0.08
 RTABMAP_LIBRARY_PATH = "/opt/ros/noetic/lib/x86_64-linux-gnu:/opt/ros/noetic/lib"
 
 
@@ -119,6 +120,25 @@ def _update_current_asset_link(asset_path: str, link_name: str) -> str:
     return link_path
 
 
+def _warn_if_cloud_export_is_stale(source_path: str, db_path: str) -> None:
+    """Warn when my fused cloud predates the RTAB-Map database behind it."""
+    if not os.path.exists(source_path) or not os.path.exists(db_path):
+        return
+    source_mtime = os.path.getmtime(source_path)
+    db_mtime = os.path.getmtime(db_path)
+    if db_mtime > source_mtime:
+        print(
+            "[chora-assets] WARNING: RTAB-Map database is newer than fused "
+            "cloud by {:.1f} hours.".format((db_mtime - source_mtime) / 3600.0),
+            file=sys.stderr,
+        )
+        print(
+            "[chora-assets] Rerun without --source to export a fresh cloud "
+            "from --db, or refresh the explicit source file.",
+            file=sys.stderr,
+        )
+
+
 def _clean_mesh(mesh: Any) -> Any:
     mesh.remove_degenerate_triangles()
     mesh.remove_duplicated_triangles()
@@ -157,6 +177,33 @@ def _run_rtabmap_export(cmd_args: List[str]) -> None:
     cmd = ["rtabmap-export"] + cmd_args
     print("[chora-assets] {}".format(" ".join(cmd)))
     subprocess.check_call(cmd, env=env)
+
+
+def _export_rtabmap_cloud(db_path: str, source_path: str) -> str:
+    """Export my optimized RTAB-Map cloud to a predictable source path."""
+    source_dir = os.path.dirname(source_path)
+    source_stem = os.path.basename(source_path)
+    if not source_stem.endswith("_cloud.ply"):
+        raise RuntimeError(
+            "default RTAB-Map cloud path must end with '_cloud.ply': {}".format(
+                source_path
+            )
+        )
+    output_name = source_stem[:-len("_cloud.ply")]
+    os.makedirs(source_dir, exist_ok=True)
+    _run_rtabmap_export([
+        "--cloud",
+        "--output_dir",
+        source_dir,
+        "--output",
+        output_name,
+        db_path,
+    ])
+    if not os.path.exists(source_path):
+        raise RuntimeError(
+            "rtabmap-export did not create expected cloud: {}".format(source_path)
+        )
+    return source_path
 
 
 def _export_rtabmap_rgbd(db_path: str, export_dir: str, reuse_export: bool) -> Dict[str, str]:
@@ -614,13 +661,25 @@ def _build_mesh(
 
 
 def _build_assets(args: argparse.Namespace) -> Dict[str, Any]:
-    source = os.path.abspath(os.path.expanduser(args.source))
     out_dir = os.path.abspath(os.path.expanduser(args.out or DEFAULT_OUT))
 
     if args.mode == "tsdf":
         return _integrate_tsdf(args)
 
+    db_path = os.path.abspath(os.path.expanduser(args.db))
+    if args.source is None:
+        source = _export_rtabmap_cloud(
+            db_path=db_path,
+            source_path=DEFAULT_SOURCE,
+        )
+    else:
+        source = os.path.abspath(os.path.expanduser(args.source))
+
     os.makedirs(out_dir, exist_ok=True)
+    _warn_if_cloud_export_is_stale(
+        source_path=source,
+        db_path=db_path,
+    )
 
     print("[chora-assets] reading {}".format(source))
     start = time.time()
@@ -666,7 +725,16 @@ def _build_assets(args: argparse.Namespace) -> Dict[str, Any]:
             )
         )
 
+    current_cloud_asset = min(
+        cloud_assets,
+        key=lambda asset: abs(
+            float(asset["voxel_m"]) - float(args.current_cloud_voxel)
+        ),
+    )
+    current_cloud_path = os.path.join(out_dir, "cloud_current.ply")
+
     mesh_asset = None
+    current_mesh_path = None
     if args.mesh:
         mesh_voxel_key = round(float(args.mesh_source_voxel), 6)
         mesh_source = downsampled_by_voxel.get(mesh_voxel_key)
@@ -694,7 +762,20 @@ def _build_assets(args: argparse.Namespace) -> Dict[str, Any]:
             density_quantile=float(args.density_quantile),
             target_triangles=int(args.target_triangles),
         )
+        current_mesh_path = os.path.join(out_dir, "mesh_current.ply")
         print("[chora-assets] wrote {}".format(mesh_path))
+
+    _update_current_asset_link(
+        current_cloud_asset["path"],
+        os.path.basename(current_cloud_path),
+    )
+    current_cloud_asset["current_path"] = current_cloud_path
+    if mesh_asset is not None and current_mesh_path is not None:
+        _update_current_asset_link(
+            mesh_asset["path"],
+            os.path.basename(current_mesh_path),
+        )
+        mesh_asset["current_path"] = current_mesh_path
 
     manifest = {
         "schema_version": 1,
@@ -736,9 +817,16 @@ def _build_assets(args: argparse.Namespace) -> Dict[str, Any]:
 
 def _build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Build Chora RTAB-Map world assets from an exported PLY."
+        description="Build Chora world assets from an RTAB-Map DB or exported PLY."
     )
-    parser.add_argument("--source", default=DEFAULT_SOURCE)
+    parser.add_argument(
+        "--source",
+        default=None,
+        help=(
+            "Existing fused PLY to process. By default I export a fresh cloud "
+            "from --db to {}.".format(DEFAULT_SOURCE)
+        ),
+    )
     parser.add_argument("--db", default=DEFAULT_TSDF_DB)
     parser.add_argument("--out", default=None)
     parser.add_argument(
@@ -746,6 +834,15 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         type=_parse_voxel_csv,
         default=_parse_voxel_csv(DEFAULT_CLOUD_VOXELS),
         help="Comma-separated voxel sizes in meters.",
+    )
+    parser.add_argument(
+        "--current-cloud-voxel",
+        type=float,
+        default=DEFAULT_CURRENT_CLOUD_VOXEL,
+        help=(
+            "Generated voxel profile exposed as cloud_current.ply "
+            "(nearest available profile; default: 0.08)."
+        ),
     )
     parser.add_argument(
         "--mode",

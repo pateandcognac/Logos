@@ -34,9 +34,9 @@ instances:
     object: rtabmap_world
     description: "Static RTAB-Map world cloud for long-lived spatial context"
     params:
-      asset_path: /home/robot/maps/chora_assets/rtabmap_world/cloud_voxel_0.08.ply
+      asset_path: /home/robot/maps/chora_assets/rtabmap_world/cloud_current.ply
       asset_kind: pointcloud
-      point_size: 2.0
+      point_size: 3.0
       max_points: 0
       min_z: -500.0
       max_z: 2.13
@@ -52,7 +52,7 @@ instances:
     object: rtabmap_world
     description: "Static RTAB-Map world mesh for long-lived spatial context"
     params:
-      asset_path: /home/robot/maps/chora_assets/rtabmap_world/mesh_poisson_depth8_voxel0.08_decimated.ply
+      asset_path: /home/robot/maps/chora_assets/rtabmap_world/mesh_current.ply
       asset_kind: mesh
       point_size: 2.0
       max_points: 0
@@ -74,14 +74,14 @@ instances:
       asset_kind: mesh
       point_size: 2.0
       max_points: 0
-      min_z: 0.35
+      min_z: 0.15
       max_z: 2.1
       camera_clip_radius_m: 0.3
       color_mode: asset
       uniform_color: [0.72, 0.78, 0.84]
       reload_token: ""
     shader: defaultLit
-    render_visible: true 
+    render_visible: true
     raycast_visible: false
 
   # ---- Debug Overlays (off by default) ----

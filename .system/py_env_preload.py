@@ -78,5 +78,6 @@ logos.bumper.register(logos.bumper.look_and_identify)
 logos.cron._bind(globals())
 
 # Initialized and waiting for input!
+logos.emote.ttp("My Python environment is initialized. 🐍 I am ready for action! 🎬")
 # My circuits are shivering with antici
 loop_cognition = False
