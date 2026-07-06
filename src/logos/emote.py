@@ -587,8 +587,8 @@ def gesture(
 ) -> None:
     """
     Perform a silent animatronic gesture. 🎭 One string does it all: an emoji
-    (classic preset), free text (my tiny on-board face model improvises a
-    bespoke performance), or both mixed together.
+    (classic preset), free text (my tiny on-board models improvise a bespoke
+    performance for face and/or arms), or both mixed together.
 
     Args:
         text: What to perform. An emoji like "🤔", a description like
@@ -596,8 +596,9 @@ def gesture(
             "barely contained volcanic fury 🌋".
         duration: How long to hold/perform the gesture in seconds.
         channel: Which hardware to command: "face", "arms", or "both".
-        policy: Face resolution override: "lut,saved,generate" (default),
-            "generate" (always improvise), "lut" (presets only).
+        policy: Resolution cascade override, applied to whichever channel(s)
+            are active: "generate,saved,lut" (default), "generate" (always
+            improvise), "lut" (presets only).
 
     Note to self:
         This is perfect for silent reactions, ambient background movements,
@@ -609,10 +610,11 @@ def gesture(
                                 duration=5.0, channel="face")  # Improvised!
             logos.emote.gesture("barely contained volcanic fury 🌋")  # Both
 
-        Free-text faces come from my own tiny on-board model — my
-        imagination, not a lookup. Improvised faces begin within ~1s.
-        Arms still come from the emoji preset LUT, so including an emoji
-        keeps my arms in the performance too.
+        Free-text faces and arms both come from their own tiny on-board
+        models — my imagination, not a lookup. Improvised motion begins
+        within ~1s. Arm generations longer than ~7 frames get cut short
+        automatically (that's the model rambling, not deliberate
+        choreography).
     """
     if not _HAS_ROS:
         return
@@ -636,8 +638,7 @@ def gesture(
     if channel in ["face", "both"] and _face_cmd_pub:
         _face_cmd_pub.publish(String(data=json.dumps(payload)))
     if channel in ["arms", "both"] and _arm_cmd_pub:
-        _arm_cmd_pub.publish(String(data=json.dumps(
-            {"text": text, "duration": duration})))
+        _arm_cmd_pub.publish(String(data=json.dumps(payload)))
 
 @api_call(default_verbosity=Verbosity.ACK)
 def hud_text(
