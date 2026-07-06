@@ -111,6 +111,13 @@ _face_state_cache: Dict[str, Any] = {}
 _face_state_lock = threading.Lock()
 _state_sub_initialized = False
 
+# Latest /performance/cue_playing event from the sequencer (TTP v3): fired
+# the moment a cue's audio actually starts at the speaker. SpeakTask uses it
+# to re-anchor its dead-reckoned playhead to real playback.
+_cue_playing_event: Optional[Dict[str, Any]] = None
+_cue_playing_lock = threading.Lock()
+_cue_playing_sub_initialized = False
+
 def _ensure_gesture_pubs():
     """Lazily initialize gesture publishers."""
     global _face_cmd_pub, _arm_cmd_pub
@@ -322,6 +329,31 @@ def _ensure_state_sub():
     _state_sub_initialized = True
 
 
+def _cue_playing_cb(msg):
+    """Callback for the sequencer's playback-start events."""
+    global _cue_playing_event
+    try:
+        event = json.loads(msg.data)
+        event["_ts"] = time.time()
+        with _cue_playing_lock:
+            _cue_playing_event = event
+    except Exception:
+        pass  # Ignore malformed JSON so we don't crash the subscriber thread
+
+
+def _ensure_cue_playing_sub():
+    """Lazily initialize the cue-playing subscriber."""
+    global _cue_playing_sub_initialized
+    if not _HAS_ROS or _cue_playing_sub_initialized: return
+    rospy.Subscriber("/performance/cue_playing", String, _cue_playing_cb, queue_size=4)
+    _cue_playing_sub_initialized = True
+
+
+def _latest_cue_playing() -> Optional[Dict[str, Any]]:
+    with _cue_playing_lock:
+        return dict(_cue_playing_event) if _cue_playing_event else None
+
+
 def _coerce_hud_image_input(image: Any) -> Any:
     """
     Return a numpy-like image from raw, CaptureResult-shaped, or model output.
@@ -361,6 +393,8 @@ class SpeakTask:
         self._total_audio_duration = 0.0
         self._synthesis_done = False
         self._final_result = None
+        self._last_resync_ts: Optional[float] = None
+        _ensure_cue_playing_sub()
 
     def _feedback_cb(self, feedback):
         """Called rapidly by ROS as chunks finish synthesis."""
@@ -378,8 +412,30 @@ class SpeakTask:
             # We add a tiny 0.1s buffer to account for the ROS audio publisher queue
             self._playback_start_time = time.time() + 0.1
 
+    def _maybe_resync(self) -> None:
+        """
+        Re-anchor my dead-reckoned playhead to the sequencer's
+        /performance/cue_playing events -- ground truth fired the moment a
+        cue's audio actually starts (TTP v3). The old anchor (first chunk's
+        synthesis completion + 0.1s) drifted ahead of my real mouth by every
+        sequencer-side delay: staged pre-speech holds, sync waits, gaps
+        between cues. One re-anchor per event keeps all the downstream math
+        (current_text/current_emoji/progress/is_active) honest. Without a
+        sequencer publishing events, the old dead reckoning still applies.
+        """
+        event = _latest_cue_playing()
+        if not event or event.get("_ts") == self._last_resync_ts:
+            return
+        for position, chunk in enumerate(self._chunks):
+            if chunk["index"] == event.get("index") and chunk["text"] == event.get("text"):
+                already_played = sum(c["duration"] for c in self._chunks[:position])
+                self._playback_start_time = event["_ts"] - already_played
+                self._last_resync_ts = event["_ts"]
+                return
+
     def _get_playhead(self) -> Optional[Dict]:
         """Calculates which chunk is currently coming out of the physical speaker."""
+        self._maybe_resync()
         if not self._chunks or self._playback_start_time is None:
             return None
 
