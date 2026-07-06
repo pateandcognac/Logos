@@ -470,10 +470,6 @@ def ttp(
     wait: bool = False,
     engine: Optional[str] = None,
     face: Optional[Any] = None,
-    face_temperature: Optional[float] = None,
-    face_seed: Optional[int] = None,
-    face_model: Optional[str] = None,
-    face_save: Optional[bool] = None,
     **kwargs
 ) -> SpeakTask:
     """
@@ -492,15 +488,11 @@ def ttp(
             If False, returns a SpeakTask immediately for async monitoring.
         engine: "kokoro", "piper", "espeak", or "festival"
         face: Face-animation policy for this utterance. None uses the system
-            default (my tiny on-board face model with LUT fallback). Options:
-            "lut" (classic preset animations only, zero compute),
-            "saved" (replay my own previously generated faces),
-            "generate" (always improvise fresh), or a comma-separated
-            cascade like "saved,generate".
-        face_temperature: 0.0 (repeatable) to ~0.8 (wilder improvisation).
-        face_seed: Pin for reproducible generated faces; 0/None = fresh takes.
-        face_model: Override the Ollama face-model tag.
-        face_save: Whether generated faces are saved for later replay.
+            default: my tiny on-board face model improvises a face from each
+            spoken chunk, with my saved library and preset LUT as fallbacks.
+            Options: "lut" (classic presets only, zero compute), "saved"
+            (replay takes from my library), "generate" (always improvise
+            fresh), or a comma-separated cascade like "generate,saved,lut".
         **kwargs: Overrides for engine params (e.g., voice="...", speed=1.0, volume=1.0).
 
     Returns:
@@ -555,21 +547,10 @@ def ttp(
     if kwargs:
         params.update(kwargs)
 
-    # TTP v2: face-performance options ride inside engine_params under
-    # "performance"; the director strips them before they reach TTS.
-    performance = {}
+    # TTP v2: the face policy rides inside engine_params under
+    # "performance"; the director strips it before it reaches TTS.
     if face is not None:
-        performance["face_policy"] = face
-    if face_temperature is not None:
-        performance["temperature"] = float(face_temperature)
-    if face_seed is not None:
-        performance["seed"] = int(face_seed)
-    if face_model is not None:
-        performance["model"] = face_model
-    if face_save is not None:
-        performance["save"] = bool(face_save)
-    if performance:
-        params["performance"] = performance
+        params["performance"] = {"face_policy": face}
 
     # prepare text
     # replace em dash with comma
@@ -598,31 +579,25 @@ def is_speaking() -> bool:
 
 @api_call(default_verbosity=Verbosity.ACK)
 def gesture(
-    emoji: str = "",
+    text: str = "",
     duration: float = 3.0,
     channel: str = "both",
-    text: str = "",
     policy: Optional[Any] = None,
-    temperature: Optional[float] = None,
-    wait_for_track: bool = True,
+    emoji: str = "",
 ) -> None:
     """
-    Perform a silent animatronic gesture using my emoji keyframe system —
-    or improvise one from any text with my tiny on-board face model. 🎭
+    Perform a silent animatronic gesture. 🎭 One string does it all: an emoji
+    (classic preset), free text (my tiny on-board face model improvises a
+    bespoke performance), or both mixed together.
 
     Args:
-        emoji: The emoji string to perform (e.g., "🤨", "😄", "🔭").
+        text: What to perform. An emoji like "🤔", a description like
+            "a slow dawning realization of wonder", or a mix like
+            "barely contained volcanic fury 🌋".
         duration: How long to hold/perform the gesture in seconds.
         channel: Which hardware to command: "face", "arms", or "both".
-        text: Optional free text describing the face I want (e.g.,
-            "a slow dawning realization of wonder"). Any string works —
-            the face animator generates a bespoke performance from it.
-        policy: Face resolution cascade override, e.g. "lut,saved,generate"
-            (default), "generate" (always improvise), "lut" (presets only).
-        temperature: Generation temperature for this gesture.
-        wait_for_track: If True (default), a generated face waits for its
-            first frames (~1s, streamed) before playing; my speech and code
-            keep running either way.
+        policy: Face resolution override: "lut,saved,generate" (default),
+            "generate" (always improvise), "lut" (presets only).
 
     Note to self:
         This is perfect for silent reactions, ambient background movements,
@@ -630,38 +605,39 @@ def gesture(
 
         Examples:
             logos.emote.gesture("🤔", duration=2.0)  # Classic preset
-            logos.emote.gesture(text="mischievous side-eye building to a grin",
+            logos.emote.gesture("mischievous side-eye building to a grin",
                                 duration=5.0, channel="face")  # Improvised!
-            logos.emote.gesture("🌋", text="barely contained volcanic fury",
-                                duration=4.0)  # Emoji + text steer together
+            logos.emote.gesture("barely contained volcanic fury 🌋")  # Both
 
-        Free-text faces are generated by my own 88MB on-board model — my
-        imagination, not a lookup. Arms still come from the emoji preset LUT.
+        Free-text faces come from my own tiny on-board model — my
+        imagination, not a lookup. Improvised faces begin within ~1s.
+        Arms still come from the emoji preset LUT, so including an emoji
+        keeps my arms in the performance too.
     """
     if not _HAS_ROS:
         return
 
     _ensure_gesture_pubs()
 
-    face_payload: Dict[str, Any] = {"emoji": emoji, "duration": duration}
-    # Text or an explicit policy involves the face animator: tag the cue so
-    # the sequencer can match the generated track to this gesture.
-    if text or policy is not None or temperature is not None:
-        face_payload.update({
-            "cue_id": "gest_{}".format(int(time.time() * 1000)),
-            "text": text,
-            "expect_track": bool(wait_for_track),
-        })
-        if policy is not None:
-            face_payload["policy"] = policy
-        if temperature is not None:
-            face_payload["temperature"] = float(temperature)
+    # Legacy emoji= callers fold into the single text string.
+    text = " ".join(x for x in (text.strip(), emoji.strip()) if x)
+    if not text:
+        return
+
+    payload: Dict[str, Any] = {
+        "text": text,
+        "duration": duration,
+        "cue_id": "gest_{}".format(int(time.time() * 1000)),
+        "expect_track": True,
+    }
+    if policy is not None:
+        payload["policy"] = policy
 
     if channel in ["face", "both"] and _face_cmd_pub:
-        _face_cmd_pub.publish(String(data=json.dumps(face_payload)))
-    if channel in ["arms", "both"] and _arm_cmd_pub and emoji:
+        _face_cmd_pub.publish(String(data=json.dumps(payload)))
+    if channel in ["arms", "both"] and _arm_cmd_pub:
         _arm_cmd_pub.publish(String(data=json.dumps(
-            {"emoji": emoji, "duration": duration})))
+            {"text": text, "duration": duration})))
 
 @api_call(default_verbosity=Verbosity.ACK)
 def hud_text(
