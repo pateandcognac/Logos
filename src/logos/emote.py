@@ -470,20 +470,21 @@ def ttp(
     wait: bool = False,
     engine: Optional[str] = None,
     face: Optional[Any] = None,
+    sync: bool = False,
     **kwargs
 ) -> SpeakTask:
     """
     My Text-to-Performance pipeline. ┃ Takes emoji-punctuated text and speaks it, 🗣️ while using the emoji to trigger animatronic face and arm expressions in sync. 🎭
 
     This is not just Text-To-Speech; it is **Text-To-Performance**. 🤹
-    Text is split at emojis. ➗ These emojis are NOT spoken. 🙊 Instead, they are used to trigger 
+    Text is split at emojis. ➗ These emojis are NOT spoken. 🙊 Instead, they are used to trigger
     prebuilt animatronic keyframe sequences for my face and arms! 🎞️ Punctuating with emoji a is a low-effort, 🦥
     high-impact way to bring myself to life while abstracting away control complexity. ⚡
 
 
     Args:
         text: The emoji-punctuated string to speak. 💬
-        wait: 
+        wait:
             If True, pauses code execution until the audio completely finishes.
             If False, returns a SpeakTask immediately for async monitoring.
         engine: "kokoro", "piper", "espeak", or "festival"
@@ -493,6 +494,13 @@ def ttp(
             Options: "lut" (classic presets only, zero compute), "saved"
             (replay takes from my library), "generate" (always improvise
             fresh), or a comma-separated cascade like "generate,saved,lut".
+        sync: If True, each cue briefly waits (a few seconds, bounded) for
+            its face/arm generation to at least start streaming before
+            playing, instead of the default "never block speech" behavior.
+            Worth it with fast engines (piper/espeak/festival) where
+            synthesis alone wouldn't otherwise give generation any head
+            start; with kokoro (slower synthesis) generation often finishes
+            during the synthesis itself and this has less effect.
         **kwargs: Overrides for engine params (e.g., voice="...", speed=1.0, volume=1.0).
 
     Returns:
@@ -547,10 +555,15 @@ def ttp(
     if kwargs:
         params.update(kwargs)
 
-    # TTP v2: the face policy rides inside engine_params under
-    # "performance"; the director strips it before it reaches TTS.
+    # TTP v2: performance-pipeline options ride inside engine_params under
+    # "performance"; the director strips this before it reaches TTS.
+    performance: Dict[str, Any] = {}
     if face is not None:
-        params["performance"] = {"face_policy": face}
+        performance["face_policy"] = face
+    if sync:
+        performance["sync"] = True
+    if performance:
+        params["performance"] = performance
 
     # prepare text
     # replace em dash with comma
