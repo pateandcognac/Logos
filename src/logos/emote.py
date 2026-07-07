@@ -526,7 +526,8 @@ def ttp(
     wait: bool = False,
     engine: Optional[str] = None,
     face: Optional[Any] = None,
-    sync: bool = False,
+    arms: Optional[Any] = None,
+    sync: float = 1.0,
     **kwargs
 ) -> SpeakTask:
     """
@@ -547,16 +548,25 @@ def ttp(
         face: Face-animation policy for this utterance. None uses the system
             default: my tiny on-board face model improvises a face from each
             spoken chunk, with my saved library and preset LUT as fallbacks.
-            Options: "lut" (classic presets only, zero compute), "saved"
-            (replay takes from my library), "generate" (always improvise
-            fresh), or a comma-separated cascade like "generate,saved,lut".
-        sync: If True, each cue briefly waits (a few seconds, bounded) for
-            its face/arm generation to at least start streaming before
-            playing, instead of the default "never block speech" behavior.
-            Worth it with fast engines (piper/espeak/festival) where
-            synthesis alone wouldn't otherwise give generation any head
-            start; with kokoro (slower synthesis) generation often finishes
-            during the synthesis itself and this has less effect.
+            Options: "lut" (classic presets only, zero compute, zero
+            latency), "saved" (replay takes from my library), "generate"
+            (always improvise fresh -- and, per `sync`, wait for it), or a
+            comma-separated cascade like "generate,saved,lut" (the cascade
+            only falls to saved/LUT if generation *fails*, never just
+            because it's slow).
+        arms: Arm-animation policy, same options/semantics as `face`. None
+            uses the system default.
+        sync: Sync dial, 0.0-1.0 -- how much of my generated face/arm motion
+            to wait for before I start speaking, so speech and movement land
+            together. 1.0 (default) waits for generation to finish and plays
+            the full sequence evenly across the audio: my best, most polished
+            performance, at the cost of a beat of latency while I "get into
+            character." Lower values start sooner and fudge the remaining
+            frames in as they stream (0.0 = start on the very first frame:
+            snappy but herkier). This only matters when a policy actually
+            generates; if I just want zero-latency canned expressions I set
+            face/arms to "lut". (True/False also accepted: True=1.0, False
+            skips the wait entirely.)
         **kwargs: Overrides for engine params (e.g., voice="...", speed=1.0, volume=1.0).
 
     Returns:
@@ -616,8 +626,11 @@ def ttp(
     performance: Dict[str, Any] = {}
     if face is not None:
         performance["face_policy"] = face
-    if sync:
-        performance["sync"] = True
+    if arms is not None:
+        performance["arm_policy"] = arms
+    # sync is the loosey-goosey dial (0.0-1.0); pass bools through as-is for
+    # back-compat (the sequencer maps True->1.0, False->skip-wait).
+    performance["sync"] = sync
     if performance:
         params["performance"] = performance
 
