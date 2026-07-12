@@ -23,7 +23,7 @@ tree:
   max_depth: 5
   show_hidden: false
   show_extensions: [.py, .yaml, .md, .txt, .png, .jpg, .jsonl]
-  summarize_dirs: ['ipc', 'hypomnemata/legacy_Logos_diaries']
+  summarize_dirs: [ipc, hypomnemata/legacy_Logos_diaries]
   inline_meta_masks: .meta
 vision_hook:
   astra:

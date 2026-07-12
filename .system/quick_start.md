@@ -86,7 +86,11 @@ def logos.vision.capture(
 ) -> Optional[CaptureResult]: ...
 
 def publish_debug(image: Union[np.ndarray, CaptureResult], detections: Optional[Union[List[Dict[str, Any]], Dict[str, Any], Tuple[Any, ...]]] = None, source: Optional[str] = None,) -> None:
-    # Overlays bounding boxes/points/hands/labels and publishes to ROS /logos/debug_vision for Mark to see
+    # Overlays available detections and labels and publishes to ROS /logos/debug_vision developer channel
+    # Uses the following helper to annotate the image
+def logos.vision.annotate_image(image: Union[np.ndarray, CaptureResult], detections=None, source: Optional[str]=None) -> np.ndarray:
+    # Returns a BGR copy of an image with bounding boxes/points/hands/labels detection geometry drawn onto it.
+    # Handy if I want to confirm my own detections, or before logos.emote.hud_image(...)
     ...
 
 # --- MODELS (Lazy-loaded local singletons) ---
@@ -161,11 +165,11 @@ def logos.map3d.remove(name: str): ...
 def logos.nav.turn_then_drive(turn_deg: float, forward_m: float, wait: bool=False) -> NavTask:
     # Uses odom. Turn in place, stop, then drive straight. Good for tight spots.
     ...
-def logos.base.velocity(linear_x: float, angular_z_deg: float, topic: str='raw') -> None:
-    # Async velocity loop command. Times out after ~0.6s. Must be spammed in a loop to keep moving.
+def logos.base.velocity(linear_x: float, angular_z_deg: float, topic: str='muxed') -> None:
+    # Async velocity loop command. topic: muxed/smooth (smoothed), raw (low priority), safety (high priority).
     ...
-def logos.base.move_timed(linear_x: float, angular_z_deg: float, duration: float) -> None:
-    # Blocking blind drive (like backing up).
+def logos.base.move_timed(linear_x: float, angular_z_deg: float, duration: float, topic: str='raw') -> None:
+    # Blocking blind drive (like backing up). Re-publishes until duration ends.
     ...
 
 # --- ABSOLUTE NAVIGATION (Map-based, obstacle avoiding) ---
@@ -204,10 +208,10 @@ logos.bumper.show()                         # print chain in execution order
 
 # --- ATOMIC BEHAVIORS ---
 logos.bumper.do_print(bumpers)              # logs which sides fired, no side effects
-logos.bumper.do_stop(bumpers)              # emergency halt via safety mux
+logos.bumper.do_stop(bumpers)              # emergency halt via Logos safety mux slot
 logos.bumper.do_backup(bumpers, distance=0.15, speed=0.1)
 # Per-bumper steering: left→rotates right, right→rotates left, center→straight back.
-# Publishes to safety mux slot so it works even during paused navigation.
+# Publishes to the Logos safety slot so it works during paused navigation while yielding to Kobuki safety.
 
 # --- COMPOSED BEHAVIORS ---
 logos.bumper.look_and_identify(bumpers)
@@ -246,7 +250,7 @@ logos.bumper._run_handlers(['center'])
 # Backend debounces detections at 1.5s, so I don't need to.
 # ==============================================================================
 
-# Model names are subdirectory names under ~/robot_ws/wakewords/custom/
+# Hotword names are subdirectory names under ~/robot_ws/wakewords/custom/
 # Some useful hotwords to get started:
 # lets_start, turn_left, turn_right, go_forward, move_back, up, down
 # cancel_that, halt_now, stop, nevermind, good_bye, thank_you, orderly_stop
@@ -308,11 +312,64 @@ def logos.emote.ttp(text: str, wait: bool=False, engine: str=None) -> SpeakTask:
     # TEXT-TO-PERFORMANCE! Punctuate every spoken clause with emojis. 
     # Emojis trigger physical animatronics synchronously.
     # Example: "Hello there! 👋 Let's explore. 🧭"
-    # I have thousands of emoji to choose from, yet...
+    # I have thousands of emoji to choose from, yet,
     # I should avoid compound emojis with skin-tone or gender modifiers.
     ...
 def logos.emote.gesture(emoji: str, duration: float=4.0, channel: str='both|arms|face') -> None:
     # Perform animatronics silently without speaking. 
+    ...
+def logos.emote.hud_text(
+    text: str,
+    layer: int=0,
+    effect: str='terminal',
+    color: str='bright_white',
+    location=None,
+    direction=None,
+    tiling='x',
+    density=1000,
+    speed: float=None,
+    duration: float=None,
+    **effect_options
+) -> Dict:
+    # Show plain text on my face effect layers. Effects: terminal, crawl, scroll,
+    # marquee, move, motion. terminal appends to history until cleared or expired
+    # by duration. Moving effects replace the current moving slot on that layer.
+    # Moving controls are shared with hud_figlet():
+    #   location: 0-1000 (x,y), 0.0-1.0 pair, dict x/y, or named anchor
+    #     top_left, top, top_right, left, center, right, bottom_left, bottom, bottom_right
+    #   direction: left, right, up, down, diagonals, still/none, or -1000..1000 vector
+    #   tiling: 'x', 'y', 'xy', 'none', or bool. density: 0-1000 tile density.
+    ...
+def logos.emote.hud_figlet(
+    text: str,
+    layer: int=0,
+    font: str='standard',
+    effect: str='terminal',
+    color: str='bright_blue',
+    location=None,
+    direction=None,
+    tiling='x',
+    density=1000,
+    speed: float=None,
+    duration: float=None,
+    **effect_options
+) -> Dict:
+    # Show short figlet-style face effect words, like "thinking" or "searching".
+    # Same terminal/moving behavior and motion controls as hud_text(); keep words short.
+    # Examples:
+    #   logos.emote.hud_figlet("WOW", effect="motion", location="center", direction="down_right", tiling="xy", speed=5)
+    #   logos.emote.hud_text("scan", layer=2, effect="scroll", location="top", direction="left", duration=4)
+    ...
+def logos.emote.hud_image(image, layer: int=2) -> Dict:
+    # Show an image on face layer 0 or 2 and mirror it to /logos/debug_vision/face.
+    # Each layer has one image slot. A new image replaces the old one; normal
+    # updates fade in/hold/fade out, while high-frequency updates behave like a
+    # hot live stream instead of blinking.
+    # Remember, an image needn't be a photo. It can be an effect I synthesize myself,
+    # even something as simple as ONE pixel for color!
+    ...
+def logos.emote.hud_clear(layer: int=None) -> Dict:
+    # Clear face effect layer 0, layer 2, or both. Does not clear status captions.
     ...
 def logos.emote.get_face_state() -> Dict:
     # Returns live 4-16Hz-ish state of my animated ASCII face as triggered by

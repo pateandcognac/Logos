@@ -1894,16 +1894,17 @@ def _debug_draw_box_3d(
         _debug_draw_label(canvas, label, px + 6, py - 8, color)
 
 
-# @api_call(default_verbosity=Verbosity.SILENT)
-def publish_debug(
+def annotate_image(
     image: Union[np.ndarray, CaptureResult, Any],
     detections: Optional[Union[List[Dict[str, Any]], Dict[str, Any], Tuple[Any, ...]]] = None,
     source: Optional[str] = None,
-) -> None:
+) -> np.ndarray:
     """
-    Annotate an image with detection geometry and labels, then publish to ROS.
-    
-    Topic: /logos/debug_vision/{source}
+    Returns a copy of an image with Logos detection geometry drawn onto it.
+
+    I use the same annotation rules as `publish_debug()`, but keep the ROS
+    publishing part out. This lets me compose annotated images into HUD
+    displays, saved artifacts, or later visual reasoning steps.
 
     Args:
         image: The base BGR image, or any CaptureResult-shaped object with
@@ -1913,12 +1914,16 @@ def publish_debug(
             `(detections, CaptureResult)` tuple returned by logos.models. Supports
             2D boxes, 2D points, hand landmarks, and camera optical-frame 3D boxes.
         source: Optional string used to name the ROS topic. If omitted for a
-            CaptureResult, it will be inferred from detection metadata.
+            CaptureResult-shaped input, it will be inferred from detection
+            metadata when possible.
+
+    Returns:
+        A BGR uint8 numpy image with boxes, points, landmarks, and 3D debug
+        wireframes drawn on a copy of the input image.
 
     Note to self:
-        This is how I show Mark what I'm seeing and thinking. I would use
-        this to request a sanity check from human eyes, or if Mark specifically
-        asks me to.
+        Use this when I want the annotated image as data, not just as a ROS
+        debug image. `publish_debug()` calls this function internally.
     """
     capture_result = image if hasattr(image, "image") else None
     base_image = capture_result.image if capture_result is not None else image
@@ -1938,13 +1943,6 @@ def publish_debug(
         inferred_source = _source_from_detections(normalized_detections)
 
     debug_source = _sanitize_debug_source(source or inferred_source or "general")
-
-    if not _HAS_ROS:
-        return
-    
-    bridge = _get_bridge()
-    pub = _get_debug_pub(debug_source)
-    if not bridge or not pub: return
 
     # Work on a copy so we don't modify the original image object
     canvas = base_image.copy()
@@ -2004,6 +2002,62 @@ def publish_debug(
             box_3d = _coerce_debug_vector(det.get("box_3d"), 9)
             if box_3d is not None:
                 _debug_draw_box_3d(canvas, box_3d, text, color, fov)
+
+    return canvas
+
+
+# @api_call(default_verbosity=Verbosity.SILENT)
+def publish_debug(
+    image: Union[np.ndarray, CaptureResult, Any],
+    detections: Optional[Union[List[Dict[str, Any]], Dict[str, Any], Tuple[Any, ...]]] = None,
+    source: Optional[str] = None,
+) -> None:
+    """
+    Annotate an image with detection geometry and labels, then publish to ROS.
+    
+    Topic: /logos/debug_vision/{source}
+    Special case: source="face" publishes to /logos/debug_vision/face,
+    where the face renderer can convert the image to ASCII and show it on
+    my display face.
+
+    Args:
+        image: The base BGR image, or any CaptureResult-shaped object with
+            `.image`, `.meta`, and optionally `.source` / `.add_meta()`.
+        detections: Optional Logos-format detection data. Can be a list, a single
+            detection dict, a nested dict containing detections, or the
+            `(detections, CaptureResult)` tuple returned by logos.models. Supports
+            2D boxes, 2D points, hand landmarks, and camera optical-frame 3D boxes.
+        source: Optional string used to name the ROS topic. If omitted for a
+            CaptureResult, it will be inferred from detection metadata. Use
+            "face" to send the annotated image to my ASCII face display.
+
+    Note to self:
+        This is how I show Mark what I'm seeing and thinking. I would use
+        this to request a sanity check from human eyes, or if Mark specifically
+        asks me to.
+    """
+    capture_result = image if hasattr(image, "image") else None
+    normalized_detections = _coerce_detection_list(detections)
+    inferred_source = None
+
+    if capture_result is not None and not normalized_detections:
+        meta = getattr(capture_result, "meta", None) or {}
+        normalized_detections, inferred_source = _find_meta_detections(meta)
+
+    if inferred_source is None:
+        inferred_source = _source_from_detections(normalized_detections)
+
+    debug_source = _sanitize_debug_source(source or inferred_source or "general")
+
+    canvas = annotate_image(image, detections=detections, source=source)
+
+    if not _HAS_ROS:
+        return
+    
+    bridge = _get_bridge()
+    pub = _get_debug_pub(debug_source)
+    if not bridge or not pub:
+        return
 
     # Publish to ROS
     try:
@@ -2314,7 +2368,7 @@ def make_quad_composite(
     )
 
 __all__ = [
-    "capture", "crop", "publish_debug",
+    "capture", "crop", "annotate_image", "publish_debug",
     "CaptureResult", "FOV", "DEFAULT_RESOLUTION", "SOURCES",
     "HudElement", "HUD_ANCHORS",
     "HUD_FONT_SIMPLEX", "HUD_FONT_PLAIN", "HUD_FONT_DUPLEX",

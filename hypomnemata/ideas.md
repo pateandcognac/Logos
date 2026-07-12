@@ -1,0 +1,1 @@
+- [ ] Could I trigger images from my IPC folder onto a similar display pipeline? 🖼️

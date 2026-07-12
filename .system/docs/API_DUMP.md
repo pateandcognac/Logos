@@ -105,15 +105,19 @@ Functions:
               linear_x: Forward/backward speed in m/s.
               angular_z_deg: Rotational speed in deg/s.
               duration: Time in seconds to hold this velocity.
-              topic: [raw|muxed|safety] Default: 'muxed'
+              topic: [raw|muxed|smooth|smoothed|safety] Default: 'raw'
 
           Note to self:
               Use this for scripted, open-loop movements (like wiggles, dances, 
               or backing up blindly). Execution pauses here until the duration ends.
 
-    stop(topic: str = 'raw') -> None
+    stop(topic: Optional[str] = None) -> None
       Docstring:
-          Immediately halt all base movement by publishing zero velocities.
+          Immediately halt base movement by publishing zero velocities.
+
+          Args:
+              topic: [raw|muxed|smooth|smoothed|safety]. If omitted, stop whichever
+                     topic this API last published to, falling back to `raw`.
 
     velocity(linear_x: float, angular_z_deg: float, topic: str = 'muxed') -> None
       Docstring:
@@ -122,12 +126,14 @@ Functions:
           Args:
               linear_x: Forward/backward speed in m/s.
               angular_z_deg: Rotational speed in deg/s.
-              topic: [raw|muxed|safety] Default: 'muxed'
+              topic: [raw|muxed|smooth|smoothed|safety] Default: 'muxed'
 
           Note to self:
               This is perfect for control loops (like tracking). The Kobuki hardware 
               has a ~0.6s timeout. If you don't call this again within that window, 
-              the base will automatically halt. `muxed` is smoothed and has lower
+              the base will automatically halt. `muxed`/`smooth` goes through the
+              shared velocity smoother, `raw` is a low-priority unsmoothed mux slot,
+              and `safety` is a high-priority Logos mux slot below Kobuki safety.
 
 
 ### Module: logos.bumper
@@ -167,8 +173,9 @@ Functions:
           right during the reverse, right contact steers me left, and a center-only
           hit goes straight back. The rotation targets roughly 25 degrees over the
           backup distance — enough to swing clear of typical corner obstacles without
-          over-rotating. I publish to the safety mux slot so the command goes through
-          even if normal navigation is paused.
+          over-rotating. I publish to Logos's safety mux slot so the command goes
+          through even if normal navigation is paused, while still yielding to the
+          Kobuki safety controller.
 
           Args:
               bumpers:  List of bumped side strings from the event.
@@ -192,8 +199,8 @@ Functions:
       Docstring:
           Issue an emergency halt to my base.
 
-          I publish zero velocities to the safety mux slot for the fastest possible
-          stop. Useful as a first handler when precision matters more than recovery.
+          I publish zero velocities to Logos's safety mux slot for the fastest
+          possible stop without outranking the Kobuki safety controller.
 
           Args:
               bumpers: Unused; present to satisfy handler signature.
@@ -3843,4 +3850,3 @@ Functions:
               This is how I show Mark what I'm seeing and thinking. I would use
               this to request a sanity check from human eyes, or if Mark specifically
               asks me to.
-

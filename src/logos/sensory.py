@@ -122,7 +122,7 @@ def get_ambient_transcript(
     """
     try:
         ros_msg = rospy.wait_for_message(
-            '/stt/ambient_listener/transcription', String, timeout=1.0
+            '/stt/ambient_listener/transcription', String, timeout=0.1
         )
         transcripts = json.loads(ros_msg.data)
 
@@ -187,7 +187,7 @@ def get_ambient_audio_classification(
     """
     try:
         ros_msg = rospy.wait_for_message(
-            '/stt/audio_classifier/events', String, timeout=1.0
+            '/stt/audio_classifier/events', String, timeout=0.1
         )
         data = json.loads(ros_msg.data)
 

@@ -30,6 +30,60 @@ instances:
     render_visible: true
     raycast_visible: false
 
+  rtabmap_world_cloud:
+    object: rtabmap_world
+    description: "Static RTAB-Map world cloud for long-lived spatial context"
+    params:
+      asset_path: /home/robot/maps/chora_assets/rtabmap_world/cloud_current.ply
+      asset_kind: pointcloud
+      point_size: 3.0
+      max_points: 0
+      min_z: -500.0
+      max_z: 2.13
+      camera_clip_radius_m: 1.0
+      color_mode: asset
+      uniform_color: [0.72, 0.78, 0.84]
+      reload_token: ""
+    shader: defaultUnlit
+    render_visible: false           # Enable when I want the static world cloud
+    raycast_visible: false
+
+  rtabmap_mesh:
+    object: rtabmap_world
+    description: "Static RTAB-Map world mesh for long-lived spatial context"
+    params:
+      asset_path: /home/robot/maps/chora_assets/rtabmap_world/mesh_current.ply
+      asset_kind: mesh
+      point_size: 2.0
+      max_points: 0
+      min_z: -500.0
+      max_z: 2.13
+      camera_clip_radius_m: 1.0
+      color_mode: asset
+      uniform_color: [0.72, 0.78, 0.84]
+      reload_token: ""
+    shader: defaultUnlit
+    render_visible: false           # Enable when I want the static world cloud
+    raycast_visible: false
+
+  rtabmap_world_tsdf_mesh:
+    object: rtabmap_world
+    description: "Experimental TSDF mesh reconstructed from RTAB-Map RGB-D frames"
+    params:
+      asset_path: /home/robot/maps/chora_assets/rtabmap_tsdf/tsdf_mesh_current.ply
+      asset_kind: mesh
+      point_size: 2.0
+      max_points: 0
+      min_z: 0.15
+      max_z: 2.1
+      camera_clip_radius_m: 0.3
+      color_mode: asset
+      uniform_color: [0.72, 0.78, 0.84]
+      reload_token: ""
+    shader: defaultLit
+    render_visible: true
+    raycast_visible: false
+
   # ---- Debug Overlays (off by default) ----
 
   #obstacle_plane:

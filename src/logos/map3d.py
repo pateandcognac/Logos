@@ -4,7 +4,8 @@ My 'mind palace.' A virtual 3D environment for advanced spatial reasoning.
 
 This module provides the tools to render a 3D scene of my environment from
 a virtual camera's perspective. The scene is constructed from the ROS map,
-my live Astra point cloud, and a 3D model of myself.
+my live Astra point cloud, and a 3D model of myself. New: a TSDF constructed
+from rtab-map db.
 
 The core workflow is a two-step process:
 1.  `render()`: Create a 2D image of the 3D scene. This returns a `RenderResult`
@@ -831,6 +832,9 @@ class Map3d:
             return 0.0
 
     def _pc_raw_callback(self, pc_msg: PointCloud2) -> None:
+        # Ignore stub/header-only messages some depth topics emit on first subscription.
+        if not pc_msg.data:
+            return
         with self._frame_lock:
             self._latest_pc_raw = pc_msg
             self._latest_pc_raw_wall_time = time.time()
@@ -860,6 +864,9 @@ class Map3d:
             pass
 
     def _camera_sync_callback(self, pc_msg: PointCloud2, rgb_msg: Image) -> None:
+        # Ignore stub/header-only messages some depth topics emit on first subscription.
+        if not pc_msg.data:
+            return
         pc_t = self._msg_stamp_sec(pc_msg)
         rgb_t = self._msg_stamp_sec(rgb_msg)
         with self._frame_lock:
@@ -2692,6 +2699,70 @@ class Map3d:
                 continue
         return frozen
 
+    def _clip_object_around_camera(
+        self,
+        obj: SceneObject,
+        camera_world_pos: np.ndarray,
+    ) -> SceneObject:
+        """
+        Return a render-time copy with nearby geometry removed around my camera.
+
+        Some static world phantasmata can put a virtual wall between my preferred
+        over-the-shoulder camera and my body. A small exclusion bubble lets me
+        keep the camera usable without permanently modifying the cached asset.
+        """
+        radius = float(getattr(obj, "camera_clip_radius_m", 0.0) or 0.0)
+        if radius <= 0.0 or obj.geometry is None:
+            return obj
+
+        radius_sq = radius * radius
+        center = np.asarray(camera_world_pos, dtype=np.float64)
+
+        try:
+            if obj.kind == "pointcloud":
+                points = np.asarray(obj.geometry.points)
+                if points.size == 0:
+                    return obj
+                keep = np.sum((points - center) * (points - center), axis=1) >= radius_sq
+                if np.all(keep):
+                    return obj
+                clipped_geometry = obj.geometry.select_by_index(np.where(keep)[0].tolist())
+            elif obj.kind == "mesh":
+                mesh = obj.geometry
+                vertices = np.asarray(mesh.vertices)
+                triangles = np.asarray(mesh.triangles)
+                if vertices.size == 0 or triangles.size == 0:
+                    return obj
+                triangle_centers = vertices[triangles].mean(axis=1)
+                keep = (
+                    np.sum((triangle_centers - center) * (triangle_centers - center), axis=1)
+                    >= radius_sq
+                )
+                if np.all(keep):
+                    return obj
+                clipped_geometry = o3d.geometry.TriangleMesh(mesh)
+                clipped_geometry.remove_triangles_by_mask((~keep).tolist())
+                clipped_geometry.remove_unreferenced_vertices()
+                clipped_geometry.remove_degenerate_triangles()
+                clipped_geometry.compute_vertex_normals()
+            else:
+                return obj
+
+            clipped = SceneObject(
+                name=obj.name,
+                kind=obj.kind,
+                geometry=clipped_geometry,
+                render_visible=obj.render_visible,
+                raycast_visible=obj.raycast_visible,
+                costmap_affects=obj.costmap_affects,
+                shader=obj.shader,
+                point_size=obj.point_size,
+            )
+            return clipped
+        except Exception as e:
+            print(f"[map3d] camera clip failed for {obj.name}: {e}")
+            return obj
+
     def _render_scene(
         self,
         live_pcd_map: Optional[o3d.geometry.PointCloud],
@@ -2700,6 +2771,7 @@ class Map3d:
         width: int,
         height: int,
         include_robot: bool,
+        robot_camera_clip_radius_m: float,
         effective_point_size: float,
         fov_deg: float,
         fov_axis: str,
@@ -2759,6 +2831,21 @@ class Map3d:
         if include_robot:
             robot_mesh_render = self._create_robot_mesh_render_only()
             if robot_mesh_render is not None and not robot_mesh_render.is_empty():
+                if robot_camera_clip_radius_m > 0.0:
+                    robot_obj = SceneObject(
+                        name="robot",
+                        kind="mesh",
+                        geometry=robot_mesh_render,
+                        render_visible=True,
+                        raycast_visible=True,
+                        shader="defaultLit",
+                    )
+                    robot_obj.camera_clip_radius_m = float(robot_camera_clip_radius_m)
+                    robot_obj = self._clip_object_around_camera(robot_obj, camera_world_pos)
+                    robot_mesh_render = robot_obj.geometry
+                if robot_mesh_render.is_empty():
+                    robot_mesh_render = None
+            if robot_mesh_render is not None and not robot_mesh_render.is_empty():
                 scene.add_geometry("robot", robot_mesh_render, lit)
                 robot_mesh_frozen = self._freeze_mesh(robot_mesh_render)
 
@@ -2782,6 +2869,9 @@ class Map3d:
                     if obj is None or not getattr(obj, 'render_visible', True):
                         continue
 
+                    obj = self._clip_object_around_camera(obj, camera_world_pos)
+                    if getattr(obj.geometry, "is_empty", lambda: False)():
+                        continue
                     phantasma_objects.append(obj)
 
                     # Create material for this object
@@ -2985,6 +3075,37 @@ class Map3d:
         pt = ray_origin + t * ray_dir
         return float(t), pt
 
+    @staticmethod
+    def _raycast_hit_matches_target(hit_name: str, target: Optional[str]) -> bool:
+        if target is None:
+            return True
+
+        wanted = str(target).strip().lower()
+        hit = str(hit_name).strip().lower()
+        if not wanted:
+            return True
+
+        aliases = {
+            "astra": "astra_cloud",
+            "cloud": "astra_cloud",
+            "depth": "astra_cloud",
+            "objects": "object",
+            "phantasma": "object",
+            "phantasmata": "object",
+        }
+        wanted = aliases.get(wanted, wanted)
+
+        if wanted == hit:
+            return True
+        if wanted == "object" and hit.startswith("object:"):
+            return True
+        if wanted.startswith("object:"):
+            return hit == wanted
+        if hit.startswith("object:"):
+            object_name = hit.split(":", 1)[1]
+            return wanted == object_name
+        return False
+
     # ---------------- HUD overlay ----------------
 
     @staticmethod
@@ -3167,6 +3288,7 @@ class Map3d:
         cloud_density: Optional[float] = None,
         cloud_opacity: Optional[float] = None,
         cloud_point_size: Optional[float] = None,
+        robot_camera_clip_radius_m: Optional[float] = None,
         # Laser scan visualization — None = use self.settings value
         laser_scan_show: Optional[bool] = None,
         laser_scan_center_band_px: Optional[int] = None,
@@ -3202,6 +3324,9 @@ class Map3d:
             fov_deg: Field-of-view in degrees.
             fov_axis: "horizontal" or "vertical". Defaults to horizontal.
             include_robot: If True, includes a 3D model of myself in the scene.
+            robot_camera_clip_radius_m: Radius in meters around the virtual
+                camera where my robot self-model is clipped away. This is useful
+                for near-eye or physical-camera-like viewpoints.
             save: If True, saves the rendered image to disk.
             hud: An optional list of `HudElement` objects to overlay text on the
                 final image for debugging or annotation.
@@ -3249,6 +3374,10 @@ class Map3d:
             fov_axis = str(render_defaults["fov_axis"])
         if include_robot is None:
             include_robot = bool(render_defaults.get("include_robot", True))
+        if robot_camera_clip_radius_m is None:
+            robot_camera_clip_radius_m = float(
+                render_defaults.get("robot_camera_clip_radius_m", 0.35)
+            )
         if view is None:
             view = bool(render_defaults.get("view", True))
         if save is None:
@@ -3288,10 +3417,15 @@ class Map3d:
                 f"({self._describe_map_state()})."
             )
 
-        pc_msg, rgb_msg, info_msg, _ = self._acquire_camera_triple(
-            timeout_s=4.0,
-            allow_unsynced_fallback=True,
-        )
+        pc_msg = rgb_msg = info_msg = None
+        try:
+            pc_msg, rgb_msg, info_msg, _ = self._acquire_camera_triple(
+                timeout_s=4.0,
+                allow_unsynced_fallback=True,
+            )
+        except RuntimeError as exc:
+            print(f"[map3d] camera acquisition failed: {exc}")
+            self._add_render_warning("No point cloud — rendering map-only view.")
 
         # TF can lag on the very first call — retry with short sleeps.
         tf_max_retries = 3
@@ -3323,17 +3457,21 @@ class Map3d:
                     continue
                 raise
 
-        live_pcd_map = self._build_live_colored_pcd_map(
-            pc_msg=pc_msg,
-            rgb_msg=rgb_msg,
-            info_msg=info_msg,
-            max_cloud_height_m=max_cloud_height_m,
-            cloud_density=cloud_density,
-            cloud_opacity=cloud_opacity,
-            laser_scan_show=laser_scan_show,
-            laser_scan_center_band_px=laser_scan_center_band_px,
-            laser_scan_color=laser_scan_color,
-        )
+        live_pcd_map = None
+        if pc_msg is not None:
+            live_pcd_map = self._build_live_colored_pcd_map(
+                pc_msg=pc_msg,
+                rgb_msg=rgb_msg,
+                info_msg=info_msg,
+                max_cloud_height_m=max_cloud_height_m,
+                cloud_density=cloud_density,
+                cloud_opacity=cloud_opacity,
+                laser_scan_show=laser_scan_show,
+                laser_scan_center_band_px=laser_scan_center_band_px,
+                laser_scan_color=laser_scan_color,
+            )
+            if live_pcd_map is None:
+                self._add_render_warning("Point cloud had no usable depth data.")
 
         effective_point_size = (
             cloud_point_size if cloud_point_size is not None
@@ -3355,6 +3493,7 @@ class Map3d:
                 width=width,
                 height=height,
                 include_robot=include_robot,
+                robot_camera_clip_radius_m=float(robot_camera_clip_radius_m),
                 effective_point_size=effective_point_size,
                 fov_deg=float(effective_fov_deg),
                 fov_axis=str(effective_fov_axis),
@@ -3443,16 +3582,58 @@ class Map3d:
         self,
         render: Union[RenderResult, str],
         yx: Tuple[float, float],
+        target: Optional[str] = None,
         include_floor: bool = True,
         include_astra: bool = True,
-        include_robot: bool = True,
+        include_robot: bool = False,
         include_objects: bool = True,
         debug_publish: bool = True,
     ) -> RaycastHit:
         """
-        Projects a 2D pixel from a `map3d` render back into the 3D world.
+        Project a pixel in my Chora render back into map-frame 3D space.
+
+        I use this after `render()` when I want a visual choice to become an
+        actionable coordinate. The input `yx` is in my usual normalized
+        0-1000 image coordinates: `(0, 0)` is top-left, `(1000, 1000)` is
+        bottom-right, and `(500, 500)` is the image center.
+
+        Args:
+            render: A `RenderResult` from `map3d.render()`, or a recent render
+                id string. Passing the object is safer because it carries its
+                exact frozen scene snapshot.
+            yx: Pixel coordinate in normalized `(y, x)` 0-1000 space.
+            target: Optional intended target. If omitted, I return the nearest
+                enabled hit. If set to `"floor"`, `"astra"`, `"robot"`,
+                `"object"`, `"object:<name>"`, or a bare object instance name,
+                I raycast through nearer non-target hits and return the first
+                matching target. If no target is reached, I return the nearest
+                hit anyway and record the requested target in `meta`.
+            include_floor: Whether the mathematical floor/map plane can be hit.
+            include_astra: Whether the live Astra point cloud can be hit.
+            include_robot: Whether my own body mesh can be hit.
+            include_objects: Whether raycast-visible phantasmata can be hit.
+            debug_publish: If True, publish a small visual debug marker.
+
+        Returns:
+            RaycastHit describing the chosen hit point. `hit` is one of:
+            `"floor"`, `"astra_cloud"`, `"robot"`, `"object:<name>"`, or
+            `"infinity"`. For floor hits, `floor_state` tells me whether that
+            map cell is open, occupied, or unknown.
+
+        Note to self:
+            This is how I turn sight into motion. If I want to navigate to an
+            open patch of floor, I should call `raycast(render, yx,
+            target="floor")`, then check `floor_state == "map_open"` before
+            using `logos.nav.go_to_abs(x, y)`. If the result says it hit a
+            non-floor object, that is useful too: it means something visually
+            occluded my intended floor target.
         """
         check_for_interrupt()
+        if isinstance(target, bool):
+            # Backward compatibility for older positional calls:
+            # raycast(render, yx, include_floor)
+            include_floor = target
+            target = None
 
         snapshot = None
         if isinstance(render, RenderResult):
@@ -3525,17 +3706,46 @@ class Map3d:
 
         if hits:
             hits.sort(key=lambda x: x[0])
-            dist, hit_name, pt, meta = hits[0]
+            first_dist, first_hit_name, first_pt, first_meta = hits[0]
+            chosen = None
+            if target is not None:
+                for candidate in hits:
+                    if self._raycast_hit_matches_target(candidate[1], target):
+                        chosen = candidate
+                        break
+            if chosen is None:
+                chosen = hits[0]
+
+            dist, hit_name, pt, meta = chosen
             floor_state = meta.get("floor_state")
+            all_hit_names = [h[1] for h in hits]
+            result_meta = {
+                "pixel_px": (float(py), float(px)),
+                "pixel_norm1000": (float(y_norm), float(x_norm)),
+                "target": target,
+                "first_hit": first_hit_name,
+                "target_reached": (
+                    target is None or self._raycast_hit_matches_target(hit_name, target)
+                ),
+                "all_hits": all_hit_names,
+            }
+            if hit_name != first_hit_name:
+                result_meta["occluding_first_hit"] = {
+                    "hit": first_hit_name,
+                    "point": (
+                        float(first_pt[0]),
+                        float(first_pt[1]),
+                        float(first_pt[2]),
+                    ),
+                    "distance_m": float(first_dist),
+                    "floor_state": first_meta.get("floor_state"),
+                }
             hit_result = RaycastHit(
                 hit=hit_name,
                 point=(float(pt[0]), float(pt[1]), float(pt[2])),
                 distance_m=float(dist),
                 floor_state=floor_state,
-                meta={
-                    "pixel_px": (float(py), float(px)),
-                    "pixel_norm1000": (float(y_norm), float(x_norm)),
-                },
+                meta=result_meta,
             )
             if debug_publish and isinstance(render, RenderResult):
                 self._publish_raycast_debug(render, hit_result)
@@ -3551,6 +3761,10 @@ class Map3d:
             meta={
                 "pixel_px": (float(py), float(px)),
                 "pixel_norm1000": (float(y_norm), float(x_norm)),
+                "target": target,
+                "target_reached": False,
+                "first_hit": "infinity",
+                "all_hits": [],
             },
         )
         if debug_publish and isinstance(render, RenderResult):

@@ -212,37 +212,38 @@ def do_print(bumpers: List[str]) -> None:
 def do_stop(bumpers: List[str]) -> None:
     """Issue an emergency halt to my base.
 
-    I publish zero velocities to the safety mux slot for the fastest possible
-    stop. Useful as a first handler when precision matters more than recovery.
+    I publish zero velocities to Logos's safety mux slot for the fastest
+    possible stop without outranking the Kobuki safety controller.
 
     Args:
         bumpers: Unused; present to satisfy handler signature.
     """
     from logos import base as _base
-    _base.stop(verbosity=Verbosity.SILENT)
+    _base.stop(topic='safety', verbosity=Verbosity.SILENT)
 
 
-def do_backup(bumpers: List[str], distance: float = 0.35, speed: float = 0.5) -> None:
+def do_backup(bumpers: List[str], distance: float = 0.3, speed: float = 0.2) -> None:
     """Back away from whatever I just bumped, steering to help clear the obstacle.
 
     I use the bumped side to pick a rotation direction: left contact steers me
     right during the reverse, right contact steers me left, and a center-only
-    hit goes straight back. The rotation targets roughly 25 degrees over the
+    hit goes straight back. The rotation targets roughly 35 degrees over the
     backup distance — enough to swing clear of typical corner obstacles without
-    over-rotating. I publish to the safety mux slot so the command goes through
-    even if normal navigation is paused.
+    over-rotating. I publish to Logos's safety mux slot so the command goes
+    through even if normal navigation is paused, while still yielding to the
+    Kobuki safety controller.
 
     Args:
         bumpers:  List of bumped side strings from the event.
         distance: How far to reverse in meters (default 0.30).
-        speed:    Reverse speed in m/s (default 0.5).
+        speed:    Reverse speed in m/s (default 0.2).
 
     Note to self: To register a customised version, use functools.partial:
         register(functools.partial(do_backup, distance=0.25, speed=0.08))
     """
     from logos import base as _base
 
-    duration = distance / max(speed, 0.01) + 0.5
+    duration = distance / max(speed, 0.01)  # + 0.5
 
     has_left = 'left' in bumpers
     has_right = 'right' in bumpers
@@ -251,10 +252,10 @@ def do_backup(bumpers: List[str], distance: float = 0.35, speed: float = 0.5) ->
         angular_z = 0.0
     elif has_left:
         # Bumped left side — steer right (negative angular_z = clockwise)
-        angular_z = -25.0 / duration
+        angular_z = -35.0 / duration
     elif has_right:
         # Bumped right side — steer left (positive angular_z = counterclockwise)
-        angular_z = 25.0 / duration
+        angular_z = 35.0 / duration
     else:
         angular_z = 0.0
 
@@ -262,7 +263,7 @@ def do_backup(bumpers: List[str], distance: float = 0.35, speed: float = 0.5) ->
         linear_x=-speed,
         angular_z_deg=angular_z,
         duration=duration,
-        topic='raw',
+        topic='safety',
         verbosity=Verbosity.BRIEF,
     )
 

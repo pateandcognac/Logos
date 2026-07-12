@@ -42,9 +42,11 @@ _cmd_vel_pub: Optional['rospy.Publisher'] = None
 _cmd_vel_topic: Optional[str] = None
 
 _TOPIC_MAP = {
-    "raw": "/raw_cmd_vel",
-    "muxed": "/cmd_vel_mux/input/logos",
-    "safety": "/cmd_vel_mux/input/safety_controller"
+    "raw": "/cmd_vel_mux/input/logos_raw",
+    "muxed": "/velocity_smoother/raw_cmd_vel",
+    "smooth": "/velocity_smoother/raw_cmd_vel",
+    "smoothed": "/velocity_smoother/raw_cmd_vel",
+    "safety": "/cmd_vel_mux/input/logos_safety",
 }
 
 # Semantic mappings for Kobuki bitmasks
@@ -272,12 +274,14 @@ def velocity(linear_x: float, angular_z_deg: float, topic: str = "muxed") -> Non
     Args:
         linear_x: Forward/backward speed in m/s.
         angular_z_deg: Rotational speed in deg/s.
-        topic: [raw|muxed|safety] Default: 'muxed'
+        topic: [raw|muxed|smooth|smoothed|safety] Default: 'muxed'
 
     Note to self:
         This is perfect for control loops (like tracking). The Kobuki hardware 
         has a ~0.6s timeout. If you don't call this again within that window, 
-        the base will automatically halt. `muxed` is smoothed and has lower
+        the base will automatically halt. `muxed`/`smooth` goes through the
+        shared velocity smoother, `raw` is a low-priority unsmoothed mux slot,
+        and `safety` is a high-priority Logos mux slot below Kobuki safety.
     """
     global _cmd_vel_pub, _cmd_vel_topic
 
@@ -286,7 +290,11 @@ def velocity(linear_x: float, angular_z_deg: float, topic: str = "muxed") -> Non
         return
 
     topic = topic.lower()
-    resolved_topic = _TOPIC_MAP.get(topic, _TOPIC_MAP["raw"])
+    if topic not in _TOPIC_MAP:
+        raise ValueError(
+            f"Invalid topic alias '{topic}'. Valid options: {list(_TOPIC_MAP.keys())}"
+        )
+    resolved_topic = _TOPIC_MAP[topic]
 
     if _cmd_vel_pub is None or _cmd_vel_topic != resolved_topic:
         _cmd_vel_pub = rospy.Publisher(resolved_topic, Twist, queue_size=5)
@@ -308,7 +316,7 @@ def move_timed(linear_x: float, angular_z_deg: float, duration: float, topic: st
         linear_x: Forward/backward speed in m/s.
         angular_z_deg: Rotational speed in deg/s.
         duration: Time in seconds to hold this velocity.
-        topic: [raw|muxed|safety] Default: 'muxed'
+        topic: [raw|muxed|smooth|smoothed|safety] Default: 'raw'
 
     Note to self:
         Use this for scripted, open-loop movements (like wiggles, dances, 
@@ -326,9 +334,13 @@ def move_timed(linear_x: float, angular_z_deg: float, duration: float, topic: st
     stop(topic=topic, verbosity=Verbosity.SILENT)
 
 @api_call(default_verbosity=Verbosity.ACK)
-def stop(topic: str = "raw") -> None:
+def stop(topic: Optional[str] = None) -> None:
     """
-    Immediately halt all base movement by publishing zero velocities.
+    Immediately halt base movement by publishing zero velocities.
+
+    Args:
+        topic: [raw|muxed|smooth|smoothed|safety]. If omitted, stop whichever
+               topic this API last published to, falling back to `raw`.
     """
     global _cmd_vel_pub, _cmd_vel_topic
 
@@ -336,17 +348,17 @@ def stop(topic: str = "raw") -> None:
     if not _HAS_ROS:
         return
 
-    # If we've already published before, stop on that same topic by default.
+    # If no topic was requested, stop on the topic this API last used.
     resolved_topic: str
-    if _cmd_vel_pub is not None and _cmd_vel_topic is not None:
+    if topic is None and _cmd_vel_pub is not None and _cmd_vel_topic is not None:
         resolved_topic = _cmd_vel_topic
     else:
-        topic = topic.lower()
-        if topic not in _TOPIC_MAP:
+        topic_alias = "raw" if topic is None else topic.lower()
+        if topic_alias not in _TOPIC_MAP:
             raise ValueError(
-                f"Invalid topic alias '{topic}'. Valid options: {list(_TOPIC_MAP.keys())}"
+                f"Invalid topic alias '{topic_alias}'. Valid options: {list(_TOPIC_MAP.keys())}"
             )
-        resolved_topic = _TOPIC_MAP[topic]
+        resolved_topic = _TOPIC_MAP[topic_alias]
 
     # Ensure publisher exists for the chosen stop topic
     if _cmd_vel_pub is None or _cmd_vel_topic != resolved_topic:
