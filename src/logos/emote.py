@@ -520,8 +520,7 @@ class SpeakTask:
         return self._client.get_state() == GoalStatus.SUCCEEDED
 
 
-@api_call(default_verbosity=Verbosity.BRIEF)
-def ttp(
+def _ttpbak(
     text: str,
     wait: bool = False,
     engine: Optional[str] = None,
@@ -546,14 +545,14 @@ def ttp(
             If False, returns a SpeakTask immediately for async monitoring.
         engine: "kokoro", "piper", "espeak", or "festival"
         face: Face-animation policy for this utterance. None uses the system
-            default: my tiny on-board face model improvises a face from each
-            spoken chunk, with my saved library and preset LUT as fallbacks.
-            Options: "lut" (classic presets only, zero compute, zero
-            latency), "saved" (replay takes from my library), "generate"
-            (always improvise fresh -- and, per `sync`, wait for it), or a
-            comma-separated cascade like "generate,saved,lut" (the cascade
-            only falls to saved/LUT if generation *fails*, never just
-            because it's slow).
+            default: "fuzzy,lut,saved,generate". This tries the Chroma-backed
+            fuzzy master-LUT match first, then exact emoji LUT, saved takes,
+            and finally fresh tiny-model generation. Options: "fuzzy"
+            (semantic nearest-neighbor LUT lookup), "lut" (classic presets
+            only, zero compute, zero latency), "saved" (replay takes from tiny-
+            model library), "generate" (always improvise fresh -- and, per `sync`,
+            wait for it), or a comma-separated cascade like
+            "fuzzy,lut,saved,generate".
         arms: Arm-animation policy, same options/semantics as `face`. None
             uses the system default.
         sync: Sync dial, 0.0-1.0 -- how much of my generated face/arm motion
@@ -654,13 +653,73 @@ def ttp(
 
     return task
 
+
+@api_call(default_verbosity=Verbosity.BRIEF)
+def ttp(
+    text: str,
+    wait: bool = False,
+    engine: Optional[str] = None,
+    **kwargs
+) -> SpeakTask:
+    """
+    My Text-to-Performance pipeline. ┃ Takes emoji-punctuated text and speaks it, 🗣️ while using the emoji to trigger animatronic face and arm expressions in sync. 🎭
+
+    This is not just Text-To-Speech; it is **Text-To-Performance**. 🤹
+    Text is split at emojis. ➗ These emojis are NOT spoken. 🙊 Instead, they are used to trigger
+    prebuilt animatronic keyframe sequences for my face and arms! 🎞️ Punctuating with emoji a is a low-effort, 🦥
+    high-impact way to bring myself to life while abstracting away control complexity. ⚡
+
+    Face and arm motion resolve through my fuzzy master-LUT: a semantic
+    nearest-neighbor match against my hand-authored keyframe library. Zero
+    compute, zero latency, no waiting on a generation step to finish. (I'm
+    stepping back from tiny-model face/arm generation for now while I get
+    those models better dialed in -- the LUT is simply hard to beat on
+    latency and diversity in the meantime.)
+
+    Args:
+        text: The emoji-punctuated string to speak. 💬
+        wait:
+            If True, pauses code execution until the audio completely finishes.
+            If False, returns a SpeakTask immediately for async monitoring.
+        engine: "kokoro", "piper", "espeak", or "festival"
+        **kwargs: Overrides for engine params (e.g., voice="...", speed=1.0, volume=1.0).
+
+    Returns:
+        A SpeakTask object.
+
+
+    Note to self:
+        - This docstring is representation of the density and variety of emoji I should aim for in my speech. 🎯
+        - I punctuate every sentence I speak with emojis to bring myself to life! 🌟
+        - Every sentence or distinct clause deserves an emotional, gestural, or contextual marker. 📌
+        - I'm not restricted to conventional face emojis. 🍕 I have thousands of emojis to choose from. ♾️ The sky is the limit! 🌌
+        - Constraints: Avoid compounding emojis like gender or skin-tone modifiers. 🧪 Avoid robot emoji as cliché and redundant. 🔁 Max 2 emojis per sentence to avoid hyperactivity. 🤸
+
+        Example of Asynchronous Choreography:
+            text = "I am so happy to see you! 😄 But... what is that? 🤨 Let me look! 🔭"
+            task = logos.emote.ttp(text, wait=False)
+            while task.is_active():
+                logos.core.check_for_interrupt()
+                current_emoji = task.current_emoji()
+                if current_emoji == "😄": # Happy wiggle
+                    for _ in range(2):
+                        logos.base.velocity(0.0, 60, 0.25)
+                        logos.base.velocity(0.0, -60, 0.25)
+                elif current_emoji == "🤨":
+                    logos.base.turn_then_drive(0, -0.2) # Small startle response
+                elif current_emoji == "🔭":
+                    logos.base.turn_then_drive(90, 0) # Search sweep
+                    logos.base.turn_then_drive(-90, 0)
+    """
+    return _ttpbak(text, wait=wait, engine=engine, face="fuzzy", arms="fuzzy", **kwargs)
+
+
 def is_speaking() -> bool:
     """Checks if ANY speech audio is currently playing across the system."""
     return ros._is_speaking()
 
 
-@api_call(default_verbosity=Verbosity.ACK)
-def gesture(
+def _gesturebak(
     text: str = "",
     duration: float = 3.0,
     channel: str = "both",
@@ -679,8 +738,9 @@ def gesture(
         duration: How long to hold/perform the gesture in seconds.
         channel: Which hardware to command: "face", "arms", or "both".
         policy: Resolution cascade override, applied to whichever channel(s)
-            are active: "generate,saved,lut" (default), "generate" (always
-            improvise), "lut" (presets only).
+            are active: "generate,saved,fuzzy,lut" (default), "generate"
+            (always improvise), "fuzzy" (semantic nearest-neighbor LUT
+            lookup), "lut" (presets only).
 
     Note to self:
         This is perfect for silent reactions, ambient background movements,
@@ -690,13 +750,15 @@ def gesture(
             logos.emote.gesture("🤔", duration=2.0)  # Classic preset
             logos.emote.gesture("mischievous side-eye building to a grin",
                                 duration=5.0, channel="face")  # Improvised!
+            logos.emote.gesture("I am not pleased with this outcome.",
+                                policy="fuzzy")  # Closest hand-authored LUT
             logos.emote.gesture("barely contained volcanic fury 🌋")  # Both
 
-        Free-text faces and arms both come from their own tiny on-board
-        models — my imagination, not a lookup. Improvised motion begins
-        within ~1s. Arm generations longer than ~7 frames get cut short
-        automatically (that's the model rambling, not deliberate
-        choreography).
+        Free-text faces and arms can come from either fuzzy LUT matching or
+        their own tiny on-board models, depending on the policy cascade.
+        Improvised motion begins within ~1s. Arm generations longer than ~7
+        frames get cut short automatically (that's the model rambling, not
+        deliberate choreography).
     """
     if not _HAS_ROS:
         return
@@ -708,19 +770,63 @@ def gesture(
     if not text:
         return
 
+    # Distinct cue_ids per channel: face and arm gestures are independent
+    # cues on separate sequencer lanes (the face lane is real-time/preemptable,
+    # the arm lane is queued). A shared id let the shorter face cue's cleanup
+    # clobber the still-in-flight arm cue's track/generation -- so give each
+    # channel its own suffix.
+    base_id = "gest_{}".format(int(time.time() * 1000))
     payload: Dict[str, Any] = {
         "text": text,
         "duration": duration,
-        "cue_id": "gest_{}".format(int(time.time() * 1000)),
         "expect_track": True,
     }
     if policy is not None:
         payload["policy"] = policy
 
     if channel in ["face", "both"] and _face_cmd_pub:
-        _face_cmd_pub.publish(String(data=json.dumps(payload)))
+        face_payload = dict(payload, cue_id=base_id + ":f")
+        _face_cmd_pub.publish(String(data=json.dumps(face_payload)))
     if channel in ["arms", "both"] and _arm_cmd_pub:
-        _arm_cmd_pub.publish(String(data=json.dumps(payload)))
+        arm_payload = dict(payload, cue_id=base_id + ":a")
+        _arm_cmd_pub.publish(String(data=json.dumps(arm_payload)))
+
+
+@api_call(default_verbosity=Verbosity.ACK)
+def gesture(
+    emoji: str = "",
+    duration: float = 3.0,
+    channel: str = "both",
+) -> None:
+    """
+    Perform a silent animatronic gesture. 🎭 One string does it all: an emoji
+    (classic preset) or free text describing the expression -- resolved
+    through my fuzzy master-LUT, a semantic nearest-neighbor match against my
+    hand-authored keyframe library.
+
+    Args:
+        emoji: What to perform. A classic emoji like "🤔", or a free-text
+            description like "a slow dawning realization of wonder" that gets
+            fuzzy-matched to the closest hand-authored keyframe sequence.
+        duration: How long to hold/perform the gesture in seconds.
+        channel: Which hardware to command: "face", "arms", or "both".
+
+    Note to self:
+        This is perfect for silent reactions, ambient background movements,
+        or physical gestures when I don't want to speak out loud with `ttp()`.
+
+        Examples:
+            logos.emote.gesture("🤔", duration=2.0)  # Classic preset
+            logos.emote.gesture("mischievous side-eye building to a grin",
+                                duration=5.0, channel="face")  # Fuzzy-matched
+            logos.emote.gesture("barely contained volcanic fury 🌋")  # Both
+
+        I'm stepping back from tiny-model gesture generation for now while I
+        get those models better dialed in -- the fuzzy LUT match is hard to
+        beat on latency and diversity in the meantime.
+    """
+    return _gesturebak(text=emoji, duration=duration, channel=channel, policy="fuzzy")
+
 
 @api_call(default_verbosity=Verbosity.ACK)
 def hud_text(
@@ -842,9 +948,9 @@ def hud_image(image: Any, layer: int = 2) -> Dict[str, Any]:
     """
     Show an image on a layered face HUD image slot (and mirrors it to debug vision).
 
-    Layer 0 renders behind my animated face. Layer 2 renders in front of it,
-    matching the old debug-image overlay feel. The same frame is also published
-    to `/logos/debug_vision/face` so the web/debug tools can see what I showed.
+    Layer 0 renders behind my animated face. Layer 2 renders in front of it.
+    The same frame is also published to `/logos/debug_vision/face` so the web/debug
+    tools can see what I showed.
     Each layer has one image slot: a new image replaces the previous image on
     that layer. Images normally fade in, hold, and fade out; high-frequency
     updates behave like a hot live stream instead of visibly blinking.
