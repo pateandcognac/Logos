@@ -13,7 +13,7 @@
 tts:
   engine: "kokoro"
   kokoro_params:
-    voice: "0.5*am_onyx + 0.15*im_nicola + 0.35*bf_alice"
+    voice: "0.5*am_onyx + 0.25*bm_lewis + 0.25*bf_alice"
     speed: 1.3
     volume: 1.0
   piper_params:
