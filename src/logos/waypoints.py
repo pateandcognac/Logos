@@ -12,8 +12,10 @@ import builtins
 from copy import deepcopy
 from datetime import datetime, timezone
 import math
+import os
 from pathlib import Path
 import re
+import tempfile
 import threading
 from typing import Any, Dict, List, Optional
 
@@ -22,7 +24,17 @@ from ruamel.yaml import YAML
 from .core import Verbosity, api_call
 
 
-__all__ = ["list", "get", "reload", "go_to"]
+__all__ = [
+    "list",
+    "get",
+    "reload",
+    "normalize_pose",
+    "upsert",
+    "upsert_here",
+    "update",
+    "remove",
+    "go_to",
+]
 
 
 _ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")
@@ -50,6 +62,27 @@ _RENDER_KEYS = {
 }
 _RENDER_MODES = {"floor", "pose_billboard", "camera_billboard", "marker"}
 _MARKER_MODES = {"none", "pin", "axes"}
+_MISSING = object()
+_MUTABLE_FIELDS = {
+    "name",
+    "description",
+    "created_at",
+    "navigable",
+    "emoji",
+    "tags",
+    "enabled",
+    "render",
+    "metadata",
+}
+_POSE_OVERRIDE_FIELDS = {
+    "x",
+    "y",
+    "z",
+    "theta_deg",
+    "yaw_deg",
+    "roll_deg",
+    "pitch_deg",
+}
 
 
 def _waypoints_config() -> Dict[str, Any]:
@@ -118,6 +151,234 @@ def _require_vector3(value: Any, label: str) -> List[float]:
             )
         result.append(number)
     return result
+
+
+def _member(value: Any, name: str, default: Any = _MISSING) -> Any:
+    """Read one field from either a mapping or a ROS-style object."""
+    if isinstance(value, dict):
+        return value.get(name, default)
+    return getattr(value, name, default)
+
+
+def _finite_number(value: Any, label: str) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError("{} must be a finite number".format(label))
+    number = float(value)
+    if not math.isfinite(number):
+        raise ValueError("{} must be a finite number".format(label))
+    return number
+
+
+def _pose_frame(value: Any) -> Optional[str]:
+    """Find an optional frame on a ROS message or pose dictionary."""
+    current = value
+    for _ in range(4):
+        frame = _member(current, "frame", _MISSING)
+        if frame is _MISSING:
+            frame = _member(current, "frame_id", _MISSING)
+        if frame is not _MISSING and frame is not None:
+            return str(frame)
+
+        header = _member(current, "header", _MISSING)
+        if header is not _MISSING and header is not None:
+            frame_id = _member(header, "frame_id", _MISSING)
+            if frame_id is not _MISSING and frame_id is not None:
+                return str(frame_id)
+
+        nested = _member(current, "pose", _MISSING)
+        if nested is _MISSING or nested is None:
+            break
+        current = nested
+    return None
+
+
+def _unwrap_pose(value: Any) -> Any:
+    """Peel PoseStamped, PoseWithCovariance, or TransformStamped shells."""
+    current = value
+    for _ in range(4):
+        nested = _member(current, "pose", _MISSING)
+        if nested is _MISSING:
+            nested = _member(current, "transform", _MISSING)
+        if nested is _MISSING or nested is None:
+            break
+        current = nested
+    return current
+
+
+def _xyz_from_value(value: Any, label: str) -> List[float]:
+    if isinstance(value, (builtins.list, tuple)):
+        return _require_vector3(value, label)
+    return [
+        _finite_number(_member(value, "x"), "{}.x".format(label)),
+        _finite_number(_member(value, "y"), "{}.y".format(label)),
+        _finite_number(_member(value, "z", 0.0), "{}.z".format(label)),
+    ]
+
+
+def _quaternion_to_rpy_deg(value: Any, label: str) -> List[float]:
+    x = _finite_number(_member(value, "x"), "{}.x".format(label))
+    y = _finite_number(_member(value, "y"), "{}.y".format(label))
+    z = _finite_number(_member(value, "z"), "{}.z".format(label))
+    w = _finite_number(_member(value, "w"), "{}.w".format(label))
+
+    norm = math.sqrt(x * x + y * y + z * z + w * w)
+    if norm < 1e-12:
+        raise ValueError("{} must not be a zero quaternion".format(label))
+    x, y, z, w = x / norm, y / norm, z / norm, w / norm
+
+    sinr_cosp = 2.0 * (w * x + y * z)
+    cosr_cosp = 1.0 - 2.0 * (x * x + y * y)
+    roll = math.atan2(sinr_cosp, cosr_cosp)
+
+    sinp = 2.0 * (w * y - z * x)
+    if abs(sinp) >= 1.0:
+        pitch = math.copysign(math.pi / 2.0, sinp)
+    else:
+        pitch = math.asin(sinp)
+
+    siny_cosp = 2.0 * (w * z + x * y)
+    cosy_cosp = 1.0 - 2.0 * (y * y + z * z)
+    yaw = math.atan2(siny_cosp, cosy_cosp)
+    return [math.degrees(roll), math.degrees(pitch), math.degrees(yaw)]
+
+
+def normalize_pose(
+    pose: Any = None,
+    x: Optional[float] = None,
+    y: Optional[float] = None,
+    z: Optional[float] = None,
+    theta_deg: Optional[float] = None,
+    yaw_deg: Optional[float] = None,
+    roll_deg: Optional[float] = None,
+    pitch_deg: Optional[float] = None,
+) -> Dict[str, List[float]]:
+    """
+    Normalize common robot pose shapes into my waypoint pose convention.
+
+    I accept canonical Chora dictionaries, flat x/y/theta_deg dictionaries,
+    ROS Pose/PoseStamped/Odometry-like objects or dictionaries, quaternion
+    orientation dictionaries, [x, y, theta_deg], and [x, y, z, theta_deg].
+    Explicit coordinate arguments override values extracted from `pose`.
+
+    Args:
+        pose: Any supported pose object, mapping, or coordinate sequence.
+        x: Optional map X override in meters.
+        y: Optional map Y override in meters.
+        z: Optional map Z override in meters.
+        theta_deg: Optional yaw override in degrees.
+        yaw_deg: Alias for theta_deg.
+        roll_deg: Optional roll override in degrees.
+        pitch_deg: Optional pitch override in degrees.
+
+    Returns:
+        `{"position": [x, y, z], "rpy_deg": [roll, pitch, yaw]}`.
+
+    Note to self:
+        If an input declares a frame, I accept only `map`. I never silently
+        reinterpret odom coordinates as persistent map coordinates.
+    """
+    frame = _pose_frame(pose) if pose is not None else None
+    if frame is not None and frame.strip().lstrip("/") != "map":
+        raise ValueError(
+            "Waypoint poses must be in the map frame, not {!r}".format(frame)
+        )
+
+    position: List[Optional[float]] = [None, None, None]
+    rpy: List[Optional[float]] = [0.0, 0.0, None]
+
+    if pose is not None and isinstance(pose, (builtins.list, tuple)):
+        if len(pose) == 3:
+            position = [
+                _finite_number(pose[0], "pose[0]"),
+                _finite_number(pose[1], "pose[1]"),
+                0.0,
+            ]
+            rpy[2] = _finite_number(pose[2], "pose[2]")
+        elif len(pose) == 4:
+            position = [
+                _finite_number(pose[0], "pose[0]"),
+                _finite_number(pose[1], "pose[1]"),
+                _finite_number(pose[2], "pose[2]"),
+            ]
+            rpy[2] = _finite_number(pose[3], "pose[3]")
+        else:
+            raise ValueError(
+                "pose sequences must be [x, y, theta_deg] or "
+                "[x, y, z, theta_deg]"
+            )
+    elif pose is not None:
+        core = _unwrap_pose(pose)
+        position_value = _member(core, "position", _MISSING)
+        if position_value is _MISSING:
+            position_value = _member(core, "translation", _MISSING)
+        if position_value is not _MISSING:
+            position = _xyz_from_value(position_value, "pose.position")
+        elif (
+            _member(core, "x", _MISSING) is not _MISSING
+            and _member(core, "y", _MISSING) is not _MISSING
+        ):
+            position = _xyz_from_value(core, "pose")
+
+        rpy_value = _member(core, "rpy_deg", _MISSING)
+        if rpy_value is not _MISSING:
+            rpy = _require_vector3(rpy_value, "pose.rpy_deg")
+        else:
+            orientation = _member(core, "orientation", _MISSING)
+            if orientation is _MISSING:
+                orientation = _member(core, "rotation", _MISSING)
+            if orientation is not _MISSING:
+                rpy = _quaternion_to_rpy_deg(
+                    orientation, "pose.orientation"
+                )
+            else:
+                extracted_yaw = _member(core, "theta_deg", _MISSING)
+                if extracted_yaw is _MISSING:
+                    extracted_yaw = _member(core, "yaw_deg", _MISSING)
+                if extracted_yaw is not _MISSING:
+                    rpy[2] = _finite_number(
+                        extracted_yaw, "pose.theta_deg"
+                    )
+                else:
+                    theta_rad = _member(core, "theta", _MISSING)
+                    if theta_rad is not _MISSING:
+                        rpy[2] = math.degrees(
+                            _finite_number(theta_rad, "pose.theta")
+                        )
+
+    overrides = [x, y, z]
+    for index, override in enumerate(overrides):
+        if override is not None:
+            position[index] = _finite_number(
+                override, ("x", "y", "z")[index]
+            )
+
+    if theta_deg is not None and yaw_deg is not None:
+        theta_value = _finite_number(theta_deg, "theta_deg")
+        yaw_value = _finite_number(yaw_deg, "yaw_deg")
+        if abs(theta_value - yaw_value) > 1e-9:
+            raise ValueError("theta_deg and yaw_deg disagree")
+        rpy[2] = theta_value
+    elif theta_deg is not None:
+        rpy[2] = _finite_number(theta_deg, "theta_deg")
+    elif yaw_deg is not None:
+        rpy[2] = _finite_number(yaw_deg, "yaw_deg")
+
+    if roll_deg is not None:
+        rpy[0] = _finite_number(roll_deg, "roll_deg")
+    if pitch_deg is not None:
+        rpy[1] = _finite_number(pitch_deg, "pitch_deg")
+
+    if position[2] is None:
+        position[2] = 0.0
+    if position[0] is None or position[1] is None or rpy[2] is None:
+        raise ValueError(
+            "A waypoint pose needs map x, y, and theta_deg/yaw orientation"
+        )
+
+    return {
+        "position": [float(value) for value in position],
+        "rpy_deg": [float(value) for value in rpy],
+    }
 
 
 def _require_utc_timestamp(value: Any, label: str) -> str:
@@ -312,6 +573,34 @@ def _load_validated(path: Path) -> Dict[str, Dict[str, Any]]:
     return validated
 
 
+def _record_for_yaml(record: Dict[str, Any]) -> Dict[str, Any]:
+    """Strip runtime-only keys and arrange one record for readable YAML."""
+    stored: Dict[str, Any] = {
+        "name": record["name"],
+        "description": record["description"],
+        "pose": deepcopy(record["pose"]),
+        "created_at": record["created_at"],
+        "navigable": record["navigable"],
+    }
+    if "emoji" in record:
+        stored["emoji"] = record["emoji"]
+    if record.get("tags"):
+        stored["tags"] = deepcopy(record["tags"])
+    if not record.get("enabled", True):
+        stored["enabled"] = False
+    if "render" in record:
+        stored["render"] = deepcopy(record["render"])
+    if record.get("metadata"):
+        stored["metadata"] = deepcopy(record["metadata"])
+    return stored
+
+
+def _utc_now_text() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace(
+        "+00:00", "Z"
+    )
+
+
 class _WaypointStore:
     """Hold my last-known-good waypoint registry behind a small lock."""
 
@@ -334,6 +623,87 @@ class _WaypointStore:
             self._records = validated
             self._loaded_path = path
             return len(self._records)
+
+    def get_id(self, waypoint_id: str) -> Optional[Dict[str, Any]]:
+        self._ensure_loaded()
+        with self._lock:
+            record = self._records.get(waypoint_id)
+            return deepcopy(record) if record is not None else None
+
+    def _write_raw_locked(
+        self,
+        path: Path,
+        raw: Dict[str, Any],
+    ) -> Dict[str, Dict[str, Any]]:
+        """Atomically validate and replace my YAML while preserving comments."""
+        path.parent.mkdir(parents=True, exist_ok=True)
+        fd, temporary_name = tempfile.mkstemp(
+            prefix=".{}.".format(path.name),
+            suffix=".tmp",
+            dir=str(path.parent),
+        )
+        os.close(fd)
+        temporary_path = Path(temporary_name)
+
+        try:
+            yaml = YAML()
+            yaml.default_flow_style = False
+            yaml.preserve_quotes = True
+            with temporary_path.open("w", encoding="utf-8") as stream:
+                yaml.dump(raw, stream)
+
+            validated = _load_validated(temporary_path)
+            os.replace(str(temporary_path), str(path))
+            self._records = validated
+            self._loaded_path = path
+            return validated
+        finally:
+            if temporary_path.exists():
+                temporary_path.unlink()
+
+    def persist_upsert(
+        self,
+        waypoint_id: str,
+        record: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        path = _configured_path()
+        with self._lock:
+            # Refuse to overwrite an invalid hand edit, and incorporate any
+            # valid edits made since my last API call.
+            self._records = _load_validated(path)
+            self._loaded_path = path
+
+            yaml = YAML()
+            yaml.preserve_quotes = True
+            with path.open("r", encoding="utf-8") as stream:
+                raw = yaml.load(stream) or {}
+            waypoints = raw.get("waypoints")
+            if not isinstance(waypoints, dict):
+                raise ValueError("waypoint file waypoints must be a mapping")
+
+            waypoints[waypoint_id] = _record_for_yaml(record)
+            validated = self._write_raw_locked(path, raw)
+            return deepcopy(validated[waypoint_id])
+
+    def persist_remove(self, waypoint_id: str) -> Dict[str, Any]:
+        path = _configured_path()
+        with self._lock:
+            self._records = _load_validated(path)
+            self._loaded_path = path
+            if waypoint_id not in self._records:
+                raise KeyError("Waypoint {!r} not found".format(waypoint_id))
+            removed = deepcopy(self._records[waypoint_id])
+
+            yaml = YAML()
+            yaml.preserve_quotes = True
+            with path.open("r", encoding="utf-8") as stream:
+                raw = yaml.load(stream) or {}
+            waypoints = raw.get("waypoints")
+            if not isinstance(waypoints, dict):
+                raise ValueError("waypoint file waypoints must be a mapping")
+            del waypoints[waypoint_id]
+            self._write_raw_locked(path, raw)
+            return removed
 
     def list(
         self,
@@ -438,6 +808,184 @@ def reload() -> int:
         in-memory registry.
     """
     return _STORE.reload()
+
+
+def _current_map_pose() -> Any:
+    from . import ros
+
+    current = ros.get_pose()
+    if current is None:
+        raise RuntimeError("My current pose is unavailable")
+    frame = _pose_frame(current)
+    if frame is not None and frame.strip().lstrip("/") != "map":
+        raise RuntimeError(
+            "My current pose is in {!r}, not the map frame".format(frame)
+        )
+    return current
+
+
+def _upsert(
+    waypoint_id: str,
+    pose: Any,
+    current_pose: bool,
+    fields: Dict[str, Any],
+) -> Dict[str, Any]:
+    waypoint_id = _require_text(waypoint_id, "waypoint_id")
+    if not _ID_RE.match(waypoint_id):
+        raise ValueError(
+            "waypoint_id may contain only letters, numbers, '.', '_', and '-'"
+        )
+    if not isinstance(current_pose, bool):
+        raise ValueError("current_pose must be true or false")
+    if current_pose and pose is not None:
+        raise ValueError("Pass either pose or current_pose=True, not both")
+
+    unknown = sorted(
+        set(fields.keys()) - _MUTABLE_FIELDS - _POSE_OVERRIDE_FIELDS
+    )
+    if unknown:
+        raise ValueError(
+            "Unknown waypoint field(s): {}".format(", ".join(unknown))
+        )
+
+    _STORE.reload()
+    existing = _STORE.get_id(waypoint_id)
+    if existing is None:
+        display_name = waypoint_id.replace("_", " ").replace("-", " ").title()
+        candidate: Dict[str, Any] = {
+            "name": display_name,
+            "description": "Saved waypoint: {}".format(display_name),
+            "created_at": _utc_now_text(),
+            "navigable": False,
+        }
+    else:
+        candidate = _record_for_yaml(existing)
+
+    pose_overrides = {
+        key: fields.pop(key)
+        for key in builtins.list(fields.keys())
+        if key in _POSE_OVERRIDE_FIELDS
+    }
+
+    pose_source = pose
+    if current_pose:
+        pose_source = _current_map_pose()
+    elif pose_source is None and existing is not None:
+        pose_source = existing["pose"]
+
+    if pose_source is not None or pose_overrides:
+        candidate["pose"] = normalize_pose(
+            pose_source,
+            x=pose_overrides.get("x"),
+            y=pose_overrides.get("y"),
+            z=pose_overrides.get("z"),
+            theta_deg=pose_overrides.get("theta_deg"),
+            yaw_deg=pose_overrides.get("yaw_deg"),
+            roll_deg=pose_overrides.get("roll_deg"),
+            pitch_deg=pose_overrides.get("pitch_deg"),
+        )
+    elif existing is None:
+        raise ValueError(
+            "New waypoints need pose=..., x/y/theta_deg, or current_pose=True"
+        )
+
+    for key, value in fields.items():
+        if value is None and key in ("emoji", "render"):
+            candidate.pop(key, None)
+        elif value is None and key == "tags":
+            candidate["tags"] = []
+        elif value is None and key == "metadata":
+            candidate["metadata"] = {}
+        else:
+            candidate[key] = deepcopy(value)
+
+    normalized = _normalize_waypoint(waypoint_id, candidate, "map")
+    return _STORE.persist_upsert(waypoint_id, normalized)
+
+
+@api_call(default_verbosity=Verbosity.ACK)
+def upsert(
+    waypoint_id: str,
+    pose: Any = None,
+    current_pose: bool = False,
+    **fields: Any
+) -> Dict[str, Any]:
+    """
+    Create or replace fields on one persistent waypoint.
+
+    Args:
+        waypoint_id: Stable machine-readable ID.
+        pose: Any pose accepted by normalize_pose().
+        current_pose: If True, capture my current map pose.
+        **fields: Optional name, description, navigable, emoji, tags, enabled,
+            render, metadata, created_at, or x/y/z/angle pose overrides.
+
+    Returns:
+        The complete validated record written to YAML.
+
+    Note to self:
+        New records default to navigable=False. Existing fields and pose values
+        remain unchanged unless I explicitly replace or override them.
+    """
+    return _upsert(waypoint_id, pose, current_pose, dict(fields))
+
+
+@api_call(default_verbosity=Verbosity.ACK)
+def upsert_here(
+    waypoint_id: str,
+    **fields: Any
+) -> Dict[str, Any]:
+    """
+    Create or move a waypoint to my current map pose.
+
+    Args:
+        waypoint_id: Stable machine-readable ID.
+        **fields: The same optional record fields accepted by upsert().
+
+    Returns:
+        The complete validated record written to YAML.
+    """
+    return _upsert(waypoint_id, None, True, dict(fields))
+
+
+@api_call(default_verbosity=Verbosity.ACK)
+def update(
+    id_or_name: str,
+    pose: Any = None,
+    current_pose: bool = False,
+    **changes: Any
+) -> Dict[str, Any]:
+    """
+    Partially update an existing waypoint by ID or unique short name.
+
+    Args:
+        id_or_name: Stable waypoint ID or unique complete short name.
+        pose: Optional replacement pose in any supported representation.
+        current_pose: If True, replace its pose with my current map pose.
+        **changes: Record fields or individual pose components to replace.
+
+    Returns:
+        The complete updated waypoint record.
+    """
+    existing = get(id_or_name)
+    if pose is None and not current_pose and not changes:
+        raise ValueError("No waypoint changes were supplied")
+    return _upsert(existing["id"], pose, current_pose, dict(changes))
+
+
+@api_call(default_verbosity=Verbosity.ACK)
+def remove(id_or_name: str) -> Dict[str, Any]:
+    """
+    Delete one persistent waypoint by ID or unique short name.
+
+    Args:
+        id_or_name: Stable waypoint ID or unique complete short name.
+
+    Returns:
+        The record that was removed.
+    """
+    existing = get(id_or_name)
+    return _STORE.persist_remove(existing["id"])
 
 
 @api_call(default_verbosity=Verbosity.BRIEF)

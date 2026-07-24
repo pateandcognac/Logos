@@ -56,6 +56,15 @@ single `nav_waypoints` phantasma renders the enabled records as a layer, while
 logos.waypoints.list()
 logos.waypoints.get("front_door")
 logos.waypoints.reload()
+logos.waypoints.upsert_here(
+    "reading_spot",
+    name="Reading Spot",
+    description="A comfortable map pose by the chair",
+    navigable=True,
+    emoji="📚",
+)
+logos.waypoints.update("reading_spot", theta_deg=90.0)
+logos.waypoints.remove("reading_spot")
 logos.waypoints.go_to("front_door", wait=False)
 ```
 
@@ -64,6 +73,13 @@ position and degree-based RPY pose, a short name, description, UTC creation
 timestamp, and an explicit `navigable` safety flag. Optional emoji, tags,
 render overrides, and free-form metadata add semantics without changing the
 pose contract.
+
+Maintenance writes are validated and atomically replace the YAML file.
+`upsert()` accepts canonical Chora poses, flat `x/y/theta_deg`, coordinate
+sequences, and ROS-style Pose, PoseStamped, Odometry, Transform, or Pose2D
+objects and dictionaries. Quaternion orientations are converted to degree
+RPY. `upsert_here()` captures the current map pose; new records default to
+`navigable=False`. Inputs that explicitly declare a non-map frame are rejected.
 
 The renderer supports `floor`, `pose_billboard`, `camera_billboard`, and
 `marker` modes. A `pin` or RGB `axes` marker and a stored-yaw heading arrow can
