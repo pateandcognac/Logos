@@ -84,7 +84,7 @@ Instances are configured in `hypomnemata/chora/mind_palace_00.yaml` and managed 
 - `mind_palace_00.yaml` — phantasma instances for the Chora render
 - `map3d_tuning.yaml`, `5_mind_palace_schema.yaml` — tuning and schema docs
 
-### System Files (`.system/`) — Do Not Modify
+### System Files (`.system/`) — Ask Mark before modifying
 
 - `system_prompt.txt` — Logos's identity/system prompt (Gemini)
 - `framework_config.json` — framework behavior (model, token limits, io_buffer display)
