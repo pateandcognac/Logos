@@ -42,8 +42,38 @@ Typical module surface:
 - optional `DYNAMIC`, `hud(params, ctx)`, `should_rebuild(params, ctx)`, and
   `cleanup(ctx)`.
 
-Instances are configured in `hypomnemata/chora/mind_palace_00.yaml`. The helper
+Instances are configured in `hypomnemata/chora/mind_palace_00.yaml` or similar. The helper
 conventions live in `src/logos/phantasmata/phantasma_convention.py`.
+
+## Waypoints
+
+My waypoints are first-class spatial records in
+`hypomnemata/chora/waypoints_00.yaml`, not separate mind-palace instances. The
+single `nav_waypoints` phantasma renders the enabled records as a layer, while
+`logos.waypoints` provides the same validated records to navigation:
+
+```python
+logos.waypoints.list()
+logos.waypoints.get("front_door")
+logos.waypoints.reload()
+logos.waypoints.go_to("front_door", wait=False)
+```
+
+Waypoint IDs are stable YAML mapping keys. Each record contains a map-frame
+position and degree-based RPY pose, a short name, description, UTC creation
+timestamp, and an explicit `navigable` safety flag. Optional emoji, tags,
+render overrides, and free-form metadata add semantics without changing the
+pose contract.
+
+The renderer supports `floor`, `pose_billboard`, `camera_billboard`, and
+`marker` modes. A `pin` or RGB `axes` marker and a stored-yaw heading arrow can
+be enabled independently. Camera-facing emoji rotate only around world Z; the
+heading geometry always stays fixed to the stored pose.
+
+OpenMoji assets come from the configured shared directory. Unicode emoji are
+resolved to uppercase codepoint filenames, with an explicit `render.emoji_file`
+override for unusual assets. Missing images degrade to pose geometry instead
+of hiding the waypoint.
 
 ## Relationship To Runtime
 

@@ -21,7 +21,7 @@ Optional:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
+from typing import Any, Callable, Dict, List, Optional, Tuple, TYPE_CHECKING
 import math
 
 if TYPE_CHECKING:
@@ -43,6 +43,9 @@ except Exception:
         costmap_affects: bool = False
         shader: str = "defaultLit"
         point_size: float = 3.0
+        albedo_image: Any = None
+        base_color_rgba: Optional[Tuple[float, float, float, float]] = None
+        has_alpha: bool = False
 
     @dataclass
     class HudElement:
@@ -139,6 +142,9 @@ class PhantasmaContext:
         instance_name: My name from mind_palace.yaml
         instance_config: My full configuration entry from mind_palace.yaml
         render_timestamp: Unix timestamp of this render
+        camera_world_pos: Virtual camera XYZ in the active world frame.
+        look_at_world_pos: Virtual camera target XYZ in the active world frame.
+        warn: Callback for adding a message to this render's warnings.
     """
     # Logos ecosystem
     config: Dict[str, Any] = field(default_factory=dict)
@@ -158,6 +164,13 @@ class PhantasmaContext:
 
     # Timing
     render_timestamp: float = 0.0
+
+    # Virtual camera convenience
+    camera_world_pos: Any = None
+    look_at_world_pos: Any = None
+
+    # Render diagnostics
+    warn: Optional[Callable[[str], None]] = None
 
 
 # ---- Geometry Transform Helpers ----

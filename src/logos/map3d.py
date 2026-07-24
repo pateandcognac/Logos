@@ -182,6 +182,10 @@ class SceneObject:
         costmap_affects (bool): (Placeholder) If True, this virtual object is injected into my physical navigation costmap as an obstacle.
         shader (str): Open3D rendering shader. "defaultLit" responds to virtual lights, "defaultUnlit" glows uniformly (excellent for UI elements/waypoints).
         point_size (float): Display size of points (only applies if kind is "pointcloud").
+        albedo_image (Any): Optional Open3D image used as this object's texture.
+        base_color_rgba (Optional[Tuple[float, float, float, float]]): Optional
+            material multiplier in RGBA order.
+        has_alpha (bool): Whether the material should blend its alpha channel.
 
     Note to self:
         When I write a `build()` function for a new phantasma module, I am constructing 
@@ -195,6 +199,9 @@ class SceneObject:
     costmap_affects: bool = False
     shader: str = "defaultLit"
     point_size: float = 3.0
+    albedo_image: Any = None
+    base_color_rgba: Optional[Tuple[float, float, float, float]] = None
+    has_alpha: bool = False
 
 
 @dataclass
@@ -1275,6 +1282,8 @@ class Map3d:
         instance_name: str,
         instance_config: Dict[str, Any],
         map_snapshot: Optional[MapSnapshot] = None,
+        camera_world_pos: Optional[np.ndarray] = None,
+        look_at_world_pos: Optional[np.ndarray] = None,
     ) -> Any:
         """
         Create a PhantasmaContext for a build() or hud() call.
@@ -1283,6 +1292,8 @@ class Map3d:
             instance_name: Name of the instance being built
             instance_config: Configuration dict for this instance
             map_snapshot: Current frozen map state
+            camera_world_pos: Current virtual camera position in the world frame
+            look_at_world_pos: Current virtual camera target in the world frame
 
         Returns:
             PhantasmaContext instance
@@ -1334,6 +1345,17 @@ class Map3d:
             instance_name=instance_name,
             instance_config=instance_config,
             render_timestamp=time.time(),
+            camera_world_pos=(
+                np.array(camera_world_pos, dtype=np.float64, copy=True)
+                if camera_world_pos is not None
+                else None
+            ),
+            look_at_world_pos=(
+                np.array(look_at_world_pos, dtype=np.float64, copy=True)
+                if look_at_world_pos is not None
+                else None
+            ),
+            warn=self._add_render_warning,
         )
 
     def _merge_params_with_schema(
@@ -2757,11 +2779,41 @@ class Map3d:
                 costmap_affects=obj.costmap_affects,
                 shader=obj.shader,
                 point_size=obj.point_size,
+                albedo_image=getattr(obj, "albedo_image", None),
+                base_color_rgba=getattr(obj, "base_color_rgba", None),
+                has_alpha=bool(getattr(obj, "has_alpha", False)),
             )
             return clipped
         except Exception as e:
             print(f"[map3d] camera clip failed for {obj.name}: {e}")
             return obj
+
+    def _make_scene_object_material(self, obj: SceneObject) -> Any:
+        """
+        Build an Open3D 0.13 material from declarative SceneObject fields.
+
+        This method runs only on my dedicated render thread. Phantasmata can
+        describe textures and alpha without owning thread-affine Filament
+        state themselves.
+        """
+        mat = rendering.Material()
+        mat.shader = getattr(obj, "shader", "defaultLit")
+
+        if getattr(obj, "kind", "mesh") == "pointcloud":
+            mat.point_size = float(getattr(obj, "point_size", 3.0))
+
+        albedo_image = getattr(obj, "albedo_image", None)
+        if albedo_image is not None and hasattr(mat, "albedo_img"):
+            mat.albedo_img = albedo_image
+
+        base_color = getattr(obj, "base_color_rgba", None)
+        if base_color is not None and hasattr(mat, "base_color"):
+            mat.base_color = [float(component) for component in base_color]
+
+        if bool(getattr(obj, "has_alpha", False)) and hasattr(mat, "has_alpha"):
+            mat.has_alpha = True
+
+        return mat
 
     def _render_scene(
         self,
@@ -2859,7 +2911,13 @@ class Map3d:
             if not instance_config.get('render_visible', True):
                 continue
 
-            ctx = self._build_phantasma_context(instance_name, instance_config, map_snapshot)
+            ctx = self._build_phantasma_context(
+                instance_name,
+                instance_config,
+                map_snapshot,
+                camera_world_pos=camera_world_pos,
+                look_at_world_pos=look_at_world_pos,
+            )
             built_objects = self._build_phantasma_instance(
                 instance_name, instance_config, ctx
             )
@@ -2874,13 +2932,7 @@ class Map3d:
                         continue
                     phantasma_objects.append(obj)
 
-                    # Create material for this object
-                    mat = rendering.Material()
-                    shader = getattr(obj, 'shader', 'defaultLit')
-                    mat.shader = shader
-
-                    if getattr(obj, 'kind', 'mesh') == "pointcloud":
-                        mat.point_size = float(getattr(obj, 'point_size', 3.0))
+                    mat = self._make_scene_object_material(obj)
 
                     scene.add_geometry(
                         f"phantasma:{instance_name}:{getattr(obj, 'name', 'geom')}",
@@ -2897,10 +2949,7 @@ class Map3d:
         for obj in objs_live:
             if not obj.render_visible:
                 continue
-            mat = rendering.Material()
-            mat.shader = obj.shader
-            if obj.kind == "pointcloud":
-                mat.point_size = float(obj.point_size)
+            mat = self._make_scene_object_material(obj)
             scene.add_geometry(f"obj:{obj.name}", obj.geometry, mat)
 
         # Freeze all objects (legacy + phantasmata) for raycasting

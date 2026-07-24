@@ -30,6 +30,20 @@ instances:
     render_visible: true
     raycast_visible: false
 
+  nav_waypoints:
+    object: waypoints
+    description: "My persistent named poses with semantic emoji markers"
+    params:
+      default_mode: camera_billboard
+      default_scale_m: 0.35
+      default_icon_height_m: 0.25
+      default_marker: pin
+      default_show_heading: true
+      marker_color: [1.0, 0.55, 0.08]
+    shader: defaultUnlit
+    render_visible: true
+    raycast_visible: false
+
   rtabmap_world_cloud:
     object: rtabmap_world
     description: "Static RTAB-Map world cloud for long-lived spatial context"

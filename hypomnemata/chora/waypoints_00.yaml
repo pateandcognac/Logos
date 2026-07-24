@@ -1,2 +1,52 @@
-# emoji billboards on floor, or floating
-# maybe have different waypoint yamls with different focuses. 
+# My persistent, named poses in the ROS map frame.
+#
+# I edit this file by hand for the MVP, then call:
+#   logos.waypoints.reload()
+#
+# Example:
+#   front_door:
+#     name: Front Door
+#     description: "A safe stopping pose inside the front door"
+#     pose:
+#       position: [1.0, 2.0, 0.0]
+#       rpy_deg: [0.0, 0.0, 90.0]
+#     created_at: "2026-07-23T12:00:00Z"
+#     navigable: true
+#     emoji: "🚪"
+#     tags: [door, entrance]
+#     render:
+#       mode: camera_billboard
+#       scale_m: 0.35
+#       icon_height_m: 0.25
+#       marker: pin
+#       show_heading: true
+#     metadata:
+#       source: manual
+
+schema_version: 1
+frame: map
+waypoints:
+  office_charging_nook:
+    name: Cozy Charging Nook
+    description: >
+      My cozy charging pose in the office, facing Mark's chair in front of
+      the desk and beside the dark wood chest.
+    pose:
+      position: [0.2630340181114818, 0.013192645227263001, 0.0]
+      rpy_deg: [0.0, 0.0, -78.04273564435042]
+    created_at: "2026-07-24T01:34:37Z"
+    navigable: true
+    emoji: "🔌"
+    tags: [office, charging, dock, cozy]
+    render:
+      mode: floor
+      scale_m: 0.45
+      marker: none
+      show_heading: false
+    metadata:
+      source: manual
+      landmarks:
+        - "Mark's chair in front of the desk"
+        - "dark wood chest"
+      source_orientation_xyzw:
+        [0.0, 0.0, -0.6296101752009908, 0.7769112093948559]

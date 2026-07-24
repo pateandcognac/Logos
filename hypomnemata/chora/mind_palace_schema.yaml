@@ -23,12 +23,16 @@ instances:
 
   nav_waypoints:
     object: waypoints
-    description: "My navigation waypoints with emoji/image markers"
+    description: "My persistent named poses with semantic emoji markers"
     params:
-      waypoints_file: hypomnemata/waypoints.yaml
-      default_render_mode: billboard  # billboard | theta | floor
-      show_floor_arrow: true
-      emoji_set: openmoji             # Directory of emoji PNGs
+      default_mode: camera_billboard  # floor | pose_billboard | camera_billboard | marker
+      default_scale_m: 0.35
+      default_icon_height_m: 0.25
+      default_marker: pin             # none | pin | axes
+      default_show_heading: true
+      marker_color: [1.0, 0.55, 0.08]
+    shader: defaultUnlit
+    render_visible: true
     raycast_visible: false
 
   obstacle_plane:
@@ -91,5 +95,4 @@ instances:
       color_normal: [0.4, 0.4, 0.4]
       color_warn: [1.0, 0.8, 0.0]
       color_crit: [1.0, 0.0, 0.0]
-
 

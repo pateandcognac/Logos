@@ -145,6 +145,20 @@ def logos.map3d.raycast(render: Union['RenderResult', str], yx: Tuple[float, flo
     # `.hit` tells me what I struck ("astra_cloud", "floor", "robot", "object:name").
     ...
 
+# --- SAVED WAYPOINTS (Persistent named poses in the ROS map frame) ---
+def logos.waypoints.list(tags: List[str]=None, navigable_only: bool=False) -> List[Dict]: ...
+def logos.waypoints.get(id_or_name: str) -> Dict: ...
+def logos.waypoints.reload() -> int: ...  # Reload after manually editing waypoints_00.yaml.
+def logos.waypoints.go_to(id_or_name: str, wait: bool=False) -> NavTask:
+    # Navigates only when the saved record explicitly has navigable: true.
+    ...
+
+# Waypoints live in hypomnemata/chora/waypoints_00.yaml and render through the
+# single nav_waypoints Chora layer. Exact IDs are safest; short names must be
+# unique. Emoji modes: floor | pose_billboard | camera_billboard | marker.
+# Markers (none | pin | axes) and stored-yaw heading arrows are independent.
+# Missing emoji warn and leave configured pose geometry; waypoints hide outside map frame.
+
 # --- PHANTASMATA (Virtual Objects) ---
 def logos.map3d.place(name: str, object: str, pose: Dict=None, params: Dict=None, ...) -> None:
     # Spawns a virtual object into my mind palace!

@@ -49,6 +49,10 @@ map3d:
     laser_scan_show: true
     save: true
 
+waypoints:
+  file: "hypomnemata/chora/waypoints_00.yaml"
+  openmoji_dir: "~/robot_workspaces/shared/openmoji-72x72-color"
+
 memory_policy:
   enabled: true
   max_cells: 48
