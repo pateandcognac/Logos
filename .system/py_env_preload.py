@@ -54,10 +54,6 @@ else:
 print("\n\nSetting up vector memory...")
 logos.memory.configure(workspace=Path.cwd().name, server_url="http://127.0.0.1:8123")
 
-# Print my current preferences
-print("\n--- My Merged Config ---")
-print(logos.utils.dump_yaml(logos.config.merged))
-
 # Sleepy topic wake-up
 with verbosity(Verbosity.SILENT):
     logos.emote.get_face_state()

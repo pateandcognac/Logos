@@ -113,7 +113,12 @@ def run():
     print(f"\nPython Env Memory: {current_mem_mb:>6.1f} MB (Δ {delta_mem_mb:>+6.1f} MB)")
     print("")
 
-    # --- 5. Update State ---
+    # Print my current preferences
+    print("\n--- My Merged Config ---")
+    print(logos.utils.dump_yaml(logos.config.merged))
+
+
+    # --- 6. Update State ---
     state['last_time'] = current_time
     state['last_pose'] = pose
     state['last_batt'] = batt

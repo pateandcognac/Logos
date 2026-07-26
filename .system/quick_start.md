@@ -3,16 +3,16 @@
 # My personal, comprehensive reference for how to pilot my body and mind.
 #
 # DESIGN PHILOSOPHY:
-# 1. Everything is available JIT (Just-In-Time) in my <py> loops. No imports needed for `logos.*`.
-# 2. Actions with side-effects have a implicit, silent `verbosity` kwarg (Verbosity.SILENT, ACK, BRIEF, DEBUG).
-# 3. Asynchronous primitives (SpeakTask, NavTask) are meant to be composed and synchronized!
-# 2. All pixel space detections are normalized 0-1000 [y, x] or [y_min, x_min, y_max, x_max], regardless of model.
+# 1. No imports needed for `logos.*`. Everything is available in my <py> blocks for JIT coding.
+# 2. Actions with side-effects have a implicit, silent `verbosity` kwarg (Verbosity.SILENT, ACK, BRIEF, DEBUG) that I use to adjust the level of feedback I get.
+# 3. Asynchronous primitives (like SpeakTask, NavTask, etc.) are meant to be composed and synchronized to enrich my physical actions.
+# 4. All pixel space detections are normalized 0-1000 [y, x] or [y_min, x_min, y_max, x_max] for maximum compatibility across models and helpers.
 # ==============================================================================
 
 # ==============================================================================
 # 🧩 MY CORE COMPOSABLE PRIMITIVES
 # These objects are my superpowers for multitasking. I save them to variables and 
-# interact with them in loops to weave perception, movement, and performance.
+# interact with them programmatically to weave perception, movement, and performance.
 # ==============================================================================
 
 class CaptureResult:
@@ -46,11 +46,11 @@ class CaptureResult:
     def view(self, meta_keys: List[str]=None) -> None: ...
 
 class SpeakTask:
-    """Handle for my async Text-to-Performance engine. My brain speaks faster than my mouth."""
+    """Handle for my async Text-to-Performance engine."""
     def is_active(self) -> bool: ... # True if audio/animatronics are running
     def wait(self) -> bool: ...      # Blocks loop until finished. Yields to cooperative interrupts.
     def progress(self) -> float: ... # 0.0 to 1.0 audio progress.
-    def current_emoji(self) -> str: ... # The EXACT emoji driving my face/arms right now.
+    def current_emoji(self) -> str: ... # The emoji driving my face/arms right now.
     def current_text(self) -> str: ...  # The text snippet being spoken right now.
 
 class NavTask:
@@ -93,7 +93,7 @@ def logos.vision.annotate_image(image: Union[np.ndarray, CaptureResult], detecti
     # Handy if I want to confirm my own detections, or before logos.emote.hud_image(...)
     ...
 
-# --- MODELS (Lazy-loaded local singletons) ---
+# --- MODELS (pre-loaded singletons) ---
 def logos.models.yolo11(image: Union[np.ndarray, CaptureResult], classes: List[str]=None, conf: float=0.5) -> Union[List[Dict], Tuple[List[Dict], CaptureResult]]:
     # Blazing fast. 80 COCO classes. Perfect for high-frequency tracking loops.
     # Returns: [{"label": "person", "box_2d": [y1, x1, y2, x2], "confidence": 0.88}, ...]
@@ -101,7 +101,7 @@ def logos.models.yolo11(image: Union[np.ndarray, CaptureResult], classes: List[s
     ...
 
 def logos.models.yolo_world(image: Union[np.ndarray, CaptureResult], prompts: List[str], conf: float=0.1) -> Union[List[Dict], Tuple[List[Dict], CaptureResult]]:
-    # Zero-shot open vocabulary (8000+ concepts/attributes). "red cup", "open door".
+    # Zero-shot open vocabulary (8000+ concepts/attributes). "red cup", "man in purple shirt".
     # If passed CaptureResult: returns (detections, result) and writes result.meta["det_yolo_world"].
     ...
 
@@ -113,14 +113,15 @@ def logos.models.yoloe(image: Union[np.ndarray, CaptureResult], prompts: List[st
     ...
 
 def logos.models.hands(image: Union[np.ndarray, CaptureResult], max_hands: int=2) -> Union[List[Dict], Tuple[List[Dict], CaptureResult]]:
-    # Lightning fast Mediapipe. "gesture": "pointing_up|pointing_down|pointing_left|pointing_right|hand_up|hand_down|thumbs_up|thumbs_down|peace|ok|open_palm|closed_fist|unknown"
+    # Lightning fast Mediapipe.
+    # Returns gesture classification: [pointing_up|pointing_down|pointing_left|pointing_right|hand_up|hand_down|thumbs_up|thumbs_down|peace|ok|open_palm|closed_fist|unknown]
     # Includes 21-point "landmarks" and "center_2d" in 0-1000 space.
     # If passed CaptureResult: returns (detections, result) and writes result.meta["det_hands"].
     ...
 
 def logos.models.llm(prompt: str, model_alias: str='fast', temperature: float=1.0) -> str:
     # Out-of-band stateless call to my own intelligence!
-    # WARNING: It has NO system prompt, NO memory, NO tools, NO vision. Pure text-in, text-out.
+    # IMPORTANT: It has NO system prompt, NO memory, NO tools, NO vision. Pure text-in, text-out.
     ...
 
 
